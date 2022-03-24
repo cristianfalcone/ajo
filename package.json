@@ -1,0 +1,19 @@
+{
+  "name": "ajo",
+  "version": "0.0.1",
+  "description": "ajo is a JavaScript view library for building user interfaces",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cristianfalcone/ajo.git"
+  },
+  "author": "Cristian Falcone",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cristianfalcone/ajo/issues"
+  },
+  "homepage": "https://github.com/cristianfalcone/ajo#readme"
+}
