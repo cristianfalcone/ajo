@@ -1,3 +1,6 @@
+const { isArray } = Array
+const { hasOwn, keys } = Object
+
 export const Skip = Symbol()
 export const Fragment = ({ children }) => children
 export const Portal = ({ host, children }) => render(host, children)
@@ -6,39 +9,39 @@ const Element = Symbol()
 
 export const createElement = (name, props, ...children) => {
   const { length } = children
-  children = length == 0 ? null : length == 1 ? children[0] : children
-  return { children, ...props, [Element]: name }
+  if (length > 0) (props ?? (props = {})).children = length === 1 ? children[0] : children
+  return { ...props, [Element]: name }
 }
 
 function* g(vnode, host) {
-  const vnodes = Array.isArray(vnode) ? vnode : [vnode]
-  let textContent = ''
+  const vnodes = isArray(vnode) ? vnode : [vnode]
+  let data = ''
 
   while (vnodes.length > 0) {
     vnode = vnodes.shift()
 
-    if (vnode == null || typeof vnode == 'boolean') continue
-    if (typeof vnode == 'string') textContent += vnode
-    else if (Object.hasOwn(vnode, Element)) {
+    if (vnode == null || typeof vnode === 'boolean') continue
+    if (typeof vnode === 'string') data += vnode
+    else if (hasOwn(vnode, Element)) {
       const { [Element]: name } = vnode
 
-      if (typeof name == 'function') {
+      if (typeof name === 'function') {
         vnodes.unshift(name(vnode, host))
         continue
       }
 
-      if (textContent) {
-        yield { [Element]: '#text', textContent }
-        textContent = ''
+      if (data) {
+        yield { [Element]: '#text', data }
+        data = ''
       }
 
       yield vnode
-    } else typeof vnode[Symbol.iterator] == 'function'
+    } else typeof vnode[Symbol.iterator] === 'function'
       ? vnodes.unshift(...vnode)
-      : textContent += vnode
+      : data += vnode
   }
 
-  if (textContent) yield { [Element]: '#text', textContent }
+  if (data) yield { [Element]: '#text', data }
 }
 
 export const render = (vnode, host) => {
@@ -46,7 +49,7 @@ export const render = (vnode, host) => {
 
   for (const { [Element]: name, ref, children, ...props } of g(vnode, host)) {
 
-    if (name == Skip) {
+    if (name === Skip) {
       child = props.end ? null : child?.nextSibling ?? null
       continue
     }
@@ -54,26 +57,28 @@ export const render = (vnode, host) => {
     let node = child
 
     while (node != null) {
-      if (String(node.nodeName).toLowerCase() === name && node.getAttribute?.('key') == props.key) break
+      if (node.nodeName.toLowerCase() === name && node.getAttribute?.('key') == props.key) break
       node = node.nextSibling
     }
 
-    if (node == null) node = name == '#text'
+    if (node == null) node = name === '#text'
       ? document.createTextNode('')
       : document.createElement(name)
 
-    patch(props, node)
+    if (name === '#text') {
+      if (node.data !== props.data) node.data = props.data
+    } else {
+      patch(props, node)
+      setRef(ref, node)
+      render(children, node)
+    }
 
-    if (typeof ref == 'function') ref(node)
-
-    if (children != null) render(children, node)
-
-    if (node == child) child = child.nextSibling
+    if (node === child) child = child.nextSibling
     else if (node.contains?.(document.activeElement)) {
       const { nextSibling } = node
       let ref = child
 
-      while (ref != null && ref != node) {
+      while (ref != null && ref !== node) {
         const next = ref.nextSibling
         host.insertBefore(ref, nextSibling)
         ref = next
@@ -83,17 +88,17 @@ export const render = (vnode, host) => {
 
   while (child != null) {
     const { nodeType, nextSibling } = child
-    if (nodeType == 1) dispose(child)
+    if (nodeType === 1) dispose(child)
     host.removeChild(child)
     child = nextSibling
   }
 }
 
 const patch = (props, node) => {
-  for (const name of new Set([...(node.getAttributeNames?.() ?? []), ...Object.keys(props)])) {
+  for (const name of new Set([...node.getAttributeNames(), ...keys(props)])) {
     let value = props[name]
 
-    if (name in node && !(typeof value == 'string' && typeof node[name] == 'boolean')) {
+    if (name in node && !(typeof value === 'string' && typeof node[name] === 'boolean')) {
       try {
         if (node[name] !== value) node[name] = value
         continue
@@ -110,7 +115,12 @@ const patch = (props, node) => {
   }
 }
 
-const components = new WeakMap()
+const setRef = (ref, node) => {
+  if (typeof ref === 'function') ref(node)
+  else if (typeof ref === 'object' && ref !== null) ref.current = node
+}
+
+const components = new WeakMap
 
 export const createComponent = fn => ({ is, host, key, ref, ...props }) =>
   createElement(is ?? fn.is ?? 'div', {
@@ -119,7 +129,7 @@ export const createComponent = fn => ({ is, host, key, ref, ...props }) =>
       if (cmp == null) components.set(host, cmp = new Component(host, fn))
       cmp.props = { ...fn.props, ...props }
       cmp.update()
-      if (typeof ref == 'function') ref(host)
+      setRef(ref, host)
     }
   })
 
@@ -139,7 +149,7 @@ class Component {
     try {
       if (this.it == null) {
         const init = this.fn.call(this, this.props, this.host)
-        this.it = typeof init?.next == 'function' ? init : generate(init, this)
+        this.it = typeof init?.next === 'function' ? init : generate.call(this, init)
       }
 
       const { value, done } = this.it[method](arg)
@@ -157,15 +167,15 @@ class Component {
   }
 }
 
-function* generate(init, ctx) {
+function* generate(init) {
   yield init
-  for (const props of ctx) yield ctx.fn.call(ctx, props, ctx.host)
+  for (const props of this) yield this.fn.call(this, props, this.host)
 }
 
 const propagate = (el, err) => {
   if (el == null) throw err
   const cmp = components.get(el)
-  typeof cmp?.it?.throw == 'function'
+  typeof cmp?.it?.throw === 'function'
     ? cmp.update({ method: 'throw', arg: err })
     : propagate(el.parentNode, err)
 }
