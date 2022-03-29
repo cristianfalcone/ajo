@@ -37,4 +37,12 @@ it('should render a vnode', () => {
   assert.snapshot(host.innerHTML, '<div foo="bar">foobar</div>')
 })
 
+it('should render a component', () => {
+  const host = document.createElement('div')
+  const Foo = ({ foo, children }) => createElement('div', { foo }, children)
+  debugger
+  render(createElement(Foo, { foo: 'bar' }, createElement('span', null, 'foobar')), host)
+  assert.snapshot(host.innerHTML, '<div foo="bar"><span>foobar</span></div>')
+})
+
 it.run()

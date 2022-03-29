@@ -8,9 +8,11 @@ export const Portal = ({ host, children }) => render(host, children)
 const Element = Symbol()
 
 export const createElement = (name, props, ...children) => {
-  const { length } = children
-  if (length > 0) (props ?? (props = {})).children = length === 1 ? children[0] : children
-  return { ...props, [Element]: name }
+  props = { ...props }
+  children = props.children ?? children
+  if (children.length > 0) props.children = children.length === 1 ? children[0] : children
+  props[Element] = name
+  return props
 }
 
 function* g(vnode, host) {
@@ -45,6 +47,8 @@ function* g(vnode, host) {
 }
 
 export const render = (vnode, host) => {
+  if (host?.nodeType !== Node.ELEMENT_NODE) return
+
   let child = host.firstChild
 
   for (const { [Element]: name, ref, children, ...props } of g(vnode, host)) {
@@ -65,13 +69,12 @@ export const render = (vnode, host) => {
       ? document.createTextNode('')
       : document.createElement(name)
 
-    if (name === '#text') {
-      if (node.data !== props.data) node.data = props.data
-    } else {
-      patch(props, node)
-      setRef(ref, node)
-      render(children, node)
-    }
+    patch(props, node)
+
+    if (typeof ref === 'function') ref(node)
+    else if (typeof ref === 'object' && ref !== null) ref.current = node
+    
+    render(children, node)
 
     if (node === child) child = child.nextSibling
     else if (node.contains?.(document.activeElement)) {
@@ -88,13 +91,18 @@ export const render = (vnode, host) => {
 
   while (child != null) {
     const { nodeType, nextSibling } = child
-    if (nodeType === 1) dispose(child)
+    if (nodeType === Node.ELEMENT_NODE) dispose(child)
     host.removeChild(child)
     child = nextSibling
   }
 }
 
 const patch = (props, node) => {
+  if (node.nodeType === Node.TEXT_NODE) {
+    if (node.data !== props.data) node.data = props.data
+    return
+  }
+
   for (const name of new Set([...node.getAttributeNames(), ...keys(props)])) {
     let value = props[name]
 
@@ -115,21 +123,15 @@ const patch = (props, node) => {
   }
 }
 
-const setRef = (ref, node) => {
-  if (typeof ref === 'function') ref(node)
-  else if (typeof ref === 'object' && ref !== null) ref.current = node
-}
-
 const components = new WeakMap
 
-export const createComponent = fn => ({ is, host, key, ref, ...props }) =>
+export const createComponent = fn => ({ is, host, key, ...props }) =>
   createElement(is ?? fn.is ?? 'div', {
-    ...fn.host, ...host, key, ['ref']: host => {
+    ...fn.host, ...host, key, ref: host => {
       let cmp = components.get(host)
       if (cmp == null) components.set(host, cmp = new Component(host, fn))
       cmp.props = { ...fn.props, ...props }
       cmp.update()
-      setRef(ref, host)
     }
   })
 
@@ -163,7 +165,7 @@ class Component {
   }
 
   *[Symbol.iterator]() {
-    while (true) yield this.props
+    while (this.host) yield this.props
   }
 }
 
