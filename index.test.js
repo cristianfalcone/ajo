@@ -1,7 +1,7 @@
 import 'backdom/register.js'
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
-import { createElement, render, } from './index.js'
+import { createComponent, createElement, render, } from './index.js'
 
 let it
 
@@ -37,12 +37,19 @@ it('should render a vnode', () => {
   assert.snapshot(host.innerHTML, '<div foo="bar">foobar</div>')
 })
 
-it('should render a component', () => {
+it('should render a stateless component', () => {
   const host = document.createElement('div')
   const Foo = ({ foo, children }) => createElement('div', { foo }, children)
   debugger
   render(createElement(Foo, { foo: 'bar' }, createElement('span', null, 'foobar')), host)
   assert.snapshot(host.innerHTML, '<div foo="bar"><span>foobar</span></div>')
+})
+
+it('should render a stateful component', () => {
+  const host = document.createElement('div')
+  const Foo = createComponent(({ foo, children }) => createElement('div', { foo }, children))
+  render(createElement(Foo, { is: 'foo-component', foo: 'bar' }, createElement('span', null, 'foobar')), host)
+  assert.snapshot(host.innerHTML, '<foo-component><div foo="bar"><span>foobar</span></div></foo-component>')
 })
 
 it.run()

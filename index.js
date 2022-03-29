@@ -7,6 +7,8 @@ export const Portal = ({ host, children }) => render(host, children)
 
 const Element = Symbol()
 
+export const createTextNode = data => ({ [Element]: '#text', data, skip: true })
+
 export const createElement = (name, props, ...children) => {
   props = { ...props }
   children = props.children ?? children
@@ -33,7 +35,7 @@ function* g(vnode, host) {
       }
 
       if (data) {
-        yield { [Element]: '#text', data }
+        yield createTextNode(data)
         data = ''
       }
 
@@ -43,15 +45,13 @@ function* g(vnode, host) {
       : data += vnode
   }
 
-  if (data) yield { [Element]: '#text', data }
+  if (data) yield createTextNode(data)
 }
 
 export const render = (vnode, host) => {
-  if (host?.nodeType !== Node.ELEMENT_NODE) return
-
   let child = host.firstChild
 
-  for (const { [Element]: name, ref, children, ...props } of g(vnode, host)) {
+  for (const { [Element]: name, ref, skip, children, ...props } of g(vnode, host)) {
 
     if (name === Skip) {
       child = props.end ? null : child?.nextSibling ?? null
@@ -74,7 +74,7 @@ export const render = (vnode, host) => {
     if (typeof ref === 'function') ref(node)
     else if (typeof ref === 'object' && ref !== null) ref.current = node
     
-    render(children, node)
+    skip || render(children, node)
 
     if (node === child) child = child.nextSibling
     else if (node.contains?.(document.activeElement)) {
@@ -90,8 +90,8 @@ export const render = (vnode, host) => {
   }
 
   while (child != null) {
-    const { nodeType, nextSibling } = child
-    if (nodeType === Node.ELEMENT_NODE) dispose(child)
+    const { nextSibling } = child
+    if (child.nodeType === Node.ELEMENT_NODE) dispose(child)
     host.removeChild(child)
     child = nextSibling
   }
@@ -127,7 +127,7 @@ const components = new WeakMap
 
 export const createComponent = fn => ({ is, host, key, ...props }) =>
   createElement(is ?? fn.is ?? 'div', {
-    ...fn.host, ...host, key, ref: host => {
+    ...fn.host, ...host, key, skip: true, ref: host => {
       let cmp = components.get(host)
       if (cmp == null) components.set(host, cmp = new Component(host, fn))
       cmp.props = { ...fn.props, ...props }
