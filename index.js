@@ -10,12 +10,13 @@ const Element = Symbol()
 export const createTextNode = data => ({ [Element]: '#text', data, skip: true })
 
 export const createElement = (name, props, ...children) => {
-  props = { ...props }
+  props = { ...props, [Element]: name }
   children = props.children ?? children
   if (children.length > 0) props.children = children.length === 1 ? children[0] : children
-  props[Element] = name
   return props
 }
+
+export const isElement = el => hasOwn(el ?? {}, Element)
 
 function* g(vnode, host) {
   const vnodes = isArray(vnode) ? vnode : [vnode]
@@ -26,7 +27,7 @@ function* g(vnode, host) {
 
     if (vnode == null || typeof vnode === 'boolean') continue
     if (typeof vnode === 'string') data += vnode
-    else if (hasOwn(vnode, Element)) {
+    else if (isElement(vnode)) {
       const { [Element]: name } = vnode
 
       if (typeof name === 'function') {
@@ -73,7 +74,7 @@ export const render = (vnode, host) => {
 
     if (typeof ref === 'function') ref(node)
     else if (typeof ref === 'object' && ref !== null) ref.current = node
-    
+
     skip || render(children, node)
 
     if (node === child) child = child.nextSibling

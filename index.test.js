@@ -1,7 +1,7 @@
 import 'backdom/register.js'
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
-import { createComponent, createElement, render, } from './index.js'
+import { createComponent, createElement, isElement, render, } from './index.js'
 
 let it
 
@@ -10,7 +10,9 @@ let it
 it = suite('createElement')
 
 it('should create empty vnode', () => {
-  assert.equal(createElement('div'), {})
+  const vnode = createElement('div')
+  assert.ok(isElement(vnode))
+  assert.equal(vnode, {})
 })
 
 it('should create vnode with props', () => {
@@ -22,7 +24,15 @@ it('should create vnode with one string child', () => {
 })
 
 it('should create vnode with one vnode child', () => {
-  assert.equal(createElement('div', null, createElement('span')), { children: {} })
+  const child = createElement('span')
+  const vnode = createElement('div', null, child)
+  assert.ok(isElement(vnode.children))
+})
+
+it('should allow children as prop', () => {
+  const child = createElement('span')
+  const vnode = createElement('div', { children: child })
+  assert.ok(isElement(vnode.children))
 })
 
 it.run()
