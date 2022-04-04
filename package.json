@@ -3,26 +3,22 @@
   "version": "0.0.6",
   "description": "ajo is a JavaScript view library for building user interfaces",
   "type": "module",
-  "main": "cjs/index.js",
+  "module": "index.js",
+  "main": "index.cjs",
   "exports": {
     ".": {
       "import": "./index.js",
-      "require": "./cjs/index.js"
+      "require": "./index.cjs"
     }
   },
   "scripts": {
-    "build": "esbuild --outdir=cjs --format=cjs index.js",
+    "build": "esbuild --format=cjs --out-extension:.js=.cjs --outdir=. index.js",
     "test": "uvu"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/cristianfalcone/ajo.git"
-  },
+  "repository": "cristianfalcone/ajo",
   "author": "Cristian Falcone",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/cristianfalcone/ajo/issues"
-  },
+  "bugs": "https://github.com/cristianfalcone/ajo/issues",
   "homepage": "https://github.com/cristianfalcone/ajo#readme",
   "devDependencies": {
     "backdom": "^0.0.3",
