@@ -1,4 +1,4 @@
-import 'backdom/register.js'
+import 'backdom/register'
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
 import { createComponent, createElement, isElement, render, } from './index.js'
