@@ -1,7 +1,7 @@
 # ajo
 ajo is a JavaScript view library for building user interfaces
 
-```bash
+```sh
 npm install ajo
 ```
 
@@ -12,12 +12,12 @@ Instead, generated virtual DOM is diffed against the actual DOM, and changes are
 This reduces memory usage and makes ajo code more simple and concise. As a result, ajo is easy to read and maintain, but lacks perfomance oportunities that diffing two virtual DOM trees can provide.
 
 ```jsx
-/** @jsx createElement */
-import { render, createElement } from 'ajo'
+/** @jsx h */
+import { h, render } from 'ajo'
 
 document.body.innerHTML = '<div>Hello World</div>'
 
-render(<div>Goodbye World</div>, document.body)
+render(document.body, <div>Goodbye World</div>)
 ```
 
 ## Stateless components
@@ -26,12 +26,12 @@ This type of components are ment to be "consumers" of data.
 No state is preserved between invocations, so generated virtual DOM should rely exclusively on function's arguments. 
 
 ```jsx
-/** @jsx createElement */
-import { render, createElement } from 'ajo'
+/** @jsx h */
+import { h, render } from 'ajo'
 
 const Greet = ({ name }) => <div>Hello {name}</div>
 
-render(<Greet name="World" />, document.body)
+render(document.body, <Greet name="World" />)
 ```
 
 ## Stateful components
@@ -41,23 +41,22 @@ State is declared in a generator function local scope.
 Then ajo asociates the returned iterator with the host, and updates host children nodes each time, retrieving iterator's next value. Lifecycle of these components are closely related to its host nodes, and generator function provides a way to manage them.
 
 ```jsx
-/** @jsx createElement */
-import { render, createElement, createComponent } from 'ajo'
+/** @jsx h */
+import { h, component, render, refresh } from 'ajo'
 
-const Counter = createComponent(function* () {
-	let count = 1
-	
-	const increment = () => {
-		count++
-		this.update()
-	}
-	
-	for ({} of this) yield (
-		<button onclick={increment}>
-			Current: {count}
-		</button>
-	)
+const Counter = component(({ start = 0 }, host) => {
+  let count = start
+  
+  const increment = () => {
+    count++
+    refresh(host)
+  }
+  
+  return () =>
+    <button onclick={increment}>
+      Current: {count}
+    </button>
 })
 
-render(<Counter />, document.body)
+render(document.body, <Counter start={1} />)
 ```
