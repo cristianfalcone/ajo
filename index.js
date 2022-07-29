@@ -96,8 +96,7 @@ export const
 
 const
   wm = () => {
-    const instance = new WeakMap
-    const { set } = instance
+    const instance = new WeakMap, { set } = instance
     instance.set = (key, value) => (set.call(instance, key, value), value)
     return instance
   },
