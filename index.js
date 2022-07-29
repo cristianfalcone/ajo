@@ -81,7 +81,7 @@ export const
 
   propagate = (host, error) => {
     for (let interceptor; host; host = host.parentNode)
-      if (interceptor = interceptors.get(host)) return render(host, interceptor(error))
+      if (interceptor = interceptors.get(host)) return render(interceptor(error), host)
     throw error
   },
 
