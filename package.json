@@ -12,12 +12,15 @@
       "browser": "./index.min.js"
     }
   },
+  "files": [
+    "index.min.js"
+  ],
   "scripts": {
     "build": "npm run build:require && npm run build:browser",
     "build:require": "esbuild --format=cjs --out-extension:.js=.cjs --outdir=. index.js",
     "build:browser": "esbuild --format=iife --out-extension:.js=.min.js --outdir=. --global-name=ajo --minify index.js",
-    "release": "npm run build && npm t && git commit -am \"$npm_package_version\" && git tag $npm_package_version && git push && git push --tags && npm publish",
-    "test": "uvu"
+    "release": "npm test && git commit -am \"$npm_package_version\" && git tag $npm_package_version && git push && git push --tags && npm publish",
+    "test": "npm run build && uvu"
   },
   "repository": "cristianfalcone/ajo",
   "author": "Cristian Falcone",
