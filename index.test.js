@@ -11,27 +11,27 @@ it = suite('h')
 
 it('should create empty vnode', () => {
   const vnode = h('div')
-  assert.equal(vnode, { tagName: 'div', children: null })
+  assert.equal(vnode, { nodeName: 'div', children: null })
 })
 
 it('should create vnode with props', () => {
-  assert.equal(h('div', { id: 'app' }), { tagName: 'div', children: null, id: 'app' })
+  assert.equal(h('div', { id: 'app' }), { nodeName: 'div', children: null, id: 'app' })
 })
 
 it('should create vnode with one string child', () => {
-  assert.equal(h('div', null, 'foo'), { tagName: 'div', children: 'foo' })
+  assert.equal(h('div', null, 'foo'), { nodeName: 'div', children: 'foo' })
 })
 
 it('should create vnode with one vnode child', () => {
   const child = h('span')
   const vnode = h('div', null, child)
-  assert.equal(vnode.children, { tagName: 'span', children: null })
+  assert.equal(vnode.children, { nodeName: 'span', children: null })
 })
 
 it('should allow children as prop', () => {
   const child = h('span')
   const vnode = h('div', { children: child })
-  assert.equal(vnode.children, { tagName: 'span', children: null })
+  assert.equal(vnode.children, { nodeName: 'span', children: null })
 })
 
 it.run()
