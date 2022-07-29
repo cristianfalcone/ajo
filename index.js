@@ -1,12 +1,12 @@
 export const
   Fragment = ({ children }) => children,
 
-  h = (tagName, props, ...children) => {
+  h = (nodeName, props, ...children) => {
     children = children.length == 0 ? null : children.length == 1 ? children[0] : children
-    return { children, ...props, tagName }
+    return { children, ...props, nodeName }
   },
 
-  component = setup => ({ is, key, ref, host, ...props }) => h(is ?? setup.is ?? 'div', {
+  component = setup => ({ is, key, host, ref, ...props }) => h(is ?? setup.is ?? 'div', {
     key, ...setup.host, ...host, skip: true, ref: host => (refresh(host, props, setup), isFn(ref) && ref(host))
   }),
 
@@ -16,29 +16,32 @@ export const
 
     for (h of normalize(h, host)) {
 
-      if (typeof h == str) {
+      if (typeof h == 'string') {
 
         for (node = child; node; node = node.nextSibling) if (node.nodeType == 3) break
         node ? node.data !== h && (node.data = h) : node = document.createTextNode(h)
 
-      } else if (hasOwn(h, 'tagName')) {
+      } else if (h instanceof Node) {
 
-        const { tagName, key, skip, ref, children, block, ...props } = h
+        node = h
+
+      } else {
+
+        const { key, nodeName, skip, block, children, ref, ...props } = h
 
         if (key != null && (node = byKey?.get(key)));
-        else for (node = child; node; node = node.nextSibling) if (node.localName == tagName) break
+        else for (node = child; node; node = node.nextSibling) if (node.localName == nodeName) break
 
-        node ||= document.createElement(tagName)
+        node ||= document.createElement(nodeName)
 
-        key != null && (byKey ||= keyed.set(host, createMap(Map))).set(key, node)
+        key != null && (byKey ||= keyed.set(host, new Map)).set(key, node)
 
         update(props, node)
 
         !(skip || block != null && every(deps.get(node), deps.set(node, block))) && render(children, node)
 
         isFn(ref) && ref(node)
-
-      } else node = h
+      }
 
       node === child ? child = child.nextSibling : before(host, child, node)
     }
@@ -60,7 +63,7 @@ export const
     }
   },
 
-  provide = (host, key, value) => (provisions.get(host) ?? provisions.set(host, createMap(Map))).set(key, value),
+  provide = (host, key, value) => (provisions.get(host) ?? provisions.set(host, new Map)).set(key, value),
 
   consume = (host, key, fallback) => {
     let map
@@ -92,8 +95,8 @@ export const
   keb = o => keys(o).reduce((r, k) => ((r[k.replace(search, replace).toLowerCase()] = o[k]), r), {})
 
 const
-  createMap = (constructor, ...args) => {
-    const instance = new constructor(...args)
+  wm = () => {
+    const instance = new WeakMap
     const { set } = instance
     instance.set = (key, value) => (set.call(instance, key, value), value)
     return instance
@@ -108,23 +111,11 @@ const
   reduce = list => from(list).reduce(apply, {}),
   isFn = v => typeof v == fn,
 
-  search = /([a-z0-9])([A-Z])/g,
-  replace = '$1-$2',
-  str = 'string',
-  fn = 'function',
+  { keys, entries } = Object, { isArray, from } = Array,
 
-  { keys, entries, hasOwn } = Object,
-  { isArray, from } = Array,
-  wm = WeakMap,
+  fn = 'function', search = /([a-z0-9])([A-Z])/g, replace = '$1-$2',
 
-  deps = createMap(wm),
-  memo = createMap(wm),
-  keyed = createMap(wm),
-  cache = createMap(wm),
-  renders = createMap(wm),
-  cleaners = createMap(wm),
-  provisions = createMap(wm),
-  interceptors = createMap(wm),
+  keyed = wm(), deps = wm(), memo = wm(), renders = wm(), provisions = wm(), interceptors = wm(), cleaners = wm(), cache = wm(),
 
   normalize = function* (h, host) {
 
@@ -134,10 +125,15 @@ const
 
       if (h == null || (type = typeof h) == 'boolean') continue
 
-      if (h instanceof Node || hasOwn(h, 'tagName')) {
+      if (type == 'string' || type == 'number') {
+        buffer += h
+        continue
+      }
 
-        if (isFn(h.tagName)) {
-          yield* normalize(h.tagName(h, host), host)
+      if ('nodeName' in Object(h)) {
+
+        if (isFn(h.nodeName)) {
+          yield* normalize(h.nodeName(h, host), host)
           continue
         }
 
@@ -150,7 +146,7 @@ const
         continue
       }
 
-      (type == str || !isFn(h[Symbol.iterator])) ? buffer += h : yield* normalize(h, host)
+      isFn(h[Symbol.iterator]) ? yield* normalize(h, host) : buffer += h
     }
 
     if (buffer) yield buffer
