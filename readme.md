@@ -45,7 +45,7 @@ const Counter = component(({ start = 0 }, host) => {
   }
   
   return () =>
-    <button onclick={increment}>
+    <button set:onclick={increment}>
       Current: {count}
     </button>
 })
