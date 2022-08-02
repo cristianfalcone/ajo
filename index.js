@@ -32,9 +32,9 @@ export const
         if (key != null && (node = byKey?.get(key)));
         else for (node = child; node; node = node.nextSibling) if (node.localName == nodeName) break
 
-        node ||= document.createElement(nodeName)
+        node ??= document.createElement(nodeName)
 
-        key != null && (byKey ||= keyed.set(host, new Map)).set(key, node)
+        key != null && (byKey ??= keyed.set(host, new Map)).set(key, node)
 
         update(props, node)
 
@@ -43,7 +43,7 @@ export const
         isFn(ref) && ref(node)
       }
 
-      node === child ? child = child.nextSibling : before(host, child, node)
+      node === child ? child = child.nextSibling : before(host, node, child)
     }
 
     while (child) {
@@ -178,7 +178,7 @@ const
     cache.set(host, props)
   },
 
-  before = (host, child, node) => {
+  before = (host, node, child) => {
     if (node.contains?.(document.activeElement)) {
 
       const ref = node.nextSibling

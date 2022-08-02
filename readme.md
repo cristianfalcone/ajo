@@ -1,13 +1,13 @@
 # ajo
 ajo is a JavaScript view library for building user interfaces
 
-## Install
+## install
 
 ```sh
 npm install ajo
 ```
 
-## Render JSX to a DOM element
+## render JSX to a DOM element
 
 ```jsx
 /** @jsx h */
@@ -18,7 +18,7 @@ document.body.innerHTML = '<div>Hello World</div>'
 render(<div>Goodbye World</div>, document.body)
 ```
 
-## Stateless Component
+## stateless component
 
 ```jsx
 /** @jsx h */
@@ -29,7 +29,7 @@ const Greet = ({ name }) => <div>Hello {name}</div>
 render(<Greet name="World" />, document.body)
 ```
 
-## Stateful Component
+## stateful component
 
 ```jsx
 /** @jsx h */
@@ -52,3 +52,6 @@ const Counter = component(({ start = 0 }, host) => {
 
 render(<Counter start={1} />, document.body)
 ```
+
+## acknowledgments
+ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [Crank.js](https://github.com/bikeshaving/crank)
