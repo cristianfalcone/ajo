@@ -6,13 +6,26 @@ export const
     return { children, ...props, nodeName }
   },
 
-  component = setup => ({ is, key, host, ref, ...props }) => h(is ?? setup.is ?? 'div', {
-    key, ...setup.host, ...host, skip: true, ref: host => (refresh(host, props, setup), isFn(ref) && ref(host))
-  }),
+  component = setup => ({ nodeName, is, key, block, ref, host, ...props }) =>
+    h(is ?? setup.is ?? 'div', {
+      key, skip: true, ref: node => {
+
+        node.$params = { ...setup.props, ...props }
+        node.$render ??= setup(node.$params, node)
+
+        if (!(block != null && every(node.$deps, node.$deps = block))) {
+          update({ ...setup.host, ...host }, node)
+          refresh(node)
+        }
+
+        isFn(ref) && ref(node)
+      }
+    }),
 
   render = (h, host) => {
 
-    let child = host.firstChild, node, byKey = keyed.get(host)
+    const nodes = []
+    let child = host.firstChild, node
 
     for (h of normalize(h, host)) {
 
@@ -27,172 +40,191 @@ export const
 
       } else {
 
-        const { key, nodeName, skip, block, children, ref, ...props } = h
+        const { nodeName, key, skip, block, ref, children, ...props } = h
 
-        if (key != null && (node = byKey?.get(key)));
-        else for (node = child; node; node = node.nextSibling) if (node.localName == nodeName) break
+        if (key != null) {
+          (host.$keyed ??= new Map).set(key, node = host.$keyed.get(key) ?? document.createElement(nodeName))
+        } else {
+          for (node = child; node; node = node.nextSibling) if (node.localName == nodeName) break
+          node ??= document.createElement(nodeName)
+        }
 
-        node ??= document.createElement(nodeName)
-
-        key != null && (byKey ??= keyed.set(host, new Map)).set(key, node)
-
-        update(props, node)
-
-        !(skip || block != null && every(deps.get(node), deps.set(node, block))) && render(children, node)
+        if (!(skip || block != null && every(node.$deps, node.$deps = block))) {
+          update(props, node)
+          render(children, node)
+        }
 
         isFn(ref) && ref(node)
       }
 
-      node === child ? child = child.nextSibling : before(host, node, child)
+      nodes.push(node) && node === child && (child = child.nextSibling)
     }
 
-    while (child) {
-      const next = child.nextSibling
-      host.removeChild(child).nodeType == 1 && dispose(child)
-      child = next
-    }
+    arrange(host, [...host.childNodes], nodes)
   },
 
-  refresh = (host, props, setup) => {
+  refresh = host => {
     try {
-      if (setup && !isFn(setup)) throwTypeError('Setup', setup, fn)
-      props = props ? memo.set(host, { ...setup?.props, ...props }) : memo.get(host) ?? {}
-      render((renders.get(host) ?? renders.set(host, setup(props, host)))(props, host), host)
+      render(host.$render(host.$params, host), host)
     } catch (error) {
       propagate(host, error)
     }
   },
 
-  provide = (host, key, value) => (provisions.get(host) ?? provisions.set(host, new Map)).set(key, value),
+  provide = (host, key, value) => (host.$provisions ??= new Map).set(key, value),
 
   consume = (host, key, fallback) => {
     let map
     while (host) {
-      if ((map = provisions.get(host)) && map.has(key)) return map.get(key)
+      if ((map = host.$provisions) && map.has(key)) return map.get(key)
       host = host.parentNode
     }
     return fallback
   },
 
-  intercept = (host, interceptor) => {
-    if (!isFn(interceptor)) throwTypeError('Interceptor', interceptor, fn)
-    interceptors.set(host, interceptor)
-  },
+  intercept = (host, fn) => host.$interceptor = fn,
 
   propagate = (host, error) => {
-    for (let interceptor; host; host = host.parentNode)
-      if (interceptor = interceptors.get(host)) return render(interceptor(error), host)
+    for (let fn; host; host = host.parentNode) if (fn = host.$interceptor) return render(fn(error), host)
     throw error
   },
 
-  cleanup = (host, cleaner) => {
-    if (!isFn(cleaner)) throwTypeError('Cleaner', cleaner, fn);
-    (cleaners.get(host) ?? cleaners.set(host, new Set)).add(cleaner)
-  },
+  cleanup = (host, fn) => (host.$cleanups ??= new Set).add(fn),
 
   clx = o => keys(o).filter(k => o[k]).join(' ') || null,
   stx = o => entries(o).map(t => t.join(':')).join(';') || null,
   keb = o => keys(o).reduce((r, k) => ((r[k.replace(search, replace).toLowerCase()] = o[k]), r), {})
 
 const
-  wm = () => {
-    const instance = new WeakMap, { set } = instance
-    instance.set = (key, value) => (set.call(instance, key, value), value)
-    return instance
-  },
-
-  throwTypeError = (name, value, expected) => {
-    throw new TypeError(`Expected ${name} to be of type ${expected}, got ${typeof value} instead`)
-  },
-
   every = (a, b) => a === b || isArray(a) && isArray(b) && a.length == b.length && a.every((v, i) => v === b[i]),
   apply = (o, { name, value }) => ((o[name] = value), o),
   reduce = list => from(list).reduce(apply, {}),
-  isFn = v => typeof v == fn,
+  ref = v => (...args) => args.length ? v = args[0] : v,
+  isFn = v => typeof v == 'function',
 
   { keys, entries } = Object, { isArray, from } = Array,
 
-  fn = 'function', search = /([a-z0-9])([A-Z])/g, replace = '$1-$2',
+  search = /([a-z0-9])([A-Z])/g, replace = '$1-$2', it = Symbol.iterator,
 
-  keyed = wm(), deps = wm(), memo = wm(), renders = wm(), provisions = wm(), interceptors = wm(), cleaners = wm(), cache = wm(),
+  normalize = function* (h, host, buffer = ref(''), root = true) {
 
-  normalize = function* (h, host) {
+    let type, text
 
-    let type, buffer = ''
-
-    for (h of isFn(h?.[Symbol.iterator]) ? h : [h]) {
+    for (h of isFn(h?.[it]) ? h : [h]) {
 
       if (h == null || (type = typeof h) == 'boolean') continue
 
       if (type == 'string' || type == 'number') {
-        buffer += h
+        buffer(buffer() + h)
         continue
       }
 
       if ('nodeName' in Object(h)) {
 
         if (isFn(h.nodeName)) {
-          yield* normalize(h.nodeName(h, host), host)
+          yield* normalize(h.nodeName(h), host, buffer, false)
           continue
         }
 
-        if (buffer) {
-          yield buffer
-          buffer = ''
+        if (text = buffer()) {
+          yield text
+          buffer('')
         }
 
         yield h
         continue
       }
 
-      isFn(h[Symbol.iterator]) ? yield* normalize(h, host) : buffer += h
+      isFn(h[it]) ? yield* normalize(h, host, buffer, false) : buffer(buffer() + h)
     }
 
-    if (buffer) yield buffer
+    if (root && (text = buffer())) yield text
   },
 
   update = (props, host) => {
 
-    const prev = cache.get(host) ?? (host.hasAttributes() ? reduce(host.attributes) : {})
+    const prev = host.$props ?? (host.hasAttributes() ? reduce(host.attributes) : {})
 
     for (const name in { ...prev, ...props }) {
 
       let value = props[name]
 
-      if (value === prev[name]) continue
+      if (value === prev[name]) {
+        continue
+      }
 
       if (name.startsWith('set:')) {
         host[name.slice(4)] = value
         continue
       }
 
-      if (value === true) value = ''
-      else if (value == null || value === false) {
+      if (value == null || value === false) {
         host.removeAttribute(name)
         continue
       }
 
-      host.setAttribute(name, value)
+      host.setAttribute(name, value === true ? '' : value)
     }
 
-    cache.set(host, props)
+    host.$props = props
   },
 
-  before = (host, node, child) => {
-    if (node.contains?.(document.activeElement)) {
+  arrange = (host, a, b) => {
 
-      const ref = node.nextSibling
+    const aLength = a.length, bLength = b.length
+    let aIndex = 0, bIndex = 0, aValue, bValue, aMap, bMap, i
 
-      while (child && child !== node) {
-        const next = child.nextSibling
-        host.insertBefore(child, ref)
-        child = next
+    while (aIndex !== aLength || bIndex !== bLength) {
+
+      aValue = a[aIndex], bValue = b[bIndex]
+
+      if (aValue === null) {
+        aIndex++
+        continue
       }
 
-    } else host.insertBefore(node, child)
+      if (bLength <= bIndex) {
+        host.removeChild(aValue).nodeType == 1 && dispose(aValue)
+        aIndex++
+        continue
+      }
+
+      if (aLength <= aIndex) {
+        host.insertBefore(bValue, aValue)
+        bIndex++
+        continue
+      }
+
+      if (aValue === bValue) {
+        aIndex++
+        bIndex++
+        continue
+      }
+
+      if (!aMap) {
+        aMap = new Map()
+        bMap = new Map()
+        for (i = 0; i < aLength; i++) aMap.set(a[i], i)
+        for (i = 0; i < bLength; i++) bMap.set(b[i], i)
+      }
+
+      if (bMap.get(aValue) == null) {
+        host.removeChild(aValue).nodeType == 1 && dispose(aValue)
+        aIndex++
+        continue
+      }
+
+      host.insertBefore(bValue, aValue)
+      bIndex++
+
+      if ((i = aMap.get(bValue)) != null) {
+        if (i > aIndex + 1) aIndex++
+        a[i] = null
+      }
+    }
   },
 
   dispose = host => {
     for (const child of host.children) dispose(child)
-    for (const cleaner of cleaners.get(host) ?? []) cleaner(host)
+    for (const fn of host.$cleanups ?? []) fn(host)
   }
