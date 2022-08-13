@@ -30,8 +30,8 @@
   "bugs": "https://github.com/cristianfalcone/ajo/issues",
   "homepage": "https://github.com/cristianfalcone/ajo#readme",
   "devDependencies": {
-    "backdom": "^0.0.4",
-    "esbuild": "^0.14.51",
+    "backdom": "^0.0.5",
+    "esbuild": "^0.15.2",
     "uvu": "^0.5.6"
   }
 }
