@@ -4,7 +4,7 @@ export const
 	Fragment = ({ children }) => children,
 
 	For = ({ is, each, by, children, ref, ...props }) => h(is ?? 'div', {
-		...props, skip: true, ref: (host, root) => iterate(host, root, each, by, children, ref)
+		...props, skip: true, ref: host => iterate(host, each, by, children, ref)
 	}),
 
 	h = (nodeName, props, ...children) => ({ children: children.length == 0 ? null : children.length == 1 ? children[0] : children, ...props, nodeName }),
@@ -13,7 +13,7 @@ export const
 
 		let child = host.firstChild, node
 
-		root == host && (root.$mo ??= notify((host, connected) => connected || root.contains(host) || dispose(host), root))
+		root == host && (root.$mo ??= notify((host, connected) => connected || root.contains(host) || '$cleanups' in host && dispose(host), root))
 
 		for (h of normalize(h)) {
 
@@ -33,8 +33,8 @@ export const
 
 				if (block == null || some(node.$deps, node.$deps = block)) {
 					update(props, node)
-					skip || render(children, node, null, root)
-					isFunction(ref) && ref(node, root)
+					skip || render(children, node, null, null)
+					isFunction(ref) && ref(node)
 				}
 			}
 
@@ -49,12 +49,12 @@ export const
 	},
 
 	component = setup => ({ is, props, ref, ...params }) => h(is ?? setup.is ?? 'div', {
-		...setup.props, ...props, skip: true, ref: (host, root) => run(host, root, setup, params, ref)
+		...setup.props, ...props, skip: true, ref: host => run(host, setup, params, ref)
 	}),
 
 	refresh = host => {
 		try {
-			render((host.$render ??= host.$setup(host))(host.$params), host, null, host.$root)
+			render((host.$render ??= host.$setup(host))(host.$params), host, null, null)
 		} catch (error) {
 			propagate(host, error)
 		}
@@ -70,7 +70,7 @@ export const
 	intercept = (host, fn) => isFunction(fn) && (host.$interceptor = fn),
 
 	propagate = (host, error) => {
-		for (let fn; host; host = host.parentNode) if (isFunction(fn = host.$interceptor)) return render(fn(error))
+		for (let fn; host; host = host.parentNode) if (isFunction(fn = host.$interceptor)) return render(fn(error), host, null, null)
 		throw error
 	},
 
@@ -115,7 +115,7 @@ const
 
 		const prev = host.$props ?? (host.hasAttributes() ? reduce(host.attributes) : {})
 
-		for (const name in { ...prev, ...props }) {
+		for (const name in { ...prev, ...(host.$props = props) }) {
 
 			let value = props[name]
 
@@ -124,8 +124,6 @@ const
 				else if (value == null || value === false) host.removeAttribute(name)
 				else host.setAttribute(name, value === true ? '' : value)
 		}
-
-		host.$props = props
 	},
 
 	before = (host, node, child) => {
@@ -142,7 +140,7 @@ const
 		} else host.insertBefore(node, child)
 	},
 
-	iterate = (host, root, each, by, fn, ref) => {
+	iterate = (host, each, by, fn, ref) => {
 
 		each = isArray(each) ? each : []
 		by = isFunction(by) ? by : v => v
@@ -163,7 +161,7 @@ const
 			const item = each[index], key = by(item, index)
 
 			proxy.firstChild = (clr ? a[index] : map.get(key)) ?? last?.cloneNode(true)
-			render(fn(item), proxy, proxy.firstChild?.nextSibling, root)
+			render(fn(item), proxy, proxy.firstChild?.nextSibling, null)
 
 			last = proxy.firstChild
 			proxy.firstChild = null
@@ -172,7 +170,7 @@ const
 		}
 
 		arrange(host, a, b, del)
-		isFunction(ref) && ref(host, root)
+		isFunction(ref) && ref(host)
 	},
 
 	arrange = (host, a, b, dispose = noop) => {
@@ -209,22 +207,17 @@ const
 		}
 	},
 
-	run = (host, root, setup, params, ref) => {
+	run = (host, setup, params, ref) => {
 
-		host.$root = root
 		host.$setup ??= isFunction(setup) ? setup : noop
 		host.$params = { ...setup.params, ...params }
 
 		refresh(host)
-		isFunction(ref) && ref(host, root)
+		isFunction(ref) && ref(host)
 	},
 
 	dispose = host => {
-
-		const { $cleanups } = host
-
-		if ($cleanups) {
-			for (let fn of $cleanups) fn(host)
-			$cleanups.clear()
-		}
+		const cleanups = from(host.$cleanups)
+		host.$cleanups.clear()
+		for (const fn of cleanups) fn(host)
 	}
