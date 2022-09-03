@@ -1,230 +1,230 @@
+import { notify } from 'element-notifier'
+
 export const
-  Fragment = ({ children }) => children,
+	Fragment = ({ children }) => children,
 
-  h = (nodeName, props, ...children) => {
-    children = children.length == 0 ? null : children.length == 1 ? children[0] : children
-    return { children, ...props, nodeName }
-  },
+	For = ({ is, each, by, children, ref, ...props }) => h(is ?? 'div', {
+		...props, skip: true, ref: (host, root) => iterate(host, root, each, by, children, ref)
+	}),
 
-  component = setup => ({ nodeName, is, key, block, ref, host, ...props }) =>
-    h(is ?? setup.is ?? 'div', {
-      key, skip: true, ref: node => {
+	h = (nodeName, props, ...children) => ({ children: children.length == 0 ? null : children.length == 1 ? children[0] : children, ...props, nodeName }),
 
-        node.$params = { ...setup.props, ...props }
-        node.$render ??= setup(node.$params, node)
+	render = (h, host, to, root = host) => {
 
-        if (!(block != null && every(node.$deps, node.$deps = block))) {
-          update({ ...setup.host, ...host }, node)
-          refresh(node)
-        }
+		let child = host.firstChild, node
 
-        isFn(ref) && ref(node)
-      }
-    }),
+		root == host && (root.$mo ??= notify((host, connected) => connected || root.contains(host) || dispose(host), root))
 
-  render = (h, host) => {
+		for (h of normalize(h)) {
 
-    const nodes = []
-    let child = host.firstChild, node
+			if (h instanceof Node) node = h
 
-    for (h of normalize(h, host)) {
+			else if (typeof h == 'string') {
 
-      if (typeof h == 'string') {
+				for (node = child; node != to; node = node.nextSibling) if (node.nodeType == 3) break
+				node == to ? node = document.createTextNode(h) : node.data != h && (node.data = h)
 
-        for (node = child; node; node = node.nextSibling) if (node.nodeType == 3) break
-        node ? node.data !== h && (node.data = h) : node = document.createTextNode(h)
+			} else {
 
-      } else if (h instanceof Node) {
+				const { nodeName, block, skip, children, ref, ...props } = h
 
-        node = h
+				for (node = child; node != to; node = node.nextSibling) if (node.localName == nodeName) break
+				node == to && (node = document.createElement(nodeName))
 
-      } else {
+				if (block == null || some(node.$deps, node.$deps = block)) {
+					update(props, node)
+					skip || render(children, node, null, root)
+					isFunction(ref) && ref(node, root)
+				}
+			}
 
-        const { nodeName, key, skip, block, ref, children, ...props } = h
+			node == child ? child = child.nextSibling : before(host, node, child)
+		}
 
-        if (key != null) {
-          (host.$keyed ??= new Map).set(key, node = host.$keyed.get(key) ?? document.createElement(nodeName))
-        } else {
-          for (node = child; node; node = node.nextSibling) if (node.localName == nodeName) break
-          node ??= document.createElement(nodeName)
-        }
+		while (child != to) {
+			const next = child.nextSibling
+			host.removeChild(child)
+			child = next
+		}
+	},
 
-        if (!(skip || block != null && every(node.$deps, node.$deps = block))) {
-          update(props, node)
-          render(children, node)
-        }
+	component = setup => ({ is, props, ref, ...params }) => h(is ?? setup.is ?? 'div', {
+		...setup.props, ...props, skip: true, ref: (host, root) => run(host, root, setup, params, ref)
+	}),
 
-        isFn(ref) && ref(node)
-      }
+	refresh = host => {
+		try {
+			render((host.$render ??= host.$setup(host))(host.$params), host, null, host.$root)
+		} catch (error) {
+			propagate(host, error)
+		}
+	},
 
-      nodes.push(node) && node === child && (child = child.nextSibling)
-    }
+	provide = (host, key, value) => (host.$provisions ??= new Map).set(key, value),
 
-    arrange(host, [...host.childNodes], nodes)
-  },
+	consume = (host, key, fallback) => {
+		for (let map; host; host = host.parentNode) if ((map = host.$provisions) && map.has(key)) return map.get(key)
+		return fallback
+	},
 
-  refresh = host => {
-    try {
-      render(host.$render(host.$params, host), host)
-    } catch (error) {
-      propagate(host, error)
-    }
-  },
+	intercept = (host, fn) => isFunction(fn) && (host.$interceptor = fn),
 
-  provide = (host, key, value) => (host.$provisions ??= new Map).set(key, value),
+	propagate = (host, error) => {
+		for (let fn; host; host = host.parentNode) if (isFunction(fn = host.$interceptor)) return render(fn(error))
+		throw error
+	},
 
-  consume = (host, key, fallback) => {
-    let map
-    while (host) {
-      if ((map = host.$provisions) && map.has(key)) return map.get(key)
-      host = host.parentNode
-    }
-    return fallback
-  },
+	cleanup = (host, fn) => isFunction(fn) && (host.$cleanups ??= new Set).add(fn),
 
-  intercept = (host, fn) => host.$interceptor = fn,
+	clx = o => keys(o).filter(k => o[k]).join(' ') || null,
 
-  propagate = (host, error) => {
-    for (let fn; host; host = host.parentNode) if (fn = host.$interceptor) return render(fn(error), host)
-    throw error
-  },
+	stx = o => entries(o).map(t => t.join(':')).join(';') || null,
 
-  cleanup = (host, fn) => (host.$cleanups ??= new Set).add(fn),
-
-  clx = o => keys(o).filter(k => o[k]).join(' ') || null,
-  stx = o => entries(o).map(t => t.join(':')).join(';') || null,
-  keb = o => keys(o).reduce((r, k) => ((r[k.replace(search, replace).toLowerCase()] = o[k]), r), {})
+	keb = o => keys(o).reduce((r, k) => ((r[k.replace(search, replace).toLowerCase()] = o[k]), r), {})
 
 const
-  every = (a, b) => a === b || isArray(a) && isArray(b) && a.length == b.length && a.every((v, i) => v === b[i]),
-  apply = (o, { name, value }) => ((o[name] = value), o),
-  reduce = list => from(list).reduce(apply, {}),
-  ref = v => (...args) => args.length ? v = args[0] : v,
-  isFn = v => typeof v == 'function',
+	{ isArray, from } = Array, { keys, entries } = Object, isFunction = v => typeof v == 'function',
 
-  { keys, entries } = Object, { isArray, from } = Array,
+	noop = () => { }, ref = v => (...args) => args.length ? v = args[0] : v,
 
-  search = /([a-z0-9])([A-Z])/g, replace = '$1-$2', it = Symbol.iterator,
+	map = list => list.reduce(set, new Map), set = (m, v, i) => (m.set(v, i), m),
 
-  normalize = function* (h, host, buffer = ref(''), root = true) {
+	some = (a, b) => (isArray(a) && isArray(b)) ? a.some((v, i) => v !== b[i]) : a !== b,
 
-    let type, text
+	reduce = v => from(v).reduce(assign, {}), assign = (v, { name, value }) => ((v[name] = value), v),
 
-    for (h of isFn(h?.[it]) ? h : [h]) {
+	proxy = { firstChild: null, insertBefore: node => proxy.firstChild ??= node },
 
-      if (h == null || (type = typeof h) == 'boolean') continue
+	search = /([a-z0-9])([A-Z])/g, replace = '$1-$2',
 
-      if (type == 'string' || type == 'number') {
-        buffer(buffer() + h)
-        continue
-      }
+	normalize = function* (h, buffer = ref(''), root = true) {
 
-      if ('nodeName' in Object(h)) {
+		let text
 
-        if (isFn(h.nodeName)) {
-          yield* normalize(h.nodeName(h), host, buffer, false)
-          continue
-        }
+		for (h of isArray(h) ? h : [h]) {
+			if (h == null || typeof h == 'boolean') continue
+			if (typeof h.nodeName == 'string') ((text = buffer()) && (buffer(''), yield text)), yield h
+			else if (isFunction(h.nodeName)) yield* normalize(h.nodeName(h), buffer, false)
+			else isArray(h) ? yield* normalize(h, buffer, false) : buffer(buffer() + h)
+		}
 
-        if (text = buffer()) {
-          yield text
-          buffer('')
-        }
+		root && (text = buffer()) && (yield text)
+	},
 
-        yield h
-        continue
-      }
+	update = (props, host) => {
 
-      isFn(h[it]) ? yield* normalize(h, host, buffer, false) : buffer(buffer() + h)
-    }
+		const prev = host.$props ?? (host.hasAttributes() ? reduce(host.attributes) : {})
 
-    if (root && (text = buffer())) yield text
-  },
+		for (const name in { ...prev, ...props }) {
 
-  update = (props, host) => {
+			let value = props[name]
 
-    const prev = host.$props ?? (host.hasAttributes() ? reduce(host.attributes) : {})
+			if (value !== prev[name])
+				if (name.startsWith('set:')) host[name.slice(4)] = value
+				else if (value == null || value === false) host.removeAttribute(name)
+				else host.setAttribute(name, value === true ? '' : value)
+		}
 
-    for (const name in { ...prev, ...props }) {
+		host.$props = props
+	},
 
-      let value = props[name]
+	before = (host, node, child) => {
+		if (node.contains?.(document.activeElement)) {
 
-      if (value === prev[name]) {
-        continue
-      }
+			const ref = node.nextSibling
 
-      if (name.startsWith('set:')) {
-        host[name.slice(4)] = value
-        continue
-      }
+			while (child && child !== node) {
+				const next = child.nextSibling
+				host.insertBefore(child, ref)
+				child = next
+			}
 
-      if (value == null || value === false) {
-        host.removeAttribute(name)
-        continue
-      }
+		} else host.insertBefore(node, child)
+	},
 
-      host.setAttribute(name, value === true ? '' : value)
-    }
+	iterate = (host, root, each, by, fn, ref) => {
 
-    host.$props = props
-  },
+		each = isArray(each) ? each : []
+		by = isFunction(by) ? by : v => v
+		fn = isFunction(fn) ? fn : noop
 
-  arrange = (host, a, b) => {
+		const
+			map = host.$for ??= new Map,
+			del = node => map.delete(node.$key),
+			clr = each !== host.$each,
+			len = (host.$each = each).length,
+			a = from(host.childNodes),
+			b = new Array(len)
 
-    const aLength = a.length, bLength = b.length
-    let aIndex = 0, bIndex = 0, aValue, bValue, aMap, bMap, i
+		clr && map.clear()
 
-    while (aIndex !== aLength || bIndex !== bLength) {
+		for (let last, index = 0; index < len; index++) {
 
-      aValue = a[aIndex], bValue = b[bIndex]
+			const item = each[index], key = by(item, index)
 
-      if (aValue === null) {
-        aIndex++
-        continue
-      }
+			proxy.firstChild = (clr ? a[index] : map.get(key)) ?? last?.cloneNode(true)
+			render(fn(item), proxy, proxy.firstChild?.nextSibling, root)
 
-      if (bLength <= bIndex) {
-        host.removeChild(aValue).nodeType == 1 && dispose(aValue)
-        aIndex++
-        continue
-      }
+			last = proxy.firstChild
+			proxy.firstChild = null
 
-      if (aLength <= aIndex) {
-        host.insertBefore(bValue, aValue)
-        bIndex++
-        continue
-      }
+			map.set(last.$key = key, b[index] = last)
+		}
 
-      if (aValue === bValue) {
-        aIndex++
-        bIndex++
-        continue
-      }
+		arrange(host, a, b, del)
+		isFunction(ref) && ref(host, root)
+	},
 
-      if (!aMap) {
-        aMap = new Map()
-        bMap = new Map()
-        for (i = 0; i < aLength; i++) aMap.set(a[i], i)
-        for (i = 0; i < bLength; i++) bMap.set(b[i], i)
-      }
+	arrange = (host, a, b, dispose = noop) => {
 
-      if (bMap.get(aValue) == null) {
-        host.removeChild(aValue).nodeType == 1 && dispose(aValue)
-        aIndex++
-        continue
-      }
+		const aLen = a.length, bLen = b.length
 
-      host.insertBefore(bValue, aValue)
-      bIndex++
+		let aIndex = 0, bIndex = 0, aValue, bValue, aMap, bMap, i
 
-      if ((i = aMap.get(bValue)) != null) {
-        if (i > aIndex + 1) aIndex++
-        a[i] = null
-      }
-    }
-  },
+		while (aIndex !== aLen || bIndex !== bLen) {
 
-  dispose = host => {
-    for (const child of host.children) dispose(child)
-    for (const fn of host.$cleanups ?? []) fn(host)
-  }
+			aValue = a[aIndex]
+			bValue = b[bIndex]
+
+			if (aValue === null) aIndex++
+			else if (bLen <= bIndex) aIndex++, dispose(host.removeChild(aValue))
+			else if (aLen <= aIndex) bIndex++, host.appendChild(bValue)
+			else if (aValue === bValue) aIndex++, bIndex++
+			else {
+
+				aMap ??= map(a)
+				bMap ??= map(b)
+
+				if (bMap.get(aValue) == null) aIndex++, dispose(host.removeChild(aValue))
+				else {
+
+					host.insertBefore(bValue, aValue), bIndex++
+
+					if ((i = aMap.get(bValue)) != null) {
+						if (i > aIndex + 1) aIndex++
+						a[i] = null
+					}
+				}
+			}
+		}
+	},
+
+	run = (host, root, setup, params, ref) => {
+
+		host.$root = root
+		host.$setup ??= isFunction(setup) ? setup : noop
+		host.$params = { ...setup.params, ...params }
+
+		refresh(host)
+		isFunction(ref) && ref(host, root)
+	},
+
+	dispose = host => {
+
+		const { $cleanups } = host
+
+		if ($cleanups) {
+			for (let fn of $cleanups) fn(host)
+			$cleanups.clear()
+		}
+	}

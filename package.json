@@ -17,6 +17,13 @@
     "index.js",
     "index.min.js"
   ],
+  "keywords": [
+    "ui",
+    "frontend",
+    "web",
+    "dom",
+    "jsx"
+  ],
   "scripts": {
     "build": "npm run build:require && npm run build:browser",
     "build:require": "esbuild --format=cjs --out-extension:.js=.cjs --outdir=. index.js",
@@ -30,8 +37,11 @@
   "bugs": "https://github.com/cristianfalcone/ajo/issues",
   "homepage": "https://github.com/cristianfalcone/ajo#readme",
   "devDependencies": {
-    "backdom": "^0.0.5",
-    "esbuild": "^0.15.2",
+    "backdom": "^0.0.6",
+    "esbuild": "^0.15.6",
     "uvu": "^0.5.6"
+  },
+  "dependencies": {
+    "element-notifier": "^1.1.2"
   }
 }
