@@ -13,7 +13,7 @@ export const
 
 		let child = host.firstChild, node
 
-		root == host && (root.$mo ??= notify((host, connected) => connected || root.contains(host) || '$cleanups' in host && dispose(host), root))
+		root == host && (root.$mo ??= notify((host, connected) => connected || root.contains(host) || hasOwn(host, '$cleanups') && dispose(host), root))
 
 		for (h of normalize(h)) {
 
@@ -83,7 +83,7 @@ export const
 	keb = o => keys(o).reduce((r, k) => ((r[k.replace(search, replace).toLowerCase()] = o[k]), r), {})
 
 const
-	{ isArray, from } = Array, { keys, entries } = Object, isFunction = v => typeof v == 'function',
+	{ isArray, from } = Array, { keys, entries, hasOwn } = Object, isFunction = v => typeof v == 'function',
 
 	noop = () => { }, ref = v => (...args) => args.length ? v = args[0] : v,
 
