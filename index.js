@@ -1,5 +1,3 @@
-import { notify } from 'element-notifier'
-
 export const
 	Fragment = ({ children }) => children,
 
@@ -7,33 +5,37 @@ export const
 		...props, skip: true, ref: host => iterate(host, each, by, children, ref)
 	}),
 
-	h = (nodeName, props, ...children) => ({ children: children.length == 0 ? null : children.length == 1 ? children[0] : children, ...props, nodeName }),
+	h = (nodeName, props, ...children) => {
+		const { length } = children
+		children = length == 0 ? null : length == 1 ? children[0] : children
+		return { children, ...props, nodeName }
+	},
 
-	render = (h, host, to, root = host) => {
+	render = (h, host, ns) => {
 
-		let child = host.firstChild, node
-
-		root == host && (root.$mo ??= notify((host, connected) => connected || root.contains(host) || hasOwn(host, '$cleanups') && dispose(host), root))
+		let child = host.firstChild
 
 		for (h of normalize(h)) {
+
+			let node = child
 
 			if (h instanceof Node) node = h
 
 			else if (typeof h == 'string') {
 
-				for (node = child; node != to; node = node.nextSibling) if (node.nodeType == 3) break
-				node == to ? node = document.createTextNode(h) : node.data != h && (node.data = h)
+				while (node && node.nodeType != 3) node = node.nextSibling
+				node ? node.data != h && (node.data = h) : node = document.createTextNode(h)
 
 			} else {
 
-				const { nodeName, block, skip, children, ref, ...props } = h
+				const { xmlns = ns, nodeName, key, block, skip, children, ref, ...props } = h
 
-				for (node = child; node != to; node = node.nextSibling) if (node.localName == nodeName) break
-				node == to && (node = document.createElement(nodeName))
+				while (node && !(node.localName == nodeName && (node.$key ??= key) == key)) node = node.nextSibling
+				node ??= create(xmlns, nodeName, key)
 
 				if (block == null || some(node.$deps, node.$deps = block)) {
 					update(props, node)
-					skip || render(children, node, null, null)
+					skip || render(children, node, xmlns)
 					isFunction(ref) && ref(node)
 				}
 			}
@@ -41,7 +43,7 @@ export const
 			node == child ? child = child.nextSibling : before(host, node, child)
 		}
 
-		while (child != to) {
+		while (child) {
 			const next = child.nextSibling
 			host.removeChild(child)
 			child = next
@@ -54,7 +56,7 @@ export const
 
 	refresh = host => {
 		try {
-			render((host.$render ??= host.$setup(host))(host.$params), host, null, null)
+			render((host.$render ??= host.$setup(host))(host.$params), host)
 		} catch (error) {
 			propagate(host, error)
 		}
@@ -70,7 +72,7 @@ export const
 	intercept = (host, fn) => isFunction(fn) && (host.$interceptor = fn),
 
 	propagate = (host, error) => {
-		for (let fn; host; host = host.parentNode) if (isFunction(fn = host.$interceptor)) return render(fn(error), host, null, null)
+		for (let fn; host; host = host.parentNode) if (isFunction(fn = host.$interceptor)) return render(fn(error), host)
 		throw error
 	},
 
@@ -83,9 +85,20 @@ export const
 	keb = o => keys(o).reduce((r, k) => ((r[k.replace(search, replace).toLowerCase()] = o[k]), r), {})
 
 const
-	{ isArray, from } = Array, { keys, entries, hasOwn } = Object, isFunction = v => typeof v == 'function',
+	{ isArray, from } = Array, { keys, entries } = Object,
 
-	noop = () => { }, ref = v => (...args) => args.length ? v = args[0] : v,
+	isFunction = v => typeof v == 'function', noop = () => { }, on = (host, type, v) => {
+
+		let fn, map
+
+		if (fn = (map = host.$on ??= {})[type]) {
+			host.removeEventListener(type, fn, fn.options), map[type] = null
+		}
+
+		if (typeof (fn = (v = isArray(v) ? v : [v])[0]) == 'function') {
+			host.addEventListener(type, fn = map[type] = fn.bind(null, v[1]), fn.options = v[2])
+		}
+	},
 
 	map = list => list.reduce(set, new Map), set = (m, v, i) => (m.set(v, i), m),
 
@@ -93,33 +106,45 @@ const
 
 	reduce = v => from(v).reduce(assign, {}), assign = (v, { name, value }) => ((v[name] = value), v),
 
-	proxy = { firstChild: null, insertBefore: node => proxy.firstChild ??= node },
+	create = (ns, name, key) => {
+		const node = ns ? document.createElementNS(ns, name) : document.createElement(name)
+		return node.$key = key, node
+	},
+
+	proxy = { firstChild: null, insertBefore: node => proxy.firstChild ??= node }, handler = {
+		get(target, key) {
+			const value = key == 'nextSibling' ? null : target[key]
+			return isFunction(value) ? value.bind(target) : value
+		},
+	},
 
 	search = /([a-z0-9])([A-Z])/g, replace = '$1-$2',
 
-	normalize = function* (h, buffer = ref(''), root = true) {
+	normalize = function* (h, buffer = { t: '' }, root = true) {
 
-		let text
+		let t
 
 		for (h of isArray(h) ? h : [h]) {
 			if (h == null || typeof h == 'boolean') continue
-			if (typeof h.nodeName == 'string') ((text = buffer()) && (buffer(''), yield text)), yield h
+			else if (typeof h.nodeName == 'string') (t = buffer.t && (buffer.t = '', yield t)), yield h
 			else if (isFunction(h.nodeName)) yield* normalize(h.nodeName(h), buffer, false)
-			else isArray(h) ? yield* normalize(h, buffer, false) : buffer(buffer() + h)
+			else isArray(h) ? yield* normalize(h, buffer, false) : buffer.t += h
 		}
 
-		root && (text = buffer()) && (yield text)
+		root && (t = buffer.t) && (yield t)
 	},
 
 	update = (props, host) => {
 
-		const prev = host.$props ?? (host.hasAttributes() ? reduce(host.attributes) : {})
+		const prev = host.$props ??= host.hasAttributes() ? reduce(host.attributes) : {}
 
 		for (const name in { ...prev, ...(host.$props = props) }) {
 
 			let value = props[name]
 
-			if (value !== prev[name])
+			if (name.startsWith('on:')) {
+				some(value, prev[name]) && on(host, name.slice(3), value)
+			} else if (value !== prev[name])
 				if (name.startsWith('set:')) host[name.slice(4)] = value
 				else if (value == null || value === false) host.removeAttribute(name)
 				else host.setAttribute(name, value === true ? '' : value)
@@ -131,7 +156,7 @@ const
 
 			const ref = node.nextSibling
 
-			while (child && child !== node) {
+			while (child && child != node) {
 				const next = child.nextSibling
 				host.insertBefore(child, ref)
 				child = next
@@ -148,7 +173,7 @@ const
 
 		const
 			map = host.$for ??= new Map,
-			del = node => map.delete(node.$key),
+			del = node => map.delete(node.$by),
 			clr = each !== host.$each,
 			len = (host.$each = each).length,
 			a = from(host.childNodes),
@@ -156,17 +181,19 @@ const
 
 		clr && map.clear()
 
-		for (let last, index = 0; index < len; index++) {
+		for (let child, index = 0; index < len; index++) {
 
 			const item = each[index], key = by(item, index)
 
-			proxy.firstChild = (clr ? a[index] : map.get(key)) ?? last?.cloneNode(true)
-			render(fn(item), proxy, proxy.firstChild?.nextSibling, null)
+			child = (clr ? a[index] : map.get(key))
 
-			last = proxy.firstChild
+			proxy.firstChild = child ? new Proxy(child, handler) : null
+			render(fn(item), proxy)
+
+			child ??= proxy.firstChild
 			proxy.firstChild = null
 
-			map.set(last.$key = key, b[index] = last)
+			map.set(child.$by = key, b[index] = child)
 		}
 
 		arrange(host, a, b, del)
@@ -209,15 +236,23 @@ const
 
 	run = (host, setup, params, ref) => {
 
-		host.$setup ??= isFunction(setup) ? setup : noop
+		host.$setup ??= (host.addEventListener('DOMNodeRemovedFromDocument', dispose), isFunction(setup) ? setup : noop)
 		host.$params = { ...setup.params, ...params }
 
 		refresh(host)
 		isFunction(ref) && ref(host)
 	},
 
-	dispose = host => {
-		const cleanups = from(host.$cleanups)
-		host.$cleanups.clear()
-		for (const fn of cleanups) fn(host)
+	dispose = ({ target }) => {
+		(globalThis.queueMicrotask ?? (v => v()))(() => {
+			if (document.contains(target)) return
+
+			if ('$cleanups' in target) {
+				try {
+					for (const fn of target.$cleanups) fn(target)
+				} finally {
+					target.$cleanups.clear()
+				}
+			}
+		})
 	}
