@@ -126,7 +126,7 @@ const
 
 		for (h of isArray(h) ? h : [h]) {
 			if (h == null || typeof h == 'boolean') continue
-			else if (typeof h.nodeName == 'string') (t = buffer.t && (buffer.t = '', yield t)), yield h
+			if (typeof h.nodeName == 'string') ((t = buffer.t) && (buffer.t = '', yield t)), yield h
 			else if (isFunction(h.nodeName)) yield* normalize(h.nodeName(h), buffer, false)
 			else isArray(h) ? yield* normalize(h, buffer, false) : buffer.t += h
 		}
