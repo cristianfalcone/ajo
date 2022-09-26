@@ -87,18 +87,7 @@ export const
 const
 	{ isArray, from } = Array, { keys, entries } = Object,
 
-	isFunction = v => typeof v == 'function', noop = () => { }, on = (host, type, v) => {
-
-		let fn, map
-
-		if (fn = (map = host.$on ??= {})[type]) {
-			host.removeEventListener(type, fn, fn.options), map[type] = null
-		}
-
-		if (typeof (fn = (v = isArray(v) ? v : [v])[0]) == 'function') {
-			host.addEventListener(type, fn = map[type] = fn.bind(null, v[1]), fn.options = v[2])
-		}
-	},
+	isFunction = v => typeof v == 'function', noop = () => { },
 
 	map = list => list.reduce(set, new Map), set = (m, v, i) => (m.set(v, i), m),
 
@@ -113,9 +102,12 @@ const
 
 	proxy = { firstChild: null, insertBefore: node => proxy.firstChild ??= node }, handler = {
 		get(target, key) {
-			const value = key == 'nextSibling' ? null : target[key]
+			const value = key == 'nextSibling' ? null : Reflect.get(target, key)
 			return isFunction(value) ? value.bind(target) : value
 		},
+		set(target, key, value) {
+			return Reflect.set(target, key, value)
+		}
 	},
 
 	search = /([a-z0-9])([A-Z])/g, replace = '$1-$2',
@@ -142,9 +134,7 @@ const
 
 			let value = props[name]
 
-			if (name.startsWith('on:')) {
-				some(value, prev[name]) && on(host, name.slice(3), value)
-			} else if (value !== prev[name])
+			if (value !== prev[name])
 				if (name.startsWith('set:')) host[name.slice(4)] = value
 				else if (value == null || value === false) host.removeAttribute(name)
 				else host.setAttribute(name, value === true ? '' : value)
@@ -188,7 +178,7 @@ const
 			child = (clr ? a[index] : map.get(key))
 
 			proxy.firstChild = child ? new Proxy(child, handler) : null
-			render(fn(item), proxy)
+			render(fn(item, index), proxy)
 
 			child ??= proxy.firstChild
 			proxy.firstChild = null
@@ -208,8 +198,7 @@ const
 
 		while (aIndex !== aLen || bIndex !== bLen) {
 
-			aValue = a[aIndex]
-			bValue = b[bIndex]
+			aValue = a[aIndex], bValue = b[bIndex]
 
 			if (aValue === null) aIndex++
 			else if (bLen <= bIndex) aIndex++, dispose(host.removeChild(aValue))
@@ -217,8 +206,7 @@ const
 			else if (aValue === bValue) aIndex++, bIndex++
 			else {
 
-				aMap ??= map(a)
-				bMap ??= map(b)
+				aMap ??= map(a), bMap ??= map(b)
 
 				if (bMap.get(aValue) == null) aIndex++, dispose(host.removeChild(aValue))
 				else {
