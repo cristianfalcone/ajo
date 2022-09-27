@@ -1,8 +1,8 @@
 export const
 	Fragment = ({ children }) => children,
 
-	For = ({ is, each, by, children, ref, ...props }) => h(is ?? 'div', {
-		...props, skip: true, ref: host => iterate(host, each, by, children, ref)
+	For = ({ is, key, block, each, by, children, ref, ...props }) => h(is ?? 'div', {
+		...props, key, block, skip: true, ref: iterate.bind(null, each, by, children, ref)
 	}),
 
 	h = (nodeName, props, ...children) => {
@@ -45,13 +45,13 @@ export const
 
 		while (child) {
 			const next = child.nextSibling
-			host.removeChild(child)
+			dispose(host.removeChild(child))
 			child = next
 		}
 	},
 
-	component = setup => ({ is, props, ref, ...params }) => h(is ?? setup.is ?? 'div', {
-		...setup.props, ...props, skip: true, ref: host => run(host, setup, params, ref)
+	component = setup => ({ is, props, key, block, ref, ...params }) => h(is ?? setup.is ?? 'div', {
+		...setup.props, ...props, key, block, skip: true, ref: run.bind(null, setup, params, ref)
 	}),
 
 	refresh = host => {
@@ -97,7 +97,7 @@ const
 
 	create = (ns, name, key) => {
 		const node = ns ? document.createElementNS(ns, name) : document.createElement(name)
-		return node.$key = key, node
+		return ((node.$key = key), node)
 	},
 
 	proxy = { firstChild: null, insertBefore: node => proxy.firstChild ??= node }, handler = {
@@ -155,7 +155,7 @@ const
 		} else host.insertBefore(node, child)
 	},
 
-	iterate = (host, each, by, fn, ref) => {
+	iterate = (each, by, fn, ref, host) => {
 
 		each = isArray(each) ? each : []
 		by = isFunction(by) ? by : v => v
@@ -163,7 +163,10 @@ const
 
 		const
 			map = host.$for ??= new Map,
-			del = node => map.delete(node.$by),
+			del = node => {
+				map.delete(node.$by)
+				dispose(node)
+			},
 			clr = each !== host.$each,
 			len = (host.$each = each).length,
 			a = from(host.childNodes),
@@ -222,25 +225,20 @@ const
 		}
 	},
 
-	run = (host, setup, params, ref) => {
+	run = (setup, params, ref, host) => {
 
-		host.$setup ??= (host.addEventListener('DOMNodeRemovedFromDocument', dispose), isFunction(setup) ? setup : noop)
+		host.$setup ??= isFunction(setup) ? setup : noop
 		host.$params = { ...setup.params, ...params }
 
 		refresh(host)
 		isFunction(ref) && ref(host)
 	},
 
-	dispose = ({ target }) => {
-		(globalThis.queueMicrotask ?? (v => v()))(() => {
-			if (document.contains(target)) return
-
-			if ('$cleanups' in target) {
-				try {
-					for (const fn of target.$cleanups) fn(target)
-				} finally {
-					target.$cleanups.clear()
-				}
-			}
-		})
+	dispose = host => {
+		if (host.nodeType != 1) return
+		for (const child of host.children) dispose(child)
+		if ('$cleanups' in host) for (const fn of host.$cleanups) {
+			host.$cleanups.delete(fn)
+			fn(host)
+		}
 	}
