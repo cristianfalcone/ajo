@@ -1,9 +1,6 @@
 export const
-	Fragment = ({ children }) => children,
 
-	For = ({ is, key, block, each, by, children, ref, ...props }) => h(is ?? 'div', {
-		...props, key, block, skip: true, ref: iterate.bind(null, each, by, children, ref)
-	}),
+	Fragment = ({ children }) => children,
 
 	h = (nodeName, props, ...children) => {
 		const { length } = children
@@ -28,15 +25,19 @@ export const
 
 			} else {
 
-				const { xmlns = ns, nodeName, key, block, skip, children, ref, ...props } = h
+				const { xmlns = ns, nodeName, key, ref, memo, children, [FN]: fn, ...props } = h
 
 				while (node && !(node.localName == nodeName && (node.$key ??= key) == key)) node = node.nextSibling
 				node ??= create(xmlns, nodeName, key)
 
-				if (block == null || some(node.$deps, node.$deps = block)) {
+				if (isObject(ref)) {
+					ref.current = node
+					node.$ref = ref
+				}
+
+				if (memo == null || some(node.$memo, node.$memo = memo)) {
 					update(props, node)
-					skip || render(children, node, xmlns)
-					isFunction(ref) && ref(node)
+					isFunction(fn) ? fn(node) : render(children, node, xmlns)
 				}
 			}
 
@@ -50,80 +51,103 @@ export const
 		}
 	},
 
-	component = setup => ({ is, props, key, block, ref, ...params }) => h(is ?? setup.is ?? 'div', {
-		...setup.props, ...props, key, block, skip: true, ref: run.bind(null, setup, params, ref)
-	}),
+	component = fn => ({ nodeName, as, props, key, ref, memo, ...args }) =>
 
-	refresh = host => {
-		try {
-			render((host.$render ??= host.$setup(host))(host.$params), host)
-		} catch (error) {
-			propagate(host, error)
+		h(as ?? fn?.as ?? 'c-host', {
+
+			...fn?.props, ...props, key, ref, memo, [FN]: host => {
+
+				host.$fn = isFunction(fn) ? fn : noop
+				host.$args = { ...fn?.args, ...args }
+
+				schedule(host)
+			}
+		}),
+
+	useReducer = (fn, init) => {
+
+		const host = useHost(), hooks = useHooks(), [i, stack] = hooks
+
+		if (i == stack.length) stack[i] = [
+
+			isFunction(init) ? init() : init,
+
+			value => {
+
+				const prev = stack[i][0], next = isFunction(value) ? value(prev) : value
+
+				if (is(prev, stack[i][0] = isFunction(fn) ? fn(prev, next) : next)) return
+
+				runMutations(host)
+			}
+		]
+
+		return stack[hooks[0]++]
+	},
+
+	useMemo = (fn, deps) => {
+
+		const hooks = useHooks(), [i, stack] = hooks
+
+		if (i == stack.length || deps == null || some(deps, stack[i][1])) stack[i] = [fn(), deps]
+
+		return stack[hooks[0]++][0]
+	},
+
+	useCatch = fn => {
+
+		const host = useHost(), [value, setValue] = useReducer(), hooks = useHooks(), [i, stack] = hooks
+
+		stack[hooks[0]++] = fn
+
+		host.$catch ??= value => {
+			isFunction(stack[i]) && stack[i](value)
+			setValue(value)
 		}
+
+		return [value, () => setValue()]
 	},
 
-	provide = (host, key, value) => (host.$provisions ??= new Map).set(key, value),
+	useHost = () => current,
+	useState = init => useReducer(null, init),
 
-	consume = (host, key, fallback) => {
-		for (let map; host; host = host.parentNode) if ((map = host.$provisions) && map.has(key)) return map.get(key)
-		return fallback
-	},
+	useRef = current => useMemo(() => ({ current }), []),
+	useCallback = (fn, deps) => useMemo(() => fn, deps),
 
-	intercept = (host, fn) => isFunction(fn) && (host.$interceptor = fn),
-
-	propagate = (host, error) => {
-		for (let fn; host; host = host.parentNode) if (isFunction(fn = host.$interceptor)) return render(fn(error), host)
-		throw error
-	},
-
-	cleanup = (host, fn) => isFunction(fn) && (host.$cleanups ??= new Set).add(fn),
-
-	clx = o => keys(o).filter(k => o[k]).join(' ') || null,
-
-	stx = o => entries(o).map(t => t.join(':')).join(';') || null,
-
-	keb = o => keys(o).reduce((r, k) => ((r[k.replace(search, replace).toLowerCase()] = o[k]), r), {})
+	useLayout = (fn, deps) => useFx(fn, deps, '$layout'),
+	useEffect = (fn, deps) => useFx(fn, deps, '$effect')
 
 const
-	{ isArray, from } = Array, { keys, entries } = Object,
 
-	isFunction = v => typeof v == 'function', noop = () => { },
+	microtask = globalThis.queueMicrotask ?? (fn => fn()),
 
-	map = list => list.reduce(set, new Map), set = (m, v, i) => (m.set(v, i), m),
+	task = globalThis.requestAnimationFrame ?? microtask,
 
-	some = (a, b) => (isArray(a) && isArray(b)) ? a.some((v, i) => v !== b[i]) : a !== b,
+	{ isArray, from } = Array, { is } = Object,  noop = () => { }, FN = Symbol(),
+
+	isObject = v => v && typeof v == 'object', isFunction = v => typeof v == 'function',
+
+	some = (a, b) => (isArray(a) && isArray(b)) ? a.some((v, i) => !is(v, b[i])) : !is(a, b),
 
 	reduce = v => from(v).reduce(assign, {}), assign = (v, { name, value }) => ((v[name] = value), v),
 
 	create = (ns, name, key) => {
 		const node = ns ? document.createElementNS(ns, name) : document.createElement(name)
-		return ((node.$key = key), node)
+		return node.$key = key, node
 	},
 
-	proxy = { firstChild: null, insertBefore: node => proxy.firstChild ??= node }, handler = {
-		get(target, key) {
-			const value = key == 'nextSibling' ? null : Reflect.get(target, key)
-			return isFunction(value) ? value.bind(target) : value
-		},
-		set(target, key, value) {
-			return Reflect.set(target, key, value)
-		}
-	},
+	normalize = function* (h, buffer = { data: '' }, root = true) {
 
-	search = /([a-z0-9])([A-Z])/g, replace = '$1-$2',
-
-	normalize = function* (h, buffer = { t: '' }, root = true) {
-
-		let t
+		let data
 
 		for (h of isArray(h) ? h : [h]) {
 			if (h == null || typeof h == 'boolean') continue
-			if (typeof h.nodeName == 'string') ((t = buffer.t) && (buffer.t = '', yield t)), yield h
+			if (typeof h.nodeName == 'string') ((data = buffer.data) && (buffer.data = '', yield data)), yield h
 			else if (isFunction(h.nodeName)) yield* normalize(h.nodeName(h), buffer, false)
-			else isArray(h) ? yield* normalize(h, buffer, false) : buffer.t += h
+			else isArray(h) ? yield* normalize(h, buffer, false) : buffer.data += h
 		}
 
-		root && (t = buffer.t) && (yield t)
+		root && (data = buffer.data) && (yield data)
 	},
 
 	update = (props, host) => {
@@ -142,6 +166,7 @@ const
 	},
 
 	before = (host, node, child) => {
+
 		if (node.contains?.(document.activeElement)) {
 
 			const ref = node.nextSibling
@@ -155,90 +180,145 @@ const
 		} else host.insertBefore(node, child)
 	},
 
-	iterate = (each, by, fn, ref, host) => {
+	useHooks = () => current.$hooks ??= [0, []],
 
-		each = isArray(each) ? each : []
-		by = isFunction(by) ? by : v => v
-		fn = isFunction(fn) ? fn : noop
+	useFx = (fn, deps, key) => {
 
-		const
-			map = host.$for ??= new Map,
-			del = node => {
-				map.delete(node.$by)
-				dispose(node)
-			},
-			clr = each !== host.$each,
-			len = (host.$each = each).length,
-			a = from(host.childNodes),
-			b = new Array(len)
+		const host = useHost(), hooks = useHooks(), [i, stack] = hooks, init = i == stack.length
 
-		clr && map.clear()
+		if (init) (host[key] ??= new Set).add(stack[i] = [null, fn, deps])
 
-		for (let child, index = 0; index < len; index++) {
-
-			const item = each[index], key = by(item, index)
-
-			child = (clr ? a[index] : map.get(key))
-
-			proxy.firstChild = child ? new Proxy(child, handler) : null
-			render(fn(item, index), proxy)
-
-			child ??= proxy.firstChild
-			proxy.firstChild = null
-
-			map.set(child.$by = key, b[index] = child)
+		else if (deps == null || some(deps, stack[i][2])) {
+			stack[i][1] = fn
+			stack[i][2] = deps
 		}
 
-		arrange(host, a, b, del)
-		isFunction(ref) && ref(host)
+		hooks[0]++
 	},
 
-	arrange = (host, a, b, dispose = noop) => {
+	schedule = host => {
 
-		const aLen = a.length, bLen = b.length
+		if (host.$idle) return
 
-		let aIndex = 0, bIndex = 0, aValue, bValue, aMap, bMap, i
+		if (globalThis.navigator?.scheduling?.isInputPending()) {
 
-		while (aIndex !== aLen || bIndex !== bLen) {
+			host.$idle = requestIdleCallback(() => {
+				host.$idle = null
+				schedule(host)
+			})
 
-			aValue = a[aIndex], bValue = b[bIndex]
+			return
+		}
 
-			if (aValue === null) aIndex++
-			else if (bLen <= bIndex) aIndex++, dispose(host.removeChild(aValue))
-			else if (aLen <= aIndex) bIndex++, host.appendChild(bValue)
-			else if (aValue === bValue) aIndex++, bIndex++
-			else {
+		runComponent(host)
+	},
 
-				aMap ??= map(a), bMap ??= map(b)
+	runMutations = host => {
 
-				if (bMap.get(aValue) == null) aIndex++, dispose(host.removeChild(aValue))
-				else {
+		if (host.$queued) return
 
-					host.insertBefore(bValue, aValue), bIndex++
+		host.$queued = true
+		microtask(() => {
+			host.$queued = false
+			runComponent(host)
+		})
+	},
 
-					if ((i = aMap.get(bValue)) != null) {
-						if (i > aIndex + 1) aIndex++
-						a[i] = null
-					}
+	runComponent = host => {
+
+		if (host.$idle) {
+			cancelIdleCallback(host.$idle)
+			host.$idle = null
+		}
+
+		current = host
+
+		if (current.$hooks) current.$hooks[0] = 0
+
+		try {
+			host.$h = host.$fn(host.$args)
+		} catch (value) {
+			propagate(value, host.parentNode)
+		} finally {
+			current = null
+			layoutsQueue.add(host)
+			layoutsId ??= task(runLayouts)
+		}
+	},
+
+	runLayouts = () => {
+
+		layoutsId = null
+
+		for (const host of layoutsQueue) {
+
+			layoutsQueue.delete(host)
+
+			try {
+				render(host.$h, host)
+				host.$h = null
+			} catch (value) {
+				propagate(value, host)
+			} finally {
+				runFx(host, '$layout')
+				effectsQueue.add(host)
+				effectsId ??= task(runEffects)
+			}
+		}
+	},
+
+	runEffects = () => {
+
+		effectsId = null
+
+		for (const host of effectsQueue) {
+			effectsQueue.delete(host)
+			runFx(host, '$effect')
+		}
+	},
+
+	runFx = (host, key) => {
+
+		if (host[key]) for (const fx of host[key]) {
+
+			const [cleanup, setup] = fx
+
+			if (isFunction(setup)) {
+				try {
+					if (isFunction(cleanup)) cleanup()
+					fx[0] = setup()
+				} catch (value) {
+					fx[0] = null
+					propagate(value, host.parentNode)
+				} finally {
+					fx[1] = null
 				}
 			}
 		}
 	},
 
-	run = (setup, params, ref, host) => {
+	dispose = host => {
 
-		host.$setup ??= isFunction(setup) ? setup : noop
-		host.$params = { ...setup.params, ...params }
+		if (host.nodeType != 1) return
 
-		refresh(host)
-		isFunction(ref) && ref(host)
+		for (const child of host.children) dispose(child)
+
+		if (host.$ref) host.$ref.current = null
+
+		layoutsQueue.delete(host)
+		effectsQueue.delete(host)
+
+		for (const key of ['$layout', '$effect']) if (host[key]) {
+
+			for (const fx of host[key]) try { isFunction(fx[0]) && fx[0]() } catch { }
+
+			host[key].clear()
+		}
 	},
 
-	dispose = host => {
-		if (host.nodeType != 1) return
-		for (const child of host.children) dispose(child)
-		if ('$cleanups' in host) for (const fn of host.$cleanups) {
-			host.$cleanups.delete(fn)
-			fn(host)
-		}
+	propagate = (value, host) => {
+		for (let fn; host; host = host.parentNode) if (isFunction(fn = host.$catch)) return void fn(value)
+		throw value
 	}
+
+let current = null, layoutsQueue = new Set, layoutsId = null, effectsQueue = new Set, effectsId = null
