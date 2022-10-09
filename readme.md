@@ -33,49 +33,21 @@ render(<Greet name="World" />, document.body)
 
 ```jsx
 /** @jsx h */
-import { h, component, refresh, render } from 'ajo'
+import { h, component, useState, render } from 'ajo'
 
-const Counter = component(host => {
+const Counter = component(() => {
 
-  let count = 0
+  const [count, setCount] = useState(0)
 
-  const increment = () => {
-    count++
-    refresh(host)
-  }
-
-  return () =>
-    <button set:onclick={increment}>
+  return (
+    <button set:onclick={() => setCount(count + 1)}>
       Current: {count}
     </button>
+	)
 })
 
 render(<Counter />, document.body)
 ```
 
-## rendering lists
-
-```jsx
-/** @jsx h */
-import { h, render, component, For } from 'ajo'
-
-const products = [
-  { title: 'Cabbage', isFruit: false, id: 1 },
-  { title: 'Garlic', isFruit: false, id: 2 },
-  { title: 'Apple', isFruit: true, id: 3 },
-];
-
-const ShoppingList = component(() => {
-  const listItem = product =>
-    <li style={stx({ color: product.isFruit ? 'magenta' : 'darkgreen' })}>
-      {product.title}
-    </li>
-
-  return ({ products }) => <For each={products} is="ul">{listItem}</For>
-})
-
-render(<ShoppingList producst={products} />, document.body)
-```
-
 ## acknowledgments
-ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [Crank.js](https://github.com/bikeshaving/crank)
+ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [React](https://github.com/facebook/react)
