@@ -197,18 +197,21 @@ const
 
 	schedule = host => {
 
-		if (host.$idleId) return
+		if (host.$idle) return
 
 		if (globalThis.navigator?.scheduling?.isInputPending()) {
 
-			if (!host.$idle) {
-				host.$idle = true
-				idleCount++
-			}
+			idleQueue.add(host)
+			host.$idle = true
 
-			host.$idleId = requestIdleCallback(() => {
-				host.$idleId = null
-				schedule(host)
+			idleId ??= requestIdleCallback(() => {
+				idleId = null
+				const queue = from(idleQueue)
+				for (const host of queue) {
+					idleQueue.delete(host)
+					host.$idle = false
+					schedule(host)
+				}
 			})
 
 			return
@@ -230,11 +233,9 @@ const
 
 	runComponent = host => {
 
-		if (host.$idleId) {
-			cancelIdleCallback(host.$idleId)
-			host.$idleId = null
+		if (host.$idle) {
+			idleQueue.delete(host)
 			host.$idle = false
-			idleCount--
 		}
 
 		current = host
@@ -247,24 +248,20 @@ const
 			propagate(value, host.parentNode)
 		} finally {
 			current = null
-			layoutsQueue.add(host)
-
-			if (host.$idle) {
-				host.$idle = false
-				if (--idleCount) return
-			}
-
-			layoutsId ??= task(runLayouts)
+			layoutQueue.add(host)
+			host.$layoutQueued = true
+			layoutId ??= task(runLayouts)
 		}
 	},
 
 	runLayouts = () => {
 
-		layoutsId = null
+		layoutId = null
 
-		for (const host of layoutsQueue) {
+		for (const host of layoutQueue) {
 
-			layoutsQueue.delete(host)
+			layoutQueue.delete(host)
+			host.$layoutQueued = false
 
 			try {
 				render(host.$h, host)
@@ -273,18 +270,20 @@ const
 				propagate(value, host)
 			} finally {
 				runFx(host, '$layout')
-				effectsQueue.add(host)
-				effectsId ??= task(runEffects)
+				effectQueue.add(host)
+				host.$effectQueued = true
+				effectId ??= task(runEffects)
 			}
 		}
 	},
 
 	runEffects = () => {
 
-		effectsId = null
+		effectId = null
 
-		for (const host of effectsQueue) {
-			effectsQueue.delete(host)
+		for (const host of effectQueue) {
+			effectQueue.delete(host)
+			host.$effectQueued = false
 			runFx(host, '$effect')
 		}
 	},
@@ -319,8 +318,20 @@ const
 
 		if (!host.$fn) return
 
-		layoutsQueue.delete(host)
-		effectsQueue.delete(host)
+		if (host.$idle) {
+			idleQueue.delete(host)
+			host.$idle = false
+		}
+
+		if (host.$layoutQueued) {
+			layoutQueue.delete(host)
+			host.$layoutQueued = false
+		}
+
+		if (host.$effectQueued) {
+			effectQueue.delete(host)
+			host.$effectQueued = false
+		}
 
 		for (const key of ['$layout', '$effect']) if (host[key]) {
 
@@ -346,9 +357,10 @@ const
 	}
 
 let
-	idleCount = 0,
-	layoutsQueue = new Set,
-	effectsQueue = new Set,
-	layoutsId = null,
-	effectsId = null,
-	current = null
+	current = null,
+	layoutQueue = new Set,
+	effectQueue = new Set,
+	idleQueue = new Set,
+	layoutId = null,
+	effectId = null,
+	idleId = null
