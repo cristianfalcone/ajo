@@ -200,38 +200,16 @@ const
 		if (host.$idle) return
 
 		if (globalThis.navigator?.scheduling?.isInputPending()) {
-
 			idleQueue.add(host)
 			host.$idle = true
-
-			idleId ??= requestIdleCallback(() => {
-				idleId = null
-				const queue = from(idleQueue)
-				for (const host of queue) {
-					idleQueue.delete(host)
-					host.$idle = false
-					schedule(host)
-				}
-			})
-
+			idleId ??= requestIdleCallback(runIdle)
 			return
 		}
 
-		runComponent(host)
+		run(host)
 	},
 
-	runMutations = host => {
-
-		if (host.$queued) return
-
-		host.$queued = true
-		microtask(() => {
-			host.$queued = false
-			runComponent(host)
-		})
-	},
-
-	runComponent = host => {
+	run = host => {
 
 		if (host.$idle) {
 			idleQueue.delete(host)
@@ -252,6 +230,28 @@ const
 			host.$layoutQueued = true
 			layoutId ??= task(runLayouts)
 		}
+	},
+
+	runIdle = () => {
+
+		idleId = null
+
+		for (const host of from(idleQueue)) {
+			idleQueue.delete(host)
+			host.$idle = false
+			schedule(host)
+		}
+	},
+
+	runMutations = host => {
+
+		if (host.$runQueued) return
+
+		host.$runQueued = true
+		microtask(() => {
+			host.$runQueued = false
+			run(host)
+		})
 	},
 
 	runLayouts = () => {
