@@ -58,8 +58,9 @@ it('should render a stateful component', async () => {
 	const Foo = component(({ foo, children }) => h('div', { foo }, children))
 	render(h(Foo, { as: 'foo-component', foo: 'bar' }, h('span', null, 'foobar')), host)
 
-	// wait for component to render
-	await new Promise(r => setTimeout(r, 0))
+	// Wait for component to render: in enviroments without requestAnimationFrame (e.g. Node.js),
+	// setTimeout should be enough to wait since all phases are microtasks
+	await new Promise(r => setTimeout(r))
 
 	assert.snapshot(host.innerHTML, '<foo-component><div foo="bar"><span>foobar</span></div></foo-component>')
 })

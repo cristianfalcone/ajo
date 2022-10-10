@@ -27,7 +27,7 @@ export const
 
 				const { xmlns = ns, nodeName, key, ref, memo, children, [FN]: fn, ...props } = h
 
-				while (node && !(node.localName == nodeName && (node.$key ??= key) == key)) node = node.nextSibling
+				while (node && !(node.localName == nodeName && is(node.$key ??= key, key))) node = node.nextSibling
 				node ??= create(xmlns, nodeName, key)
 
 				if (isObject(ref)) {
@@ -35,7 +35,7 @@ export const
 					node.$ref = ref
 				}
 
-				if (memo == null || some(node.$memo, node.$memo = memo)) {
+				if (memo == null || some(node.$deps, node.$deps = memo)) {
 					update(props, node)
 					isFunction(fn) ? fn(node) : render(children, node, xmlns)
 				}
@@ -46,7 +46,8 @@ export const
 
 		while (child) {
 			const next = child.nextSibling
-			dispose(host.removeChild(child))
+			dispose(child)
+			host.removeChild(child)
 			child = next
 		}
 	},
@@ -119,17 +120,15 @@ export const
 
 const
 
-	microtask = globalThis.queueMicrotask ?? (fn => fn()),
-
-	task = globalThis.requestAnimationFrame ?? microtask,
-
-	{ isArray, from } = Array, { is } = Object,  noop = () => { }, FN = Symbol(),
+	{ isArray, from } = Array, { is } = Object, noop = () => { }, FN = Symbol(),
 
 	isObject = v => v && typeof v == 'object', isFunction = v => typeof v == 'function',
 
 	some = (a, b) => (isArray(a) && isArray(b)) ? a.some((v, i) => !is(v, b[i])) : !is(a, b),
 
 	reduce = v => from(v).reduce(assign, {}), assign = (v, { name, value }) => ((v[name] = value), v),
+
+	microtask = globalThis.queueMicrotask ?? (fn => fn()), task = globalThis.requestAnimationFrame ?? microtask,
 
 	create = (ns, name, key) => {
 		const node = ns ? document.createElementNS(ns, name) : document.createElement(name)
@@ -198,12 +197,17 @@ const
 
 	schedule = host => {
 
-		if (host.$idle) return
+		if (host.$idleId) return
 
 		if (globalThis.navigator?.scheduling?.isInputPending()) {
 
-			host.$idle = requestIdleCallback(() => {
-				host.$idle = null
+			if (!host.$idle) {
+				host.$idle = true
+				idleCount++
+			}
+
+			host.$idleId = requestIdleCallback(() => {
+				host.$idleId = null
 				schedule(host)
 			})
 
@@ -226,9 +230,11 @@ const
 
 	runComponent = host => {
 
-		if (host.$idle) {
-			cancelIdleCallback(host.$idle)
-			host.$idle = null
+		if (host.$idleId) {
+			cancelIdleCallback(host.$idleId)
+			host.$idleId = null
+			host.$idle = false
+			idleCount--
 		}
 
 		current = host
@@ -242,6 +248,12 @@ const
 		} finally {
 			current = null
 			layoutsQueue.add(host)
+
+			if (host.$idle) {
+				host.$idle = false
+				if (--idleCount) return
+			}
+
 			layoutsId ??= task(runLayouts)
 		}
 	},
@@ -305,14 +317,26 @@ const
 
 		if (host.$ref) host.$ref.current = null
 
+		if (!host.$fn) return
+
 		layoutsQueue.delete(host)
 		effectsQueue.delete(host)
 
 		for (const key of ['$layout', '$effect']) if (host[key]) {
 
-			for (const fx of host[key]) try { isFunction(fx[0]) && fx[0]() } catch { }
+			for (const fx of host[key]) {
 
-			host[key].clear()
+				host[key].delete(fx)
+
+				try {
+					const [cleanup] = fx
+					isFunction(cleanup) && cleanup()
+				} catch (value) {
+					propagate(value, host.parentNode)
+				} finally {
+					fx[0] = fx[1] = null
+				}
+			}
 		}
 	},
 
@@ -321,4 +345,10 @@ const
 		throw value
 	}
 
-let current = null, layoutsQueue = new Set, layoutsId = null, effectsQueue = new Set, effectsId = null
+let
+	idleCount = 0,
+	layoutsQueue = new Set,
+	effectsQueue = new Set,
+	layoutsId = null,
+	effectsId = null,
+	current = null
