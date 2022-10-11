@@ -79,7 +79,7 @@ export const
 
 				if (is(prev, stack[i][0] = isFunction(fn) ? fn(prev, next) : next)) return
 
-				runMutations(host)
+				runMutation(host)
 			}
 		]
 
@@ -115,6 +115,7 @@ export const
 	useRef = current => useMemo(() => ({ current }), []),
 	useCallback = (fn, deps) => useMemo(() => fn, deps),
 
+	useInsert = (fn, deps) => useFx(fn, deps, '$insert'),
 	useLayout = (fn, deps) => useFx(fn, deps, '$layout'),
 	useEffect = (fn, deps) => useFx(fn, deps, '$effect')
 
@@ -228,7 +229,7 @@ const
 			current = null
 			layoutQueue.add(host)
 			host.$layoutQueued = true
-			layoutId ??= task(runLayouts)
+			layoutId ??= task(runLayout)
 		}
 	},
 
@@ -243,7 +244,7 @@ const
 		}
 	},
 
-	runMutations = host => {
+	runMutation = host => {
 
 		if (host.$runQueued) return
 
@@ -254,7 +255,7 @@ const
 		})
 	},
 
-	runLayouts = () => {
+	runLayout = () => {
 
 		layoutId = null
 
@@ -262,6 +263,8 @@ const
 
 			layoutQueue.delete(host)
 			host.$layoutQueued = false
+
+			runFx(host, '$insert')
 
 			try {
 				render(host.$h, host)
@@ -272,12 +275,12 @@ const
 				runFx(host, '$layout')
 				effectQueue.add(host)
 				host.$effectQueued = true
-				effectId ??= task(runEffects)
+				effectId ??= task(runEffect)
 			}
 		}
 	},
 
-	runEffects = () => {
+	runEffect = () => {
 
 		effectId = null
 
@@ -333,7 +336,7 @@ const
 			host.$effectQueued = false
 		}
 
-		for (const key of ['$layout', '$effect']) if (host[key]) {
+		for (const key of ['$insert', '$layout', '$effect']) if (host[key]) {
 
 			for (const fx of host[key]) {
 

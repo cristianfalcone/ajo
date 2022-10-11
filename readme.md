@@ -7,7 +7,7 @@ ajo is a JavaScript view library for building user interfaces
 npm install ajo
 ```
 
-## render JSX to a DOM element
+## render a JSX element to a DOM element
 
 ```jsx
 /** @jsx h */
@@ -18,7 +18,7 @@ document.body.innerHTML = '<div>Hello World</div>'
 render(<div>Goodbye World</div>, document.body)
 ```
 
-## stateless component
+## function element (stateless)
 
 ```jsx
 /** @jsx h */
@@ -29,7 +29,7 @@ const Greet = ({ name }) => <div>Hello {name}</div>
 render(<Greet name="World" />, document.body)
 ```
 
-## stateful component
+## component element (stateful)
 
 ```jsx
 /** @jsx h */
