@@ -7,7 +7,7 @@ ajo is a JavaScript view library for building user interfaces
 npm install ajo
 ```
 
-## render a JSX element to a DOM element
+## render a JSX element into a DOM element
 
 ```jsx
 /** @jsx h */
@@ -37,12 +37,12 @@ import { h, component, useState, render } from 'ajo'
 
 const Counter = component(() => {
 
-  const [count, setCount] = useState(0)
+	const [count, setCount] = useState(0)
 
-  return (
-    <button set:onclick={() => setCount(count + 1)}>
-      Current: {count}
-    </button>
+	return (
+		<button set:onclick={() => setCount(count + 1)}>
+			Current: {count}
+		</button>
 	)
 })
 
