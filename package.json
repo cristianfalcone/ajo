@@ -1,21 +1,24 @@
 {
   "name": "ajo",
   "version": "0.1.1",
-  "description": "ajo is a JavaScript view library for building user interfaces",
+  "description": "Ajo is a JavaScript view library for building user interfaces",
   "type": "module",
-  "files": ["dist"],
-  "main": "./dist/ajo.umd.cjs",
   "module": "./dist/ajo.js",
+  "main": "./dist/ajo.umd.cjs",
   "exports": {
     ".": {
       "import": "./dist/ajo.js",
       "require": "./dist/ajo.umd.cjs"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "vitest --run",
     "build": "vite build",
-    "release": "pnpm test && pnpm build && git commit -am \"$npm_package_version\" && git tag $npm_package_version && git push && git push --tags && pnpm publish"
+    "bump": "pnpm version patch && git push && git push --tags",
+    "release": "pnpm test && pnpm build && pnpm bump && pnpm publish"
   },
   "devDependencies": {
     "jsdom": "^22.1.0",
