@@ -1,7 +1,7 @@
 {
   "name": "ajo",
   "version": "0.1.2",
-  "description": "Ajo is a JavaScript view library for building user interfaces",
+  "description": "ajo is a JavaScript view library for building user interfaces",
   "type": "module",
   "module": "./dist/ajo.js",
   "main": "./dist/ajo.umd.cjs",

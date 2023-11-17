@@ -1,5 +1,5 @@
-# Ajo
-Ajo is a JavaScript view library for building user interfaces
+# ajo
+ajo is a JavaScript view library for building user interfaces
 
 ## install
 
@@ -55,4 +55,4 @@ render(<Counter init={5} />, document.body)
 ```
 
 ## acknowledgments
-Ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [Crank.js](https://github.com/bikeshaving/crank)
+ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [Crank.js](https://github.com/bikeshaving/crank)
