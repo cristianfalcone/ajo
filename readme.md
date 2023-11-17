@@ -1,5 +1,5 @@
-# ajo
-ajo is a JavaScript view library for building user interfaces
+# Ajo
+Ajo is a JavaScript view library for building user interfaces
 
 ## install
 
@@ -7,7 +7,7 @@ ajo is a JavaScript view library for building user interfaces
 npm install ajo
 ```
 
-## render a JSX element into a DOM element
+## render JSX into DOM
 
 ```jsx
 /** @jsx h */
@@ -18,7 +18,7 @@ document.body.innerHTML = '<div>Hello World</div>'
 render(<div>Goodbye World</div>, document.body)
 ```
 
-## function element (stateless)
+## stateless component
 
 ```jsx
 /** @jsx h */
@@ -29,25 +29,30 @@ const Greet = ({ name }) => <div>Hello {name}</div>
 render(<Greet name="World" />, document.body)
 ```
 
-## component element (stateful)
+## stateful component
 
 ```jsx
 /** @jsx h */
-import { h, component, useState, render } from 'ajo'
+import { h, render, component } from 'ajo'
 
-const Counter = component(() => {
+const Counter = component(function* ({ init = 0 }) {
 
-	const [count, setCount] = useState(0)
+	let count = init
 
-	return (
-		<button set:onclick={() => setCount(count + 1)}>
+	const handleClick = () => {
+		count++
+		this.refresh()
+	}
+
+	while (true) yield (
+		<button set:onclick={handleClick}>
 			Current: {count}
 		</button>
 	)
 })
 
-render(<Counter />, document.body)
+render(<Counter init={5} />, document.body)
 ```
 
 ## acknowledgments
-ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [React](https://github.com/facebook/react)
+Ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [Crank.js](https://github.com/bikeshaving/crank)

@@ -1,369 +1,234 @@
-export const
+const Key = Symbol(), Memo = Symbol(), Attrs = Symbol()
 
-	Fragment = ({ children }) => children,
+const { isArray, prototype: { slice } } = Array, { assign } = Object
 
-	h = (nodeName, props, ...children) => {
-		const { length } = children
-		children = length == 0 ? null : length == 1 ? children[0] : children
-		return { children, ...props, nodeName }
-	},
+export const Fragment = ({ children }) => children
 
-	render = (h, host, ns) => {
+export const h = function (nodeName, attrs) {
 
-		let child = host.firstChild
+	const node = { ...attrs, nodeName }, { length } = arguments
 
-		for (h of normalize(h)) {
+	if (!('children' in node || length < 3)) node.children = length === 3 ? arguments[2] : slice.call(arguments, 2)
 
-			let node = child
+	return node
+}
 
-			if (h instanceof Node) node = h
+export const render = (h, host, ns) => {
 
-			else if (typeof h == 'string') {
+	let child = host.firstChild
 
-				while (node && node.nodeType != 3) node = node.nextSibling
-				node ? node.data != h && (node.data = h) : node = document.createTextNode(h)
+	for (h of normalize(h)) {
 
-			} else {
+		let node = child
 
-				const { xmlns = ns, nodeName, key, ref, memo, children, [FN]: fn, ...props } = h
+		if (typeof h === 'string') {
 
-				while (node && !(node.localName == nodeName && is(node.$key ??= key, key))) node = node.nextSibling
-				node ??= create(xmlns, nodeName, key)
+			while (node && node.nodeType != 3) node = node.nextSibling
 
-				if (isObject(ref)) {
-					ref.current = node
-					node.$ref = ref
-				}
+			node ? node.data != h && (node.data = h) : node = document.createTextNode(h)
 
-				if (memo == null || some(node.$deps, node.$deps = memo)) {
-					update(props, node)
-					isFunction(fn) ? fn(node) : render(children, node, xmlns)
-				}
-			}
+		} else {
 
-			node == child ? child = child.nextSibling : before(host, node, child)
-		}
+			const { xmlns = ns, nodeName, is, key, skip, memo, ref, children, ...attrs } = h
 
-		while (child) {
-			const next = child.nextSibling
-			dispose(child)
-			host.removeChild(child)
-			child = next
-		}
-	},
+			while (node && !(node.localName === nodeName && (node[Key] ??= key) == key)) node = node.nextSibling
 
-	component = fn => ({ nodeName, as, props, key, ref, memo, ...args }) =>
+			node ??= create(xmlns, nodeName, is, key)
 
-		h(as ?? fn?.as ?? 'c-host', {
+			if (memo == null || some(node[Memo], node[Memo] = memo)) {
 
-			...fn?.props, ...props, key, ref, memo, [FN]: host => {
+				update(attrs, node)
 
-				host.$fn = isFunction(fn) ? fn : noop
-				host.$args = { ...fn?.args, ...args }
+				if (!skip) render(children, node, xmlns)
 
-				schedule(host)
-			}
-		}),
-
-	useReducer = (fn, init) => {
-
-		const host = useHost(), hooks = useHooks(), [i, stack] = hooks
-
-		if (i == stack.length) stack[i] = [
-
-			isFunction(init) ? init() : init,
-
-			value => {
-
-				const prev = stack[i][0], next = isFunction(value) ? value(prev) : value
-
-				if (is(prev, stack[i][0] = isFunction(fn) ? fn(prev, next) : next)) return
-
-				runMutation(host)
-			}
-		]
-
-		return stack[hooks[0]++]
-	},
-
-	useMemo = (fn, deps) => {
-
-		const hooks = useHooks(), [i, stack] = hooks
-
-		if (i == stack.length || deps == null || some(deps, stack[i][1])) stack[i] = [fn(), deps]
-
-		return stack[hooks[0]++][0]
-	},
-
-	useCatch = fn => {
-
-		const host = useHost(), [value, setValue] = useReducer(), hooks = useHooks(), [i, stack] = hooks
-
-		stack[hooks[0]++] = fn
-
-		host.$catch ??= value => {
-			isFunction(stack[i]) && stack[i](value)
-			setValue(value)
-		}
-
-		return [value, () => setValue()]
-	},
-
-	useHost = () => current,
-	useState = init => useReducer(null, init),
-
-	useRef = current => useMemo(() => ({ current }), []),
-	useCallback = (fn, deps) => useMemo(() => fn, deps),
-
-	useInsert = (fn, deps) => useFx(fn, deps, '$insert'),
-	useLayout = (fn, deps) => useFx(fn, deps, '$layout'),
-	useEffect = (fn, deps) => useFx(fn, deps, '$effect')
-
-const
-
-	{ isArray, from } = Array, { is } = Object, noop = () => { }, FN = Symbol(),
-
-	isObject = v => v && typeof v == 'object', isFunction = v => typeof v == 'function',
-
-	some = (a, b) => (isArray(a) && isArray(b)) ? a.some((v, i) => !is(v, b[i])) : !is(a, b),
-
-	reduce = v => from(v).reduce(assign, {}), assign = (v, { name, value }) => ((v[name] = value), v),
-
-	microtask = globalThis.queueMicrotask ?? (fn => fn()), task = globalThis.requestAnimationFrame ?? microtask,
-
-	create = (ns, name, key) => {
-		const node = ns ? document.createElementNS(ns, name) : document.createElement(name)
-		return node.$key = key, node
-	},
-
-	normalize = function* (h, buffer = { data: '' }, root = true) {
-
-		let data
-
-		for (h of isArray(h) ? h : [h]) {
-			if (h == null || typeof h == 'boolean') continue
-			if (typeof h.nodeName == 'string') ((data = buffer.data) && (buffer.data = '', yield data)), yield h
-			else if (isFunction(h.nodeName)) yield* normalize(h.nodeName(h), buffer, false)
-			else isArray(h) ? yield* normalize(h, buffer, false) : buffer.data += h
-		}
-
-		root && (data = buffer.data) && (yield data)
-	},
-
-	update = (props, host) => {
-
-		const prev = host.$props ??= host.hasAttributes() ? reduce(host.attributes) : {}
-
-		for (const name in { ...prev, ...(host.$props = props) }) {
-
-			let value = props[name]
-
-			if (value !== prev[name])
-				if (name.startsWith('set:')) host[name.slice(4)] = value
-				else if (value == null || value === false) host.removeAttribute(name)
-				else host.setAttribute(name, value === true ? '' : value)
-		}
-	},
-
-	before = (host, node, child) => {
-
-		if (node.contains?.(document.activeElement)) {
-
-			const ref = node.nextSibling
-
-			while (child && child != node) {
-				const next = child.nextSibling
-				host.insertBefore(child, ref)
-				child = next
-			}
-
-		} else host.insertBefore(node, child)
-	},
-
-	useHooks = () => current.$hooks ??= [0, []],
-
-	useFx = (fn, deps, key) => {
-
-		const host = useHost(), hooks = useHooks(), [i, stack] = hooks, init = i == stack.length
-
-		if (init) (host[key] ??= new Set).add(stack[i] = [null, fn, deps])
-
-		else if (deps == null || some(deps, stack[i][2])) {
-			stack[i][1] = fn
-			stack[i][2] = deps
-		}
-
-		hooks[0]++
-	},
-
-	schedule = host => {
-
-		if (host.$idle) return
-
-		if (globalThis.navigator?.scheduling?.isInputPending()) {
-			idleQueue.add(host)
-			host.$idle = true
-			idleId ??= requestIdleCallback(runIdle)
-			return
-		}
-
-		run(host)
-	},
-
-	run = host => {
-
-		if (host.$idle) {
-			idleQueue.delete(host)
-			host.$idle = false
-		}
-
-		current = host
-
-		if (current.$hooks) current.$hooks[0] = 0
-
-		try {
-			host.$h = host.$fn(host.$args)
-		} catch (value) {
-			propagate(value, host.parentNode)
-		} finally {
-			current = null
-			layoutQueue.add(host)
-			host.$layoutQueued = true
-			layoutId ??= task(runLayout)
-		}
-	},
-
-	runIdle = () => {
-
-		idleId = null
-
-		for (const host of from(idleQueue)) {
-			idleQueue.delete(host)
-			host.$idle = false
-			schedule(host)
-		}
-	},
-
-	runMutation = host => {
-
-		if (host.$runQueued) return
-
-		host.$runQueued = true
-		microtask(() => {
-			host.$runQueued = false
-			run(host)
-		})
-	},
-
-	runLayout = () => {
-
-		layoutId = null
-
-		for (const host of layoutQueue) {
-
-			layoutQueue.delete(host)
-			host.$layoutQueued = false
-
-			runFx(host, '$insert')
-
-			try {
-				render(host.$h, host)
-				host.$h = null
-			} catch (value) {
-				propagate(value, host)
-			} finally {
-				runFx(host, '$layout')
-				effectQueue.add(host)
-				host.$effectQueued = true
-				effectId ??= task(runEffect)
+				if (typeof ref === 'function') ref(node)
 			}
 		}
-	},
 
-	runEffect = () => {
-
-		effectId = null
-
-		for (const host of effectQueue) {
-			effectQueue.delete(host)
-			host.$effectQueued = false
-			runFx(host, '$effect')
-		}
-	},
-
-	runFx = (host, key) => {
-
-		if (host[key]) for (const fx of host[key]) {
-
-			const [cleanup, setup] = fx
-
-			if (isFunction(setup)) {
-				try {
-					if (isFunction(cleanup)) cleanup()
-					fx[0] = setup()
-				} catch (value) {
-					fx[0] = null
-					propagate(value, host.parentNode)
-				} finally {
-					fx[1] = null
-				}
-			}
-		}
-	},
-
-	dispose = host => {
-
-		if (host.nodeType != 1) return
-
-		for (const child of host.children) dispose(child)
-
-		if (host.$ref) host.$ref.current = null
-
-		if (!host.$fn) return
-
-		if (host.$idle) {
-			idleQueue.delete(host)
-			host.$idle = false
-		}
-
-		if (host.$layoutQueued) {
-			layoutQueue.delete(host)
-			host.$layoutQueued = false
-		}
-
-		if (host.$effectQueued) {
-			effectQueue.delete(host)
-			host.$effectQueued = false
-		}
-
-		for (const key of ['$insert', '$layout', '$effect']) if (host[key]) {
-
-			for (const fx of host[key]) {
-
-				host[key].delete(fx)
-
-				try {
-					const [cleanup] = fx
-					isFunction(cleanup) && cleanup()
-				} catch (value) {
-					propagate(value, host.parentNode)
-				} finally {
-					fx[0] = fx[1] = null
-				}
-			}
-		}
-	},
-
-	propagate = (value, host) => {
-		for (let fn; host; host = host.parentNode) if (isFunction(fn = host.$catch)) return void fn(value)
-		throw value
+		node === child ? child = child.nextSibling : before(host, node, child)
 	}
 
-let
-	current = null,
-	layoutQueue = new Set,
-	effectQueue = new Set,
-	idleQueue = new Set,
-	layoutId = null,
-	effectId = null,
-	idleId = null
+	while (child) {
+
+		const next = child.nextSibling
+
+		host.removeChild(child)
+
+		child = next
+	}
+}
+
+const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
+
+const create = (ns, name, is, key) => {
+
+	const node = ns ? document.createElementNS(ns, name, { is }) : document.createElement(name, { is })
+
+	node[Key] = key
+
+	return node
+}
+
+const update = (attrs, host) => {
+
+	const prev = host[Attrs] ??= slice.call(host.attributes).reduce((o, { name, value }) => (o[name] = value, o), {})
+
+	for (const name in { ...prev, ...(host[Attrs] = attrs) }) {
+
+		const value = attrs[name]
+
+		if (value === prev[name]) continue
+
+		if (name.startsWith('set:')) host[name.slice(4)] = value
+
+		else if (value == null || value === false) host.removeAttribute(name)
+
+		else host.setAttribute(name, value === true ? '' : value)
+	}
+}
+
+const before = (host, node, child) => {
+
+	if (node.contains(document.activeElement)) {
+
+		const ref = node.nextSibling
+
+		while (child && child != node) {
+
+			const next = child.nextSibling
+
+			host.insertBefore(child, ref)
+
+			child = next
+		}
+
+	} else host.insertBefore(node, child)
+}
+
+const normalize = function* (h, buffer = { value: '' }, root = true) {
+
+	for (h of isArray(h) ? h : [h]) {
+
+		if (h == null || typeof h === 'boolean') continue
+
+		const { nodeName, ...attrs } = h, type = typeof nodeName
+
+		if (type === 'string') buffer.value && (yield buffer.value, buffer.value = ''), yield h
+
+		else if (type === 'function') yield* normalize(nodeName(attrs), buffer, false)
+
+		else isArray(h) ? yield* normalize(h, buffer, false) : buffer.value += h
+	}
+
+	if (root && buffer.value) yield buffer.value
+}
+
+let id = 0, queued = null, queue, types
+
+export const component = (fn, { as } = {}) => {
+
+	if (fn?.constructor?.name !== 'GeneratorFunction') throw new TypeError('fn is not a generator function')
+
+	const is = `host-${id++}`
+
+	class Host extends resolve(as) {
+
+		generator
+		args
+		ref
+
+		disconnectedCallback() {
+			this.return()
+		}
+
+		refresh() {
+			enqueue(this)
+		}
+
+		next({ method = 'next', argument } = {}) {
+
+			try {
+
+				const { done, value } = (this.generator ??= fn.call(this, this.args))[method](argument)
+
+				if (done) return method !== 'return' && this.return(value)
+
+				render(value, this)
+
+				if (typeof this.ref === 'function') this.ref(this)
+
+			} catch (value) {
+
+				this.throw(value)
+			}
+		}
+
+		throw(value) {
+
+			for (let host = this.parentNode; host; host = host.parentNode) {
+
+				if (typeof host.generator?.throw === 'function') {
+
+					return host.next({ method: 'throw', argument: value })
+				}
+			}
+
+			throw value
+		}
+
+		return(value) {
+
+			try {
+
+				this.next({ method: 'return', argument: value })
+
+			} finally {
+
+				this.generator = null
+			}
+		}
+
+		*[Symbol.iterator]() {
+			while (this.isConnected) yield this.args
+		}
+	}
+
+	customElements.define(is, Host, { extends: as })
+
+	return ({ attrs = {}, args = {}, ref, ...rest }) => {
+
+		for (const name in rest) name.startsWith('arg:') ? args[name.slice(4)] = rest[name] : (name === 'children' ? args : attrs)[name] = rest[name]
+	
+		return h(as || is, assign(attrs, { is: as && is, skip: true, ref: host => assign(host, { args, ref }).refresh() }))
+	}
+}
+
+const enqueue = host => {
+
+	(queue ??= new Set).add(host)
+
+	queued ??= requestAnimationFrame(() => {
+
+		for (const host of queue) if (host.isConnected) host.next()
+
+		queue.clear()
+
+		queued = null
+	})
+}
+
+const resolve = type => {
+
+	let constructor = (types ??= new Map).get(type)
+
+	if (!constructor) {
+
+		constructor = document.createElement(type).constructor
+
+		if (constructor === HTMLUnknownElement) constructor = HTMLElement
+
+		types.set(type, constructor)
+	}
+
+	return constructor
+}

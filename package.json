@@ -1,22 +1,27 @@
 {
   "name": "ajo",
-  "version": "0.0.26",
+  "version": "0.1.0",
   "description": "ajo is a JavaScript view library for building user interfaces",
   "type": "module",
-  "module": "index.js",
-  "main": "index.cjs",
-  "unpkg": "index.min.js",
+  "files": ["dist"],
+  "main": "./dist/ajo.umd.cjs",
+  "module": "./dist/ajo.js",
   "exports": {
     ".": {
-      "import": "./index.js",
-      "require": "./index.cjs",
-      "browser": "./index.min.js"
+      "import": "./dist/ajo.js",
+      "require": "./dist/ajo.umd.cjs"
     }
   },
-  "files": [
-    "index.js",
-    "index.min.js"
-  ],
+  "scripts": {
+    "test": "vitest --run",
+    "build": "vite build",
+    "release": "pnpm test && pnpm build && git commit -am \"$npm_package_version\" && git tag $npm_package_version && git push && git push --tags && pnpm publish"
+  },
+  "devDependencies": {
+    "jsdom": "^22.1.0",
+    "vite": "^4.5.0",
+    "vitest": "^0.34.6"
+  },
   "keywords": [
     "ui",
     "frontend",
@@ -24,21 +29,9 @@
     "dom",
     "jsx"
   ],
-  "scripts": {
-    "build": "npm run build:require && npm run build:browser",
-    "build:require": "esbuild --format=cjs --out-extension:.js=.cjs --outdir=. index.js",
-    "build:browser": "esbuild --format=iife --out-extension:.js=.min.js --outdir=. --global-name=ajo --minify index.js",
-    "release": "npm test && git commit -am \"$npm_package_version\" && git tag $npm_package_version && git push && git push --tags && npm publish",
-    "test": "npm run build && uvu"
-  },
   "repository": "cristianfalcone/ajo",
   "author": "Cristian Falcone",
   "license": "ISC",
   "bugs": "https://github.com/cristianfalcone/ajo/issues",
-  "homepage": "https://github.com/cristianfalcone/ajo#readme",
-  "devDependencies": {
-    "backdom": "^0.0.8",
-    "esbuild": "^0.15.10",
-    "uvu": "^0.5.6"
-  }
+  "homepage": "https://github.com/cristianfalcone/ajo#readme"
 }
