@@ -112,4 +112,31 @@ describe('component', () => {
 
 		expect(document.body.innerHTML).toBe(html)
 	})
+
+	it('should catch errors from children', () => {
+
+		const Thrower = () => {
+			throw new Error('test')
+		}
+
+		const Child = component(function* Child() {
+			for ({} of this) yield <Thrower />
+		})
+
+		const Parent = component(function* Parent() {
+			for ({} of this) {
+				try {
+					yield <Child />
+				} catch (e) {
+					yield <div>{e.message}</div>
+				}
+			}
+		})
+
+		render(<Parent />, document.body)
+
+		vi.runAllTimers()
+
+		expect(document.body.innerHTML).toBe('<host-5><div>test</div></host-5>')
+	})
 })

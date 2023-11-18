@@ -8,7 +8,7 @@ export const html = function* (h) {
 
 	for (h of normalize(h)) {
 
-		if (typeof h === 'string') yield escape(h)
+		if (typeof h === 'string') yield h
 
 		else {
 
@@ -46,7 +46,7 @@ export const html = function* (h) {
 
 export const render = h => [...html(h)].join('')
 
-let id = 0, current = null
+let id = 0
 
 export const component = (fn, { as } = {}) => {
 
@@ -57,35 +57,29 @@ export const component = (fn, { as } = {}) => {
 	return ({ attrs = {}, args = {}, ...rest }) => {
 
 		for (const name in rest) {
-			
+
 			if (name.startsWith('arg:')) args[name.slice(4)] = rest[name]
-			
+
 			else (name === 'children' ? args : attrs)[name] = rest[name]
 		}
 
-		const r = children => h(as || is, assign(attrs, { is: as && is }), children)
-
-		const parent = current
-
-		current = assign(fn.call({ *[Symbol.iterator]() { yield args } }, args), { parent })
+		let generator, children
 
 		try {
 
-			const { done, value } = current.next()
+			generator = fn.call({ refresh() { }, throw(value) { throw value }, *[Symbol.iterator]() { while (true) yield args } }, args)
 
-			return done ? null : r(value)
+			children = render(generator.next().value)
 
 		} catch (value) {
 
-			for (let g = parent; g; g = g.parent) if (typeof g.throw === 'function') return r(g.throw(value))
-
-			throw value
+			children = render(generator.throw(value).value)
 
 		} finally {
 
-			current.return()
-			
-			current = parent
+			generator?.return()
 		}
+
+		return h(as || is, assign(attrs, { is: as && is }), children)
 	}
 }

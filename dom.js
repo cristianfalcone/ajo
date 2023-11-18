@@ -108,24 +108,16 @@ export const component = (fn, { as } = {}) => {
 		args
 		ref
 
-		disconnectedCallback() {
-			this.return()
-		}
-
 		refresh() {
 			enqueue(this)
 		}
 
-		next({ method = 'next', argument } = {}) {
+		next() {
 
 			try {
 
-				const { done, value } = (this.generator ??= fn.call(this, this.args))[method](argument)
-
-				if (done) return method !== 'return' && this.return(value)
-
-				render(value, this)
-
+				render((this.generator ??= fn.call(this, this.args)).next().value, this)
+				
 				if (typeof this.ref === 'function') this.ref(this)
 
 			} catch (value) {
@@ -136,31 +128,39 @@ export const component = (fn, { as } = {}) => {
 
 		throw(value) {
 
-			for (let host = this.parentNode; host; host = host.parentNode) {
+			for (let host = this; host; host = host.parentNode) {
 
 				if (typeof host.generator?.throw === 'function') {
 
-					return host.next({ method: 'throw', argument: value })
+					try {
+
+						return render(host.generator.throw(value).value, host)
+
+					} catch (value) {
+
+						continue
+					}
 				}
 			}
 
 			throw value
 		}
 
-		return(value) {
+		*[Symbol.iterator]() {
+			while (true) yield this.args
+		}
 
+		disconnectedCallback() {
 			try {
 
-				this.next({ method: 'return', argument: value })
+				this.generator?.return()
+
+				if (typeof this.ref === 'function') this.ref(null)
 
 			} finally {
 
 				this.generator = null
 			}
-		}
-
-		*[Symbol.iterator]() {
-			while (this.isConnected) yield this.args
 		}
 	}
 

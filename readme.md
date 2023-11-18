@@ -51,7 +51,7 @@ const Counter = component(function* ({ init = 0 }) {
 	)
 })
 
-render(<Counter init={5} />, document.body)
+render(<Counter arg:init={5} />, document.body)
 ```
 
 ## acknowledgments
