@@ -63,21 +63,35 @@ export const component = (fn, { as } = {}) => {
 			else (name === 'children' ? args : attrs)[name] = rest[name]
 		}
 
-		let generator, children
+		let iterator, children
 
 		try {
 
-			generator = fn.call({ refresh() { }, throw(value) { throw value }, *[Symbol.iterator]() { while (true) yield args } }, args)
+			iterator = fn.call({
 
-			children = render(generator.next().value)
+				args,
+
+				refresh() { },
+
+				next() { iterator.next() },
+
+				throw(value) { throw value },
+
+				*[Symbol.iterator]() {
+					while (true) yield args
+				}
+
+			}, args)
+
+			children = render(iterator.next().value)
 
 		} catch (value) {
 
-			children = render(generator.throw(value).value)
+			children = render(iterator.throw(value).value)
 
 		} finally {
 
-			generator?.return()
+			iterator?.return()
 		}
 
 		return h(as || is, assign(attrs, { is: as && is }), children)

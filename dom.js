@@ -1,6 +1,6 @@
 import { isArray, slice, assign, h, normalize } from './jsx.js'
 
-const Key = Symbol(), Memo = Symbol(), Attrs = Symbol()
+const Key = Symbol(), Memo = Symbol(), Attrs = Symbol(), Iterator = Symbol(), Ref = Symbol()
 
 export const render = (h, host, ns) => {
 
@@ -104,9 +104,9 @@ export const component = (fn, { as } = {}) => {
 
 	class Host extends resolve(as) {
 
-		generator
+		[Iterator]
+		[Ref]
 		args
-		ref
 
 		refresh() {
 			enqueue(this)
@@ -116,9 +116,9 @@ export const component = (fn, { as } = {}) => {
 
 			try {
 
-				render((this.generator ??= fn.call(this, this.args)).next().value, this)
+				render((this[Iterator] ??= fn.call(this, this.args)).next().value, this)
 				
-				if (typeof this.ref === 'function') this.ref(this)
+				if (typeof this[Ref] === 'function') this[Ref](this)
 
 			} catch (value) {
 
@@ -130,11 +130,11 @@ export const component = (fn, { as } = {}) => {
 
 			for (let host = this; host; host = host.parentNode) {
 
-				if (typeof host.generator?.throw === 'function') {
+				if (typeof host[Iterator]?.throw === 'function') {
 
 					try {
 
-						return render(host.generator.throw(value).value, host)
+						return render(host[Iterator].throw(value).value, host)
 
 					} catch (value) {
 
@@ -153,13 +153,13 @@ export const component = (fn, { as } = {}) => {
 		disconnectedCallback() {
 			try {
 
-				this.generator?.return()
+				this[Iterator]?.return()
 
-				if (typeof this.ref === 'function') this.ref(null)
+				if (typeof this[Ref] === 'function') this[Ref](null)
 
 			} finally {
 
-				this.generator = null
+				this[Iterator] = null
 			}
 		}
 	}
