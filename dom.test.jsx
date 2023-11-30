@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, component } from './dom.js'
+import { render } from './dom.js'
+import { component } from './component.js'
 
 describe('render', () => {
 
@@ -32,13 +33,27 @@ describe('render', () => {
 		expect(document.body.innerHTML).toBe(html)
 		expect(div.onclick).toBe(fn)
 	})
+
+	it('should call ref with null when unmounting', () => {
+
+		const Simple = () => <div ref={el => div = el}>Hello world</div>
+
+		let div = null
+
+		render(<div><Simple /></div>, document.body)
+
+		expect(div).not.toBe(null)
+
+		render(null, document.body)
+
+		expect(div).toBe(null)
+	})
 })
 
 describe('component', () => {
 
 	beforeEach(() => {
 		document.body.innerHTML = ''
-		vi.useFakeTimers()
 	})
 
 	it('should render a stateful component with attrs and children', async () => {
@@ -48,8 +63,6 @@ describe('component', () => {
 		})
 
 		render(<Component class="container" arg:name="world">you</Component>, document.body)
-
-		vi.runAllTimers()
 
 		expect(document.body.innerHTML).toBe('<host-0 class="container"><div>Hello world,<br> and you!</div></host-0>')
 	})
@@ -64,17 +77,11 @@ describe('component', () => {
 
 		render(<Component class="container" arg:name="world" />, document.body)
 
-		vi.runAllTimers()
-
 		expect(document.body.innerHTML).toBe('<host-1 class="container"><div>Hello world!</div></host-1>')
 
 		const firstDiv = div
 
-		vi.clearAllTimers()
-
 		render(<Component arg:name="you" />, document.body)
-
-		vi.runAllTimers()
 
 		const secondDiv = div
 
@@ -91,26 +98,73 @@ describe('component', () => {
 
 		render(<Component class="container" arg:name="world" />, document.body)
 
-		vi.runAllTimers()
-
 		expect(document.body.innerHTML).toBe('<div is="host-2" class="container"><div>Hello world!</div></div>')
 	})
 
 	it('should hydrate a stateful component', async () => {
 
-		const Component = component(function* () {
-			for (const { name } of this) yield <div>Hello {name}!</div>
-		}, { as: 'div' })
-
 		const html = '<div is="host-3" class="container"><div>Hello world!</div></div>'
 
 		document.body.innerHTML = html
 
-		render(<Component class="container" arg:name="world" />, document.body)
+		const el = document.querySelector('[is="host-3"]')
 
-		vi.runAllTimers()
+		let ref = null
+		let child = null
+
+		const init = vi.fn()
+		const loop = vi.fn()
+		const end = vi.fn()
+		const click = vi.fn()
+
+		const Component = component(function* () {
+
+			init()
+			
+			try {
+				for (const { name } of this) {
+					loop()
+					yield <div ref={el => child = el} set:onclick={click}>Hello {name}!</div>
+				}
+			} finally {
+				end()
+			}
+		}, { as: 'div' })
+
+		render(<Component class="container" arg:name="world" ref={el => ref = el} />, document.body)
+
+		child.click()
 
 		expect(document.body.innerHTML).toBe(html)
+		expect(init).toHaveBeenCalledTimes(1)
+		expect(loop).toHaveBeenCalledTimes(1)
+		expect(click).toHaveBeenCalledTimes(1)
+		expect(end).not.toHaveBeenCalled()
+		expect(el).toBe(ref)
+		expect(child.innerHTML).toBe('Hello world!')
+
+		render(null, document.body)
+
+		expect(end).toHaveBeenCalledTimes(1)
+		expect(ref).toBe(null)
+		expect(child).toBe(null)
+	})
+
+	it('should call ref with null when unmounting a stateful component', async () => {
+
+		const Component = component(function* () {
+			for (const { name } of this) yield <div>Hello {name}!</div>
+		})
+
+		let div = null
+
+		render(<div><Component ref={el => div = el} arg:name="world" /></div>, document.body)
+
+		expect(div).not.toBe(null)
+
+		render(null, document.body)
+
+		expect(div).toBe(null)
 	})
 
 	it('should catch errors from children', () => {
@@ -135,8 +189,6 @@ describe('component', () => {
 
 		render(<Parent />, document.body)
 
-		vi.runAllTimers()
-
-		expect(document.body.innerHTML).toBe('<host-5><div>test</div></host-5>')
+		expect(document.body.innerHTML).toBe('<host-6><div>test</div></host-6>')
 	})
 })

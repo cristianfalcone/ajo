@@ -3,12 +3,32 @@
   "version": "0.1.5",
   "description": "ajo is a JavaScript view library for building user interfaces",
   "type": "module",
-  "module": "./dist/ajo.js",
-  "main": "./dist/ajo.umd.cjs",
+  "module": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "exports": {
     ".": {
-      "import": "./dist/ajo.js",
-      "require": "./dist/ajo.umd.cjs"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./jsx": {
+      "import": "./dist/jsx.js",
+      "require": "./dist/jsx.umd.cjs"
+    },
+    "./dom": {
+      "import": "./dist/dom.js",
+      "require": "./dist/dom.umd.cjs"
+    },
+    "./html": {
+      "import": "./dist/html.js",
+      "require": "./dist/html.umd.cjs"
+    },
+    "./component": {
+      "import": "./dist/component.js",
+      "require": "./dist/component.umd.cjs"
+    },
+    "./schedule": {
+      "import": "./dist/schedule.js",
+      "require": "./dist/schedule.umd.cjs"
     }
   },
   "files": [

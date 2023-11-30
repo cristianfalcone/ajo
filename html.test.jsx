@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { render, component } from './html.js'
+import { render } from './html.js'
+import { component } from './component.js'
 
 describe('render', () => {
 
@@ -11,6 +12,9 @@ describe('render', () => {
 
 		expect(html).toBe('<div>Hello world,<br> and all who inhabit it!</div>')
 	})
+})
+
+describe('component', () => {
 
 	it('should render a stateful component with attrs and children', () => {
 

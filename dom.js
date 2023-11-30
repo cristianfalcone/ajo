@@ -1,10 +1,8 @@
-import { isArray, slice, assign, h, normalize } from './jsx.js'
+import { isArray, slice, normalize, Key, Memo, Ref, Attrs } from './util.js'
 
-const Key = Symbol(), Memo = Symbol(), Attrs = Symbol(), Iterator = Symbol(), Ref = Symbol()
+export const render = (h, parent, ns) => {
 
-export const render = (h, host, ns) => {
-
-	let child = host.firstChild
+	let child = parent.firstChild
 
 	for (h of normalize(h)) {
 
@@ -30,18 +28,20 @@ export const render = (h, host, ns) => {
 
 				if (!skip) render(children, node, xmlns)
 
-				if (typeof ref === 'function') ref(node)
+				if (typeof ref === 'function') (node[Ref] = ref)(node)
 			}
 		}
 
-		node === child ? child = child.nextSibling : before(host, node, child)
+		node === child ? child = child.nextSibling : before(parent, node, child)
 	}
 
 	while (child) {
 
 		const next = child.nextSibling
 
-		host.removeChild(child)
+		parent.removeChild(child)
+
+		if (child.nodeType === 1) unref(child)
 
 		child = next
 	}
@@ -51,32 +51,32 @@ const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) :
 
 const create = (ns, name, is, key) => {
 
-	const node = ns ? document.createElementNS(ns, name, { is }) : document.createElement(name, { is })
+	const el = ns ? document.createElementNS(ns, name, { is }) : document.createElement(name, { is })
 
-	node[Key] = key
+	el[Key] = key
 
-	return node
+	return el
 }
 
-const update = (attrs, host) => {
+const update = (attrs, el) => {
 
-	const prev = host[Attrs] ??= slice.call(host.attributes).reduce((o, { name, value }) => (o[name] = value, o), {})
+	const prev = el[Attrs] ??= slice.call(el.attributes).reduce((o, { name, value }) => (o[name] = value, o), {})
 
-	for (const name in { ...prev, ...(host[Attrs] = attrs) }) {
+	for (const name in { ...prev, ...(el[Attrs] = attrs) }) {
 
 		const value = attrs[name]
 
 		if (value === prev[name]) continue
 
-		if (name.startsWith('set:')) host[name.slice(4)] = value
+		if (name.startsWith('set:')) el[name.slice(4)] = value
 
-		else if (value == null || value === false) host.removeAttribute(name)
+		else if (value == null || value === false) el.removeAttribute(name)
 
-		else host.setAttribute(name, value === true ? '' : value)
+		else el.setAttribute(name, value === true ? '' : value)
 	}
 }
 
-const before = (host, node, child) => {
+const before = (parent, node, child) => {
 
 	if (node.contains(document.activeElement)) {
 
@@ -86,125 +86,17 @@ const before = (host, node, child) => {
 
 			const next = child.nextSibling
 
-			host.insertBefore(child, ref)
+			parent.insertBefore(child, ref)
 
 			child = next
 		}
 
-	} else host.insertBefore(node, child)
+	} else parent.insertBefore(node, child)
 }
 
-let id = 0, queued = null, queue, types
+const unref = el => {
 
-export const component = (fn, { as } = {}) => {
+	for (const child of el.children) unref(child)
 
-	if (fn?.constructor?.name !== 'GeneratorFunction') throw new TypeError('fn is not a generator function')
-
-	const is = `host-${id++}`
-
-	class Host extends resolve(as) {
-
-		[Iterator]
-		[Ref]
-		args
-
-		refresh() {
-			enqueue(this)
-		}
-
-		next() {
-
-			try {
-
-				render((this[Iterator] ??= fn.call(this, this.args)).next().value, this)
-				
-				if (typeof this[Ref] === 'function') this[Ref](this)
-
-			} catch (value) {
-
-				this.throw(value)
-			}
-		}
-
-		throw(value) {
-
-			for (let host = this; host; host = host.parentNode) {
-
-				if (typeof host[Iterator]?.throw === 'function') {
-
-					try {
-
-						return render(host[Iterator].throw(value).value, host)
-
-					} catch (value) {
-
-						continue
-					}
-				}
-			}
-
-			throw value
-		}
-
-		*[Symbol.iterator]() {
-			while (true) yield this.args
-		}
-
-		disconnectedCallback() {
-			try {
-
-				this[Iterator]?.return()
-
-				if (typeof this[Ref] === 'function') this[Ref](null)
-
-			} finally {
-
-				this[Iterator] = null
-			}
-		}
-	}
-
-	customElements.define(is, Host, { extends: as })
-
-	return ({ attrs = {}, args = {}, ref, ...rest }) => {
-
-		for (const name in rest) {
-			
-			if (name.startsWith('arg:')) args[name.slice(4)] = rest[name]
-			
-			else (name === 'children' ? args : attrs)[name] = rest[name]
-		}
-	
-		return h(as || is, assign(attrs, { is: as && is, skip: true, ref: host => assign(host, { args, ref }).refresh() }))
-	}
-}
-
-const enqueue = host => {
-
-	(queue ??= new Set).add(host)
-
-	queued ??= requestAnimationFrame(() => {
-
-		for (const host of queue) if (host.isConnected) host.next()
-
-		queue.clear()
-
-		queued = null
-	})
-}
-
-const resolve = type => {
-
-	let constructor = (types ??= new Map).get(type)
-
-	if (!constructor) {
-
-		constructor = document.createElement(type).constructor
-
-		if (constructor === HTMLUnknownElement) constructor = HTMLElement
-
-		types.set(type, constructor)
-	}
-
-	return constructor
+	el[Ref]?.(null)
 }

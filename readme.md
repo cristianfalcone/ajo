@@ -11,7 +11,8 @@ npm install ajo
 
 ```jsx
 /** @jsx h */
-import { h, render } from 'ajo'
+import { h } from 'ajo'
+import { render } from 'ajo/dom'
 
 document.body.innerHTML = '<div>Hello World</div>'
 
@@ -33,7 +34,9 @@ render(<Greet name="World" />, document.body)
 
 ```jsx
 /** @jsx h */
-import { h, render, component } from 'ajo'
+import { h } from 'ajo'
+import { render } from 'ajo/dom'
+import { component } from 'ajo/component'
 
 const Counter = component(function* ({ init = 0 }) {
 
@@ -41,7 +44,7 @@ const Counter = component(function* ({ init = 0 }) {
 
 	const handleClick = () => {
 		count++
-		this.refresh()
+		this.next()
 	}
 
 	while (true) yield (

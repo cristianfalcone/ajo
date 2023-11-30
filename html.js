@@ -1,4 +1,4 @@
-import { assign, entries, h, normalize } from './jsx.js'
+import { entries, normalize } from './util.js'
 
 const Void = new Set('area,base,br,col,command,embed,hr,img,input,keygen,link,meta,param,source,track,wbr'.split(','))
 
@@ -45,55 +45,3 @@ export const html = function* (h) {
 }
 
 export const render = h => [...html(h)].join('')
-
-let id = 0
-
-export const component = (fn, { as } = {}) => {
-
-	if (fn?.constructor?.name !== 'GeneratorFunction') throw new TypeError('fn is not a generator function')
-
-	const is = `host-${id++}`
-
-	return ({ attrs = {}, args = {}, ...rest }) => {
-
-		for (const name in rest) {
-
-			if (name.startsWith('arg:')) args[name.slice(4)] = rest[name]
-
-			else (name === 'children' ? args : attrs)[name] = rest[name]
-		}
-
-		let iterator, children
-
-		try {
-
-			iterator = fn.call({
-
-				args,
-
-				refresh() { },
-
-				next() { iterator.next() },
-
-				throw(value) { throw value },
-
-				*[Symbol.iterator]() {
-					while (true) yield args
-				}
-
-			}, args)
-
-			children = render(iterator.next().value)
-
-		} catch (value) {
-
-			children = render(iterator.throw(value).value)
-
-		} finally {
-
-			iterator?.return()
-		}
-
-		return h(as || is, assign(attrs, { is: as && is }), children)
-	}
-}
