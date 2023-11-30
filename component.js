@@ -48,72 +48,70 @@ export const component = (fn, { as } = {}) => {
 		return h(as || is, assign(attrs, { is: as && is }), children)
 	}
 
-	class Component extends resolve(as) {
+	customElements.define(
+		is,
+		class extends resolve(as) {
 
-		*[Symbol.iterator]() { while (true) yield this.args }
-
-		next() {
-
-			try {
-
-				renderDOM((this[Iterator] ??= fn.call(this, this.args)).next().value, this)
-
-				if (typeof this[Ref] === 'function') this[Ref](this)
-
-			} catch (value) {
-
-				this.throw(value)
-			}
-		}
-
-		throw(value) {
-
-			for (let el = this; el; el = el.parentNode) {
-
-				if (typeof el[Iterator]?.throw === 'function') {
-
-					try {
-
-						renderDOM(el[Iterator].throw(value).value, el)
-
-						return
-
-					} catch (value) {
-
-						continue
-					}
+			*[Symbol.iterator]() { while (true) yield this.args }
+	
+			next() {
+	
+				try {
+	
+					renderDOM((this[Iterator] ??= fn.call(this, this.args)).next().value, this)
+	
+					if (typeof this[Ref] === 'function') this[Ref](this)
+	
+				} catch (value) {
+	
+					this.throw(value)
 				}
 			}
-
-			throw value
-		}
-
-		return() {
-
-			try {
-
-				this[Iterator]?.return()
-
-			} catch (value) {
-
-				this.throw(value)
-
-			} finally {
-
-				this[Iterator] = null
+	
+			throw(value) {
+	
+				for (let el = this; el; el = el.parentNode) {
+	
+					if (typeof el[Iterator]?.throw === 'function') {
+	
+						try {
+	
+							return renderDOM(el[Iterator].throw(value).value, el)
+	
+						} catch (value) {
+	
+							continue
+						}
+					}
+				}
+	
+				throw value
 			}
-		}
-
-		disconnectedCallback() { this.return() }
-	}
-
-	customElements.define(is, Component, { extends: as })
+	
+			return() {
+	
+				try {
+	
+					this[Iterator]?.return()
+	
+				} catch (value) {
+	
+					this.throw(value)
+	
+				} finally {
+	
+					this[Iterator] = null
+				}
+			}
+		},
+		{ extends: as }
+	)
 
 	return ({ attrs = {}, args = {}, ref, ...rest }) => {
 
 		collect(attrs, args, rest)
 
-		return h(as || is, assign(attrs, { is: as && is, skip: true, ref: el => assign(el, { [Ref]: ref, args }).next() }))
+		return h(as || is, assign(attrs, { is: as && is, skip: true, ref: el => el && assign(el, { [Ref]: e => (e || el.return(), typeof ref === 'function' && ref(e)), args }).next() }))
 	}
 }
 

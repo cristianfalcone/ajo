@@ -11,8 +11,7 @@ npm install ajo
 
 ```jsx
 /** @jsx h */
-import { h } from 'ajo'
-import { render } from 'ajo/dom'
+import { h, render } from 'ajo'
 
 document.body.innerHTML = '<div>Hello World</div>'
 
@@ -34,9 +33,7 @@ render(<Greet name="World" />, document.body)
 
 ```jsx
 /** @jsx h */
-import { h } from 'ajo'
-import { render } from 'ajo/dom'
-import { component } from 'ajo/component'
+import { h, render, component } from 'ajo'
 
 const Counter = component(function* ({ init = 0 }) {
 
