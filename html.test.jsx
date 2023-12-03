@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { render } from './html.js'
-import { component } from './component.js'
 
 describe('render', () => {
 
@@ -16,15 +15,15 @@ describe('render', () => {
 
 describe('component', () => {
 
-	it('should render a stateful component with attrs and children', () => {
+  it('should render a stateful component with attrs and children', () => {
 
-		const Component = component(function* () {
+		function* Component() {
 			for (const { name, children } of this) yield <div>Hello {name},<br /> and {children}!</div>
-		})
+		}
 
 		const html = render(<Component arg:name="world">you</Component>)
 		
-		expect(html).toBe('<host-0><div>Hello world,<br> and you!</div></host-0>')
+		expect(html).toBe('<div><div>Hello world,<br> and you!</div></div>')
 	})
 
 	it('should catch errors from children', () => {
@@ -33,11 +32,11 @@ describe('component', () => {
 			throw new Error('test')
 		}
 
-		const Child = component(function* Child() {
+		function* Child() {
 			for ({} of this) yield <Thrower />
-		})
+		}
 
-		const Parent = component(function* Parent() {
+		function* Parent() {
 			for ({} of this) {
 				try {
 					yield <Child />
@@ -45,10 +44,10 @@ describe('component', () => {
 					yield <div>{e.message}</div>
 				}
 			}
-		})
+		}
 
 		const html = render(<Parent />)
 
-		expect(html).toBe('<host-2><div>test</div></host-2>')
+		expect(html).toBe('<div><div>test</div></div>')
 	})
 })

@@ -35,7 +35,7 @@ render(<Greet name="World" />, document.body)
 /** @jsx h */
 import { h, render, component } from 'ajo'
 
-const Counter = component(function* ({ init = 0 }) {
+function* Counter({ init = 0 }) {
 
 	let count = init
 
@@ -49,7 +49,7 @@ const Counter = component(function* ({ init = 0 }) {
 			Current: {count}
 		</button>
 	)
-})
+}
 
 render(<Counter arg:init={5} />, document.body)
 ```

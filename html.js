@@ -1,28 +1,25 @@
-import { entries, normalize } from './util.js'
+const { entries, hasOwn } = Object, isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
 
-const Void = new Set('area,base,br,col,command,embed,hr,img,input,keygen,link,meta,param,source,track,wbr'.split(','))
-
-const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+export const render = h => [...html(h)].join('')
 
 export const html = function* (h) {
 
 	for (h of normalize(h)) {
 
-		if (typeof h === 'string') yield h
+		if (typeof h === 'string') yield escape(h)
 
 		else {
 
 			const { nodeName, key, skip, memo, ref, children, ...rest } = h
 
-			const attrs = entries(rest).reduce((attrs, [key, value]) => {
+			let attrs = ''
+			
+			for (const [key, value] of entries(rest)) {
 
-				if (key.startsWith('set:') || value == null || value === false) return attrs
+				if (key.startsWith('set:') || value == null || value === false) continue
 
-				if (value === true) return `${attrs} ${key}`
-
-				return `${attrs} ${key}="${escape(String(value))}"`
-
-			}, '')
+				attrs += value === true ? `${attrs} ${key}` : `${attrs} ${key}="${escape(String(value))}"`
+			}
 
 			if (Void.has(nodeName)) {
 
@@ -30,11 +27,9 @@ export const html = function* (h) {
 
 			} else if (!skip) {
 
-				yield `<${nodeName}${attrs}>`
+				if (typeof children === 'string') yield `<${nodeName}${attrs}>${children}</${nodeName}>`
 
-				yield* html(children)
-
-				yield `</${nodeName}>`
+				else yield `<${nodeName}${attrs}>`, yield* html(children), yield `</${nodeName}>`
 
 			} else {
 
@@ -44,4 +39,83 @@ export const html = function* (h) {
 	}
 }
 
-export const render = h => [...html(h)].join('')
+const normalize = function* (h, buffer = { value: '' }, root = true) {
+
+	for (h of isIterable(h) ? h : [h]) {
+
+		if (h == null || typeof h === 'boolean') continue
+
+		if (hasOwn(h, 'nodeName')) {
+
+			const { value } = buffer, { nodeName } = h, type = typeof nodeName
+
+			if (value) yield value, buffer.value = ''
+
+			if (type === 'function') {
+
+				if (nodeName.constructor.name === 'GeneratorFunction') {
+
+					const attrs = {}, args = {}
+
+					for (const [key, value] of entries(h)) {
+
+						if (key === 'is') continue
+
+						if (key === 'children') args.children = value
+
+						else if (key.startsWith('arg:')) args[key.slice(4)] = value
+
+						else attrs[key] = value
+					}
+
+					attrs.nodeName = h.is ?? nodeName.is ?? 'div', attrs.children = run(nodeName, args), yield attrs
+
+				} else delete h.nodeName, yield* normalize(nodeName(h), buffer, false)
+
+			} else if (type === 'string') yield h
+
+		} else isIterable(h) ? yield* normalize(h, buffer, false) : buffer.value += h
+	}
+
+	if (root && buffer.value) yield buffer.value
+}
+
+const Void = new Set('area,base,br,col,command,embed,hr,img,input,keygen,link,meta,param,source,track,wbr'.split(','))
+
+const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+
+const run = (fn, args) => {
+
+	let self, children
+
+	try {
+
+		const iterator = fn.call(self = {
+
+			args,
+
+			*[Symbol.iterator]() { while (true) yield args },
+
+			refresh() { },
+
+			next() { children = render(iterator.next().value) },
+
+			throw(value) { children = render(iterator.throw(value).value) },
+
+			return() { iterator.return() }
+
+		}, args)
+
+		self.next()
+
+	} catch (value) {
+
+		self.throw(value)
+
+	} finally {
+
+		self.return()
+	}
+
+	return children
+}

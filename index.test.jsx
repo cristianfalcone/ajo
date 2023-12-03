@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render } from './dom.js'
-import { component } from './component.js'
+import { render } from './index.js'
 
 describe('render', () => {
 
 	beforeEach(() => {
-		document.body.innerHTML = ''
+		render(null, document.body)
 	})
 
 	it('should render a stateless component with attrs and children', () => {
@@ -20,94 +19,100 @@ describe('render', () => {
 
 	it('should hydrate a stateless component', () => {
 
-		const Simple = () => <div class="container" set:onclick={fn} ref={el => div = el}>Hello world</div>
+		const fn = vi.fn()
+		const Simple = () => <div class="container" set:onclick={fn} ref={el => ref = el}>Hello world</div>
 		const html = '<div class="container">Hello world</div>'
-		const fn = () => { }
 
-		let div = null
+		let ref = null
 
 		document.body.innerHTML = html
 
 		render(<Simple />, document.body)
 
 		expect(document.body.innerHTML).toBe(html)
-		expect(div.onclick).toBe(fn)
+		expect(ref.onclick).toBe(fn)
+
+    ref.click()
+
+    expect(fn).toHaveBeenCalled()
 	})
 
 	it('should call ref with null when unmounting', () => {
 
-		const Simple = () => <div ref={el => div = el}>Hello world</div>
+		const Simple = () => <div ref={el => ref = el}>Hello world</div>
 
-		let div = null
+		let ref = null
 
 		render(<div><Simple /></div>, document.body)
 
-		expect(div).not.toBe(null)
+		expect(ref).not.toBe(null)
 
 		render(null, document.body)
 
-		expect(div).toBe(null)
+		expect(ref).toBe(null)
 	})
 })
 
 describe('component', () => {
 
 	beforeEach(() => {
-		document.body.innerHTML = ''
+		render(null, document.body)
 	})
 
 	it('should render a stateful component with attrs and children', async () => {
 
-		const Component = component(function* () {
+		function* Component() {
 			for (const { name, children } of this) yield <div>Hello {name},<br /> and {children}!</div>
-		})
+		}
 
 		render(<Component class="container" arg:name="world">you</Component>, document.body)
 
-		expect(document.body.innerHTML).toBe('<host-0 class="container"><div>Hello world,<br> and you!</div></host-0>')
+		expect(document.body.innerHTML).toBe('<div class="container"><div>Hello world,<br> and you!</div></div>')
 	})
 
-	it('should reuse the same stateful component instance', async () => {
+  it('should reuse the same stateful component instance', async () => {
 
-		const Component = component(function* () {
-			for (const { name } of this) yield <div ref={el => { div = el; count++ }}>Hello {name}!</div>
-		})
+		function* Component() {
+			for (const { name } of this) yield <div ref={el => { ref = el; count++ }}>Hello {name}!</div>
+		}
 
-		let div = null, count = 0
+		let ref = null, count = 0
 
 		render(<Component class="container" arg:name="world" />, document.body)
 
-		expect(document.body.innerHTML).toBe('<host-1 class="container"><div>Hello world!</div></host-1>')
+		expect(document.body.innerHTML).toBe('<div class="container"><div>Hello world!</div></div>')
 
-		const firstDiv = div
+		const firstDiv = ref
 
 		render(<Component arg:name="you" />, document.body)
 
-		const secondDiv = div
+		const secondDiv = ref
 
-		expect(document.body.innerHTML).toBe('<host-1><div>Hello you!</div></host-1>')
+		expect(document.body.innerHTML).toBe('<div><div>Hello you!</div></div>')
 		expect(firstDiv).toBe(secondDiv)
 		expect(count).toBe(2)
 	})
 
-	it('should extend a built-in element', async () => {
+  it('should extend a built-in element', async () => {
 
-		const Component = component(function* () {
+		function* Component() {
 			for (const { name } of this) yield <div>Hello {name}!</div>
-		}, { as: 'div' })
+		}
+
+    Component.is = 'section'
 
 		render(<Component class="container" arg:name="world" />, document.body)
 
-		expect(document.body.innerHTML).toBe('<div is="host-2" class="container"><div>Hello world!</div></div>')
+		expect(document.body.innerHTML).toBe('<section class="container"><div>Hello world!</div></section>')
 	})
 
-	it('should hydrate a stateful component', async () => {
+  it('should hydrate a stateful component', async () => {
 
-		const html = '<div is="host-3" class="container"><div>Hello world!</div></div>'
+		const html = '<div class="container"><div>Hello world!</div></div>'
 
 		document.body.innerHTML = html
 
-		const el = document.querySelector('[is="host-3"]')
+		const el = document.querySelector('[class="container"]')
 
 		let ref = null
 		let child = null
@@ -117,10 +122,10 @@ describe('component', () => {
 		const end = vi.fn()
 		const click = vi.fn()
 
-		const Component = component(function* () {
+		function* Component() {
 
 			init()
-			
+
 			try {
 				for (const { name } of this) {
 					loop()
@@ -129,7 +134,7 @@ describe('component', () => {
 			} finally {
 				end()
 			}
-		}, { as: 'div' })
+		}
 
 		render(<Component class="container" arg:name="world" ref={el => ref = el} />, document.body)
 
@@ -150,34 +155,34 @@ describe('component', () => {
 		expect(child).toBe(null)
 	})
 
-	it('should call ref with null when unmounting a stateful component', async () => {
+  it('should call ref with null when unmounting a stateful component', async () => {
 
-		const Component = component(function* () {
+		function* Component () {
 			for (const { name } of this) yield <div>Hello {name}!</div>
-		})
+		}
 
-		let div = null
+		let ref = null
 
-		render(<div><Component ref={el => div = el} arg:name="world" /></div>, document.body)
+		render(<div><Component ref={el => ref = el} arg:name="world" /></div>, document.body)
 
-		expect(div).not.toBe(null)
+		expect(ref).not.toBe(null)
 
 		render(null, document.body)
 
-		expect(div).toBe(null)
+		expect(ref).toBe(null)
 	})
 
-	it('should catch errors from children', () => {
+  it('should catch errors from children', () => {
 
-		const Thrower = () => {
+		function Thrower() {
 			throw new Error('test')
 		}
 
-		const Child = component(function* Child() {
+		function* Child() {
 			for ({} of this) yield <Thrower />
-		})
+		}
 
-		const Parent = component(function* Parent() {
+		function* Parent() {
 			for ({} of this) {
 				try {
 					yield <Child />
@@ -185,10 +190,10 @@ describe('component', () => {
 					yield <div>{e.message}</div>
 				}
 			}
-		})
+		}
 
 		render(<Parent />, document.body)
 
-		expect(document.body.innerHTML).toBe('<host-6><div>test</div></host-6>')
+		expect(document.body.innerHTML).toBe('<div><div>test</div></div>')
 	})
 })
