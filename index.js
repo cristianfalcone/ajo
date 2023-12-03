@@ -151,7 +151,7 @@ class Component {
 
 	constructor(el, is) {
 
-		setPrototypeOf(el, setPrototypeOf(this.constructor.prototype, resolve(is, el.namespaceURI).prototype))
+		return setPrototypeOf(el, setPrototypeOf(this.constructor.prototype, resolve(is, el.namespaceURI).prototype))
 	}
 
 	*[Symbol.iterator]() { while (true) yield this.$args }
