@@ -309,7 +309,6 @@ function* DataFetcher() {
   }
 }
 ```
-
 In this example, `DataFetcher` uses `this.refresh()` to update its display after data is fetched. The use of `this.refresh()` ensures that the rendering is efficient and aligned with the browser's rendering cycle.
 
 ### `this.next()`
@@ -345,12 +344,7 @@ function* Counter() {
   }
 }
 ```
-
 In this example, `Counter` uses `this.next()` in its `increment` function to immediately render the updated count whenever the button is clicked.
-
-Certainly! Documenting `this.throw()` and `this.return()` for Ajo is essential, as these methods are key to error handling and component lifecycle management. Here's a comprehensive explanation for each:
-
----
 
 ### `this.throw()`
 
