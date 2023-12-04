@@ -148,6 +148,10 @@ describe('component', () => {
 		expect(el).toBe(ref)
 		expect(child.innerHTML).toBe('Hello world!')
 
+		el.next()
+
+		expect(loop).toHaveBeenCalledTimes(2)
+
 		render(null, document.body)
 
 		expect(end).toHaveBeenCalledTimes(1)

@@ -1,19 +1,21 @@
-const { isArray, prototype: { slice } } = Array, { assign, setPrototypeOf, hasOwn } = Object, isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
+const { isArray, prototype: { slice } } = Array, { assign, setPrototypeOf, hasOwn, keys } = Object
+
+const isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
 
 export const Fragment = ({ children }) => children
 
-export const h = function (nodeName, attrs) {
+export const h = function (type, props) {
 
-	const { length } = arguments; (attrs ??= {}).nodeName = nodeName
+	const { length } = arguments; (props ??= {}).nodeName = type
 
-	if (!('children' in attrs || length < 3)) attrs.children = length === 3 ? arguments[2] : slice.call(arguments, 2)
+	if (!('children' in props || length < 3)) props.children = length === 3 ? arguments[2] : slice.call(arguments, 2)
 
-	return attrs
+	return props
 }
 
-export const render = (h, parent, ns = parent.namespaceURI) => {
+export const render = (h, el) => {
 
-	let child = parent.firstChild
+	let child = el.firstChild
 
 	for (h of normalize(h)) {
 
@@ -31,17 +33,19 @@ export const render = (h, parent, ns = parent.namespaceURI) => {
 
 		} else {
 
-			const { nodeName, xmlns = nodeName === 'svg' ? 'http://www.w3.org/2000/svg' : ns, key, skip, memo, ref, children } = h
+			const { nodeName, key, skip, memo, ref, children } = h
 
 			while (node && !(node.localName === nodeName && (node.$key ??= key) == key)) node = node.nextSibling
 
-			node ??= assign(document.createElementNS(xmlns, nodeName), { $key: key })
+			node ??= assign(document.createElementNS(h.xmlns ?? nodeName === 'svg' ? 'http://www.w3.org/2000/svg' : el.namespaceURI, nodeName), { $key: key })
 
 			if (memo == null || some(node.$memo, node.$memo = memo)) {
 
-				const { $attrs } = node, attrs = {}, args = {}
+				const { $props } = node, props = {}, args = {}
 
-				for (const name in assign({}, $attrs, h)) {
+				for (const name in assign({}, $props, h)) {
+
+					if (omit.has(name)) continue
 
 					if (name.startsWith('arg:')) {
 
@@ -50,11 +54,9 @@ export const render = (h, parent, ns = parent.namespaceURI) => {
 						continue
 					}
 
-					if (omit.has(name)) continue
+					const value = props[name] = h[name]
 
-					const value = attrs[name] = h[name]
-
-					if (value === $attrs?.[name]) continue
+					if (value === $props?.[name]) continue
 
 					if (name.startsWith('set:')) node[name.slice(4)] = value
 
@@ -63,15 +65,15 @@ export const render = (h, parent, ns = parent.namespaceURI) => {
 					else node.setAttribute(name, value === true ? '' : value)
 				}
 
-				node.$attrs = attrs
+				node.$props = props
 
-				if (!skip) render(children, node, xmlns)
+				if (!skip) render(children, node)
 
 				if (typeof ref === 'function') (node.$ref = ref)(node, args)
 			}
 		}
 
-		node === child ? child = child.nextSibling : before(parent, node, child)
+		node === child ? child = child.nextSibling : before(el, node, child)
 	}
 
 	while (child) {
@@ -80,7 +82,7 @@ export const render = (h, parent, ns = parent.namespaceURI) => {
 
 		if (child.nodeType === 1) unref(child)
 
-		parent.removeChild(child)
+		el.removeChild(child)
 
 		child = next
 	}
@@ -104,9 +106,11 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 					const { is = nodeName.is ?? 'div', ref } = h
 
-					h.ref = (el, $args) => el && ((el.$gen ??= (new Component(el, is), nodeName)), assign(el, { $ref: (v, a) => (v ?? el.return(), typeof ref === 'function' && ref(v, a)), $args }).next())
+					h.nodeName = is, delete h.is, h.skip = true, h.ref = next.bind(null, nodeName, is, ref)
 
-					h.skip = true, h.nodeName = is, delete h.is, 'children' in h && (h['arg:children'] = h.children, delete h.children), yield h
+					if ('children' in h) h['arg:children'] = h.children, delete h.children
+
+					yield h
 
 				} else delete h.nodeName, yield* normalize(nodeName(h), buffer, false)
 
@@ -118,11 +122,25 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 	if (root && buffer.value) yield buffer.value
 }
 
+const next = (gen, is, ref, el, args) => {
+
+	if (!el) return
+
+	el.$gen ??= (new Component(el, is), gen), el.$ref = dispose.bind(null, el, ref), el.$args = args, el.next()
+}
+
+const dispose = (component, ref, el, args) => {
+
+	if (!el) component.return()
+
+	typeof ref === 'function' && ref(el, args)
+}
+
 const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
 
-const omit = new Set('nodeName,xmlns,key,skip,memo,ref,children'.split(','))
+const omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
 
-const before = (parent, node, child) => {
+const before = (el, node, child) => {
 
 	if (node.contains(document.activeElement)) {
 
@@ -132,26 +150,30 @@ const before = (parent, node, child) => {
 
 			const next = child.nextSibling
 
-			parent.insertBefore(child, ref)
+			el.insertBefore(child, ref)
 
 			child = next
 		}
 
-	} else parent.insertBefore(node, child)
+	} else el.insertBefore(node, child)
 }
 
-const unref = ({ children, $ref }) => {
+const unref = el => {
 
-	for (const child of children) unref(child)
+	for (const child of el.children) unref(child)
+
+	const { $ref } = el
 
 	if (typeof $ref === 'function') $ref(null)
+
+	for (const key of keys(el)) el[key] = null
 }
 
 class Component {
 
 	constructor(el, is) {
 
-		return setPrototypeOf(el, setPrototypeOf(this.constructor.prototype, resolve(is, el.namespaceURI).prototype))
+		return setPrototypeOf(el, setPrototypeOf(this.constructor.prototype, resolve(el, is).prototype))
 	}
 
 	*[Symbol.iterator]() { while (true) yield this.$args }
@@ -187,13 +209,13 @@ class Component {
 
 let registry, queue, queued
 
-const resolve = (is, ns) => {
+const resolve = (el, is) => {
 
 	let constructor = (registry ??= new Map).get(is)
 
 	if (!constructor) {
 
-		({ constructor } = document.createElementNS(ns, is))
+		({ constructor } = document.createElementNS(el.namespaceURI, is))
 
 		registry.set(is, constructor === HTMLUnknownElement ? constructor = HTMLElement : constructor)
 	}

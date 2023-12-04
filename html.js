@@ -55,7 +55,7 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 				if (nodeName.constructor.name === 'GeneratorFunction') {
 
-					const attrs = {}, args = {}
+					const props = {}, args = {}
 
 					for (const [key, value] of entries(h)) {
 
@@ -65,10 +65,10 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 						else if (key.startsWith('arg:')) args[key.slice(4)] = value
 
-						else attrs[key] = value
+						else props[key] = value
 					}
 
-					attrs.nodeName = h.is ?? nodeName.is ?? 'div', attrs.children = run(nodeName, args), yield attrs
+					props.nodeName = h.is ?? nodeName.is ?? 'div', props.children = run(nodeName, args), yield props
 
 				} else delete h.nodeName, yield* normalize(nodeName(h), buffer, false)
 
@@ -84,17 +84,17 @@ const Void = new Set('area,base,br,col,command,embed,hr,img,input,keygen,link,me
 
 const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 
-const run = (fn, args) => {
+const run = (gen, $args) => {
 
 	let self, children
 
 	try {
 
-		const iterator = fn.call(self = {
+		const iterator = gen.call(self = {
 
-			args,
+			$args,
 
-			*[Symbol.iterator]() { while (true) yield args },
+			*[Symbol.iterator]() { while (true) yield $args },
 
 			refresh() { },
 
@@ -104,7 +104,7 @@ const run = (fn, args) => {
 
 			return() { iterator.return() }
 
-		}, args)
+		}, $args)
 
 		self.next()
 

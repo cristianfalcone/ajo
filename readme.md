@@ -83,19 +83,18 @@ render(<Counter />, document.body)
 
 ## API
 
-### render(vnode, element, [namespace])
+### render(h, el)
 
-Renders a virtual DOM node (`vnode`) created by the `h` function into the actual DOM `element`. It is the primary method used for updating the DOM with new content.
+Renders a virtual DOM tree into the actual DOM element. It is the primary method used for updating the DOM with new content.
 
-When called, it efficiently updates the parent `element` with the new content, adding, updating, or removing DOM nodes as needed.
+When called, it efficiently updates `el` with the new content, adding, updating, or removing DOM nodes as needed.
 
 This function enables the declarative description of the UI to be transformed into actual UI elements in the browser. It's designed to be efficient, minimizing updates to the actual DOM to improve performance and user experience.
 
 #### Parameters:
 
-- **vnode** (Any): The virtual DOM node (created by `h`) to render. This can be any value, a simple string, a JSX element, or a more complex component.
-- **element** (HTMLElement): The DOM element into which the `vnode` should be rendered. This is typically a container element in your application.
-- **namespace** (String, optional): An optional XML namespace URI. If specified, it allows for the creation of elements within a certain XML namespace, useful for SVG elements and other XML-based documents.
+- **h** (Any): The virtual DOM tree to render. This can be any value, a simple string, a virtual DOM tree created by the `h` function, etc.
+- **el** (HTMLElement): The DOM element into which the `h` should be rendered. This is typically a container element in your application.
 
 #### Returns:
 
@@ -113,21 +112,21 @@ const App = () => <div>Hello, World!</div>
 // Render the App component into the #root element
 render(<App />, document.getElementById('root'))
 ```
-In this example, the `App` component is a simple function returning a `div` with text content. The `render` function then mounts this component into the DOM element with the ID `root`.
+> In this example, the `App` component is a simple function returning a `div` with text content. The `render` function then mounts this component into the DOM element with the ID `root`.
 
-### h(name, [attributes], [...children])
+### h(type, [props], [...children])
 
-Creates a virtual DOM element (vnode) for rendering. It's the core function for defining UI components in JSX syntax. The `h` function is a hyperscript function that returns a virtual DOM node representing the UI component. This object can then be rendered to the actual DOM using the `render` function.
+Creates a virtual DOM tree for rendering. It's the core function for defining UI components in JSX syntax. The `h` function is a hyperscript function that returns a virtual DOM tree representing the UI component. This object can then be rendered to an actual DOM using the `render` function.
 
 #### Parameters:
 
-- **name** (String | Function | Generator Function): The name of the tag for the DOM node you want to create. If it's a function, it's treated as a stateless component, and if it's a generator function, it's treated as a stateful component.
-- **attributes** (Object, optional): An object containing the attributes you want to set on the element.
-- **children** (Any, optional): Child nodes. Can be a nested array of children, a string, or any other renderable JSX elements. Booleans, null, and undefined children will be ignored, which is useful for conditional rendering.
+- **type** (String | Function | Generator Function): The name of the tag for the DOM element you want to create. If it's a function, it's treated as a stateless component, and if it's a generator function, it's treated as a stateful component.
+- **props** (Object, optional): An object containing properties you want to set on the virtual DOM element.
+- **children** (Any, optional): Child virtual nodes. Can be a nested array of child nodes, a string, or any other renderable JSX elements. Booleans, null, and undefined child nodes will be ignored, which is useful for conditional rendering.
 
 #### Returns:
 
-- **Object**: A virtual DOM node (vnode).
+- **Object**: A virtual DOM tree.
 
 #### Example Usage:
 
@@ -135,13 +134,13 @@ Creates a virtual DOM element (vnode) for rendering. It's the core function for 
 /** @jsx h */
 import { h } from 'ajo'
 
-// Creating a simple vnode
+// Creating a simple virtual element
 const myElement = h('div', { id: 'my-div' }, 'Hello World')
 
 // or using JSX syntax
 const myElementJSX = <div id="my-div">Hello World</div>
 
-// Creating a vnode for a stateless component with children
+// Creating a virtual tree for a stateless component with children
 const MyComponent = ({ class: className }) => h('div', { class: className },
   h('h1', null, 'Header'),
   'Text Content',
@@ -169,7 +168,7 @@ render(h(MyApp), document.body)
 // or using JSX syntax
 render(<MyAppJSX />, document.body)
 ```
-You won't typically use the `h` function, it's automatically used when you write JSX code. The previous examples demonstrate how to use the `h` function directly if you need to.
+> You won't typically use the `h` function, it's automatically used when you write JSX code. The previous examples demonstrate how to use the `h` function directly if you need to.
 
 ### `Fragment({ children })`
 
@@ -202,11 +201,11 @@ const MyComponentJSX = () => (
 
 ### `set:`
 
-The `set:` prefix in Ajo allows you to directly set properties on DOM element nodes from within your JSX. This is distinct from simply setting attributes, as it interacts with the properties of the DOM elements, much like how you would in plain JavaScript.
+The `set:` prefix in Ajo allows you to directly set properties on DOM elements from within your JSX. This is distinct from simply setting attributes, as it interacts with the properties of the DOM elements, much like how you would in plain JavaScript.
 
 #### Purpose:
 
-- **Direct DOM Property Manipulation:** The `set:` prefix is used for directly setting properties on DOM nodes. This is crucial for cases where you need to interact with the DOM API, or when a property does not have a direct attribute equivalent.
+- **Direct DOM Property Manipulation:** The `set:` prefix is used for directly setting properties on DOM elements. This is crucial for cases where you need to interact with the DOM API, or when a property does not have a direct attribute equivalent.
 
 #### Usage:
 
@@ -222,16 +221,16 @@ function* MyComponent() {
   yield <div set:textContent={text} skip></div>
 }
 ```
-Here, `set:textContent` directly sets the `textContent` property of the `div`'s DOM node. `skip` is used to prevent Ajo from overriding the `div`'s children.
+> Here, `set:textContent` directly sets the `textContent` property of the `div`'s DOM node. `skip` is used to prevent Ajo from overriding the `div`'s children.
 
-**Setting inner HTML:**
+**Setting Inner HTML:**
 ```jsx
 function* MyComponent() {
   const html = "<p>Hello, Ajo!</p>"
   yield <div set:innerHTML={html} skip></div>
 }
 ```
-In this case, `set:innerHTML` is used to set the `innerHTML` property of the `div`'s DOM node. `skip` is used to prevent Ajo from overriding the `div`'s children.
+> In this case, `set:innerHTML` is used to set the `innerHTML` property of the `div`'s DOM element. `skip` is used to prevent Ajo from overriding the `div`'s children.
 
 **Event Handlers (e.g., onclick):**
 ```jsx
@@ -240,7 +239,7 @@ function* MyComponent() {
   yield <button set:onclick={handleClick}>Click Me</button>
 }
 ```
-`set:onclick` assigns the `handleClick` function as the click event listener for the button.
+> `set:onclick` assigns the `handleClick` function as the click event listener for the button.
 
 ### Special Attributes in Ajo
 
@@ -257,13 +256,13 @@ In Ajo, there are several special attributes (`key`, `skip`, `memo`, and `ref`) 
 - **Example:** `h('div', { skip: shouldSkip })` - here, if `shouldSkip` is `true`, Ajo will not render or update the `div`'s child nodes.
 
 #### `memo` Attribute:
-- **Purpose:** The `memo` attribute is used for memorization. It's a performance optimization technique to prevent unnecessary renders.
-- **Behavior:** When the `memo` attribute is provided, Ajo will shallow compare the memoized values with the new ones. If they are the same, Ajo will skip rendering the element attributes and child nodes. For stateful components, this also prevents the component from re-rendering.
-- **Example:** `h(div, { memo: [dependency1, dependency2] })` - the element (and all its child nodes) will re-render only if `dependency1` or `dependency2` change.
+- **Purpose:** The `memo` attribute is used for memoization. It's a performance optimization technique to prevent unnecessary renders.
+- **Behavior:** When the `memo` attribute is provided, Ajo will shallow compare the memoized values with the new ones. If they are the same, Ajo will skip rendering the element attributes, properties and child nodes. For stateful components, this also prevents the component from re-rendering.
+- **Example:** `h(div, { memo: [dependency1, dependency2] })` - the element will re-render only if `dependency1` or `dependency2` change.
 
 #### `ref` Attribute:
-- **Purpose:** The `ref` attribute provides a way to access the underlying DOM element or component element instance.
-- **Behavior:** When an element is mounted or updated, the `ref` callback is called with the DOM element or component instance as an argument. This allows you to store a reference to it for later use, such as focusing an input or measuring dimensions.
+- **Purpose:** The `ref` attribute provides a way to access the underlying DOM element.
+- **Behavior:** When an element is mounted or updated, the `ref` callback is called with the DOM element as an argument. This allows you to store a reference to it for later use, such as focusing an input or measuring dimensions.
 - **Example:** `h('input', { ref: el => (this.inputNode = el) })` - stores a reference to the input element.
 
 ## Stateful components
@@ -273,31 +272,27 @@ Stateful components in Ajo are defined using generator functions. These componen
 The following example demonstrates key features of stateful components in Ajo:
 
 ```jsx
-function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive arguments initial values.
-  
-  // Define mutable state variables.
-  let messageToSend = '', isConnected = false
+function* ChatComponent({ user = 'Anonymous', room }) { // Receive arguments initial values.
 
-  // Setup resources.
-  const chatServerURL = `ws://chatserver.com/${chatRoom}`
-  const chatConnection = new WebSocket(chatServerURL)
+  // Define mutable state variables.
+  let message = '', connected = false
 
   // Define event handlers.
   const handleMessageChange = event => {
 
-    messageToSend = event.target.value
+    message = event.target.value
 
     // Render synchronously.
     this.next()
   }
 
-  const sendMessage = () => {
+  const send = () => {
 
-    if (messageToSend) {
+    if (message) {
 
-      chatConnection.send(JSON.stringify({ user: this.$args.userName, message: messageToSend }))
+      connection.send(JSON.stringify({ user: this.$args.user, message }))
 
-      messageToSend = ''
+      message = ''
 
       // Render asynchronously.
       this.refresh()
@@ -305,39 +300,41 @@ function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive argum
   }
 
   const handleConnectionOpen = () => {
-    isConnected = true
+    connected = true
     this.refresh()
   }
 
   const handleConnectionError = error => {
-
     // Throw error to be caught by the component itself or a parent component.
     this.throw(new Error('Connection error: ' + error.message))
   }
 
-  chatConnection.onopen = handleConnectionOpen
-  chatConnection.onerror = handleConnectionError
+  // Setup resources.
+  const server = `ws://chat.com/${room}`
+  const connection = new WebSocket(server)
 
-  // 'this' is a DOM element, so we can add a class to it.
+  connection.onopen = handleConnectionOpen
+  connection.onerror = handleConnectionError
+
+  // 'this' is a DOM element, so we can use DOM APIs on it.
   this.classList.add('chat-component')
 
   try { // Optional try/finally block for cleanup logic.
 
-    for ({ userName } of this) { // Iterates over generator, optionally receiving updated arguments.
+    for ({ user } of this) { // Iterates over generator, optionally receiving updated arguments.
 
       try { // Optional try/catch block for error handling.
 
         // Compute derived values.
-        const statusMessage = isConnected ? `You are connected as ${userName}.` : "Connecting to chat..."
+        const status = connected ? `You are connected as ${user}.` : "Connecting to chat..."
 
         // Render the component UI.
-        // Use set: prefix to set properties on DOM nodes, like event handlers.
         yield (
           <>
-            <div class="status-message">{statusMessage}</div>
-            <div class="connection-status">{isConnected ? 'Connected' : 'Connecting...'}</div>
-            <input type="text" value={messageToSend} set:onchange={handleMessageChange} />
-            <button set:onclick={sendMessage}>Send</button>
+            <div class="status-message">{status}</div>
+            <div class="connection-status">{connected ? 'Connected' : 'Connecting...'}</div>
+            <input type="text" value={message} set:onchange={handleMessageChange} />
+            <button set:onclick={send}>Send</button>
           </>
         )
       } catch (e) {
@@ -347,7 +344,7 @@ function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive argum
     }
   } finally {
     // Cleanup logic: release resources, close connections, etc.
-    chatConnection.close()
+    connection.close()
   }
 }
 ```
@@ -395,9 +392,10 @@ function* DataFetcher() {
   }
 }
 ```
-In this example, `DataFetcher` uses `this.refresh()` to update its display after data is fetched. The use of `this.refresh()` ensures that the rendering is efficient and aligned with the browser's rendering cycle.
+> In this example, `DataFetcher` uses `this.refresh()` to update its display after data is fetched. The use of `this.refresh()` ensures that the rendering is efficient and aligned with the browser's rendering cycle.
 
 ### `this.next()`
+> **Note:** `this.next()` is called asynchronously when calling `this.refresh()`.
 
 The `next` method is used within stateful components in Ajo to manually advance the component's generator function to its next yield point. This method is crucial for synchronously rendering the next state of the component.
 
@@ -430,9 +428,10 @@ function* Counter() {
   }
 }
 ```
-In this example, `Counter` uses `this.next()` in its `increment` function to immediately render the updated count whenever the button is clicked.
+> In this example, `Counter` uses `this.next()` in its `increment` function to immediately render the updated count whenever the button is clicked.
 
 ### `this.throw()`
+> **Note:** `this.throw()` is automatically called when an error is thrown from a component's generator function.
 
 The `throw` method in Ajo stateful components is designed for error propagation within the component hierarchy. It allows developers to throw errors from a child component to be caught and handled by itself or a parent component, facilitating a structured approach to error management.
 
@@ -478,10 +477,10 @@ function* ParentComponent() {
   }
 }
 ```
-
-In this example, `ChildComponent` uses `this.throw()` within an event handler to propagate errors upwards to its parent component, `ParentComponent`. The parent component then catches the error and renders it to the DOM.
+> In this example, `ChildComponent` uses `this.throw()` within an event handler to propagate errors upwards to its parent component, `ParentComponent`. The parent component then catches the error and renders it to the DOM.
 
 ### `this.return()`
+> **Note:** `this.return()` is automatically called when a stateful component is unmounted.
 
 The `return` method in Ajo is used to reset and restart the generator function of a stateful component. It effectively ends the current execution of the component's generator function, and optionally re-execute it from scratch allowing for a complete reset of the component's state and behavior.
 
@@ -515,11 +514,11 @@ function* MultiStepForm({ initialData }) {
 
     // Reset the generator function
     this.return()
-    
+
     // Re-render the component in its initial state
     this.refresh()
   }
-    
+
   while (true) {
     switch(currentStep) {
       case 0:
@@ -545,19 +544,19 @@ function* MultiStepForm({ initialData }) {
   }
 }
 ```
-In `handleRestart`, `this.return()` is first called to reset the generator function. This effectively ends the current execution of the component's generator function and prepares it to start from the beginning. Immediately after, `this.refresh()` is called to trigger a re-render of the component. This ensures that after the state is reset, the component's UI is also updated to reflect its initial state.
+> In `handleRestart`, `this.return()` is first called to reset the generator function. This effectively ends the current execution of the component's generator function and prepares it to start from the beginning. Immediately after, `this.refresh()` is called to trigger a re-render of the component. This ensures that after the state is reset, the component's UI is also updated to reflect its initial state.
 
 ### `arg:`
 
 - **Purpose:** The `arg:` prefix is used in Ajo to explicitly pass arguments to generator functions. This prefix distinguishes component arguments from regular HTML attributes and other special properties.
 
 - **Behavior:**
-  - When a stateful component is rendered in Ajo, any attribute on it that starts with `arg:` is treated as an argument to be passed to the component's generator function.
+  - When a stateful component is rendered in Ajo, any property on it that starts with `arg:` is treated as an argument to be passed to the component's generator function.
   - This mechanism ensures that the arguments are clearly identified and separated from other attributes or DOM properties.
 
 - **Usage:** 
   - Use `arg:` prefixed attributes when you need to pass data or event handlers to a component's generator function.
-  - This approach is particularly useful in maintaining a clear separation between component-specific props and other attributes that might be used for styling or DOM manipulation.
+  - This approach is particularly useful in maintaining a clear separation between component-specific arguments and other attributes that might be used for styling or DOM manipulation.
 
 - **Example:**
 ```jsx
@@ -566,14 +565,18 @@ function* ParentComponent() {
   const someData = { /* ... */ }
   const handleEvent = () => { /* ... */ }
 
-  yield <ChildComponent arg:data={someData} arg:onEvent={handleEvent} class="my-class" />
+  yield <ChildComponent
+          class="my-class"
+          arg:data={someData}
+          arg:onEvent={handleEvent}
+        />
 }
 
 function* ChildComponent({ data, onEvent }) {
   // ...
 }
 ```
-In this example, `ParentComponent` renders `ChildComponent`, passing `someData` and `handleEvent` as arguments using the `arg:` prefix. `class` is a regular HTML attribute and is not passed to the component's generator function, it is applied to the DOM element associated with the component.
+> In this example, `ParentComponent` renders `ChildComponent`, passing `someData` and `handleEvent` as arguments using the `arg:` prefix. `class` is a regular HTML attribute and is not passed to the component's generator function, it is applied to the DOM element associated with the component.
 
 This `arg:` prefixed attribute system in Ajo enhances the clarity and readability of component composition. It makes the intent of passing down arguments more explicit, reducing confusion between HTML attributes, and other special properties. This is especially beneficial in complex applications where components have multiple responsibilities and interact with both their children and the DOM.
 
