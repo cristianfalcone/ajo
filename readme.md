@@ -262,17 +262,15 @@ In Ajo, there are several special attributes (`key`, `skip`, `memo`, and `ref`) 
 - **Example:** `h(div, { memo: [dependency1, dependency2] })` - the element (and all its child nodes) will re-render only if `dependency1` or `dependency2` change.
 
 #### `ref` Attribute:
-- **Purpose:** The `ref` attribute provides a way to access the underlying DOM node or component element instance.
-- **Behavior:** When an element is mounted or updated, the `ref` callback is called with the DOM node or component instance as an argument. This allows you to store a reference to it for later use, such as focusing an input or measuring dimensions.
-- **Example:** `h('input', { ref: node => (this.inputNode = node) })` - stores a reference to the input node.
-
-These special attributes in Ajo offer powerful ways to manage rendering performance and interact with DOM elements and components elements directly. They provide developers with finer control over the update behavior and lifecycle of components in their applications.
+- **Purpose:** The `ref` attribute provides a way to access the underlying DOM element or component element instance.
+- **Behavior:** When an element is mounted or updated, the `ref` callback is called with the DOM element or component instance as an argument. This allows you to store a reference to it for later use, such as focusing an input or measuring dimensions.
+- **Example:** `h('input', { ref: el => (this.inputNode = el) })` - stores a reference to the input element.
 
 ## Stateful components
 
 Stateful components in Ajo are defined using generator functions. These components are designed with a minimalistic API for controlling rendering and state updates. They are equipped with several lifecycle methods that allow for advanced control over component behavior, error handling, and rendering processes.
 
-The following example demonstrates all the key features of stateful components in Ajo:
+The following example demonstrates key features of stateful components in Ajo:
 
 ```jsx
 function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive arguments initial values.
@@ -280,7 +278,7 @@ function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive argum
   // Define mutable state variables.
   let messageToSend = '', isConnected = false
 
-  // WebSocket connection setup.
+  // Setup resources.
   const chatServerURL = `ws://chatserver.com/${chatRoom}`
   const chatConnection = new WebSocket(chatServerURL)
 
@@ -289,38 +287,34 @@ function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive argum
 
     messageToSend = event.target.value
 
-    // Render the updated messageToSend (synchronously)
+    // Render synchronously.
     this.next()
   }
 
   const sendMessage = () => {
 
-    // Logic to send a message.
     if (messageToSend) {
 
       chatConnection.send(JSON.stringify({ user: this.$args.userName, message: messageToSend }))
 
-      // Reset message input after sending.
       messageToSend = ''
 
-      // Refresh to clear input field (asynchronously).
+      // Render asynchronously.
       this.refresh()
     }
   }
 
   const handleConnectionOpen = () => {
-
     isConnected = true
-
-     // Refresh to update connection status.
     this.refresh()
   }
 
   const handleConnectionError = error => {
+
+    // Throw error to be caught by the component itself or a parent component.
     this.throw(new Error('Connection error: ' + error.message))
   }
 
-  // Attach WebSocket event listeners.
   chatConnection.onopen = handleConnectionOpen
   chatConnection.onerror = handleConnectionError
 
@@ -336,7 +330,7 @@ function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive argum
         // Compute derived values.
         const statusMessage = isConnected ? `You are connected as ${userName}.` : "Connecting to chat..."
 
-        // Render the chat component UI.
+        // Render the component UI.
         // Use set: prefix to set properties on DOM nodes, like event handlers.
         yield (
           <>
@@ -352,7 +346,7 @@ function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive argum
       }
     }
   } finally {
-    // Cleanup logic: close WebSocket connection.
+    // Cleanup logic: release resources, close connections, etc.
     chatConnection.close()
   }
 }
