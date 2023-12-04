@@ -90,7 +90,7 @@ This function is a cornerstone of the Ajo library, enabling the declarative desc
 
 #### Parameters:
 
-- **vnode** (Object | Array | String): The virtual DOM node (created by `h`) to render. This can be a simple string, a JSX element, or a more complex component.
+- **vnode** (Any): The virtual DOM node (created by `h`) to render. This can be any value, a simple string, a JSX element, or a more complex component.
 - **parent** (HTMLElement): The DOM element into which the `vnode` should be rendered. This is typically a container element in your application.
 - **namespace** (String, optional): An optional XML namespace URI. If specified, it allows for the creation of elements within a certain XML namespace, useful for SVG elements and other XML-based documents.
 
@@ -104,23 +104,23 @@ This function is a cornerstone of the Ajo library, enabling the declarative desc
 /** @jsx h */
 import { h, render } from 'ajo'
 
+// Create a simple, stateless component
 const App = () => <div>Hello, World!</div>
 
 // Render the App component into the #root element
 render(<App />, document.getElementById('root'))
 ```
-
 In this example, the `App` component is a simple function returning a `div` with text content. The `render` function then mounts this component into the DOM element with the ID `root`.
 
-### h(name, attributes, ...children)
+### h(name, [attributes], [...children])
 
 Creates a virtual DOM element (vnode) for rendering. It's the core function for defining UI components in JSX syntax. The `h` function is a hyperscript function that returns a virtual DOM node representing the UI component. This object can then be rendered to the actual DOM using the `render` function.
 
 #### Parameters:
 
-- **name** (String | Function): The name of the tag for the DOM node you want to create. If it's a function, it's treated as a component.
-- **attributes** (Object): An object containing the attributes you want to set on the element.
-- **children** (any): Child elements or components. Can be a nested array of children, a string, or any other renderable JSX elements. Booleans, null, and undefined children will be ignored, which is useful for conditional rendering.
+- **name** (String | Function | Generator Function): The name of the tag for the DOM node you want to create. If it's a function, it's treated as a stateless component, and if it's a generator function, it's treated as a stateful component.
+- **attributes** (Object, pptional): An object containing the attributes you want to set on the element.
+- **children** (Any, optional): Child nodes. Can be a nested array of children, a string, or any other renderable JSX elements. Booleans, null, and undefined children will be ignored, which is useful for conditional rendering.
 
 #### Returns:
 
@@ -166,7 +166,6 @@ render(h(MyApp), document.body)
 // or using JSX syntax
 render(<MyAppJSX />, document.body)
 ```
-
 You won't typically use the `h` function, it's automatically used when you write JSX code. The previous examples demonstrate how to use the `h` function directly if you need to.
 
 ### `Fragment({ children })`
@@ -220,16 +219,16 @@ function* MyComponent() {
   yield <div set:textContent={text} skip></div>
 }
 ```
-Here, `set:textContent` directly sets the `textContent` property of the `div`'s DOM node. `skip` is used to prevent Ajo from rendering the `div`'s children.
+Here, `set:textContent` directly sets the `textContent` property of the `div`'s DOM node. `skip` is used to prevent Ajo from overriding the `div`'s children.
 
 **Setting inner HTML:**
 ```jsx
 function* MyComponent() {
   const html = "<p>Hello, Ajo!</p>"
-  yield <div set:innetHTML={html} skip></div>
+  yield <div set:innerHTML={html} skip></div>
 }
 ```
-In this case, `set:innetHTML` is used to set the `innerHTML` property of the `div`'s DOM node. `skip` is used to prevent Ajo from rendering the `div`'s children.
+In this case, `set:innerHTML` is used to set the `innerHTML` property of the `div`'s DOM node. `skip` is used to prevent Ajo from overriding the `div`'s children.
 
 **Event Handlers (e.g., onclick):**
 ```jsx
@@ -242,7 +241,7 @@ function* MyComponent() {
 
 ### Special Attributes in Ajo
 
-In Ajo, there are several special attributes—`key`, `skip`, `memo`, and `ref`—that have specific purposes and behaviors. Understanding these attributes is crucial for optimizing rendering and managing component lifecycles and references in your applications.
+In Ajo, there are several special attributes (`key`, `skip`, `memo`, and `ref`) that have specific purposes and behaviors. Understanding these attributes is crucial for optimizing rendering and managing component lifecycle and references in your applications.
 
 #### `key` Attribute:
 - **Purpose:** The `key` attribute is used to track the identity of elements in lists or sequences. It's crucial for optimizing the rendering process, especially when dealing with dynamic lists where items can be added, removed, or reordered.
@@ -251,12 +250,12 @@ In Ajo, there are several special attributes—`key`, `skip`, `memo`, and `ref`�
 
 #### `skip` Attribute:
 - **Purpose:** The `skip` attribute is used to instruct Ajo to skip rendering for a specific element child nodes. It's useful for preventing certain parts of the DOM from being updated, like when using a third-party library that manipulates the DOM directly.
-- **Behavior:** When `skip` is set to `true` on an element, Ajo will not render or update that element's children.
+- **Behavior:** When `skip` is set to `true` on an element, Ajo will not render or update that element's child nodes.
 - **Example:** `h('div', { skip: shouldSkip })` - here, if `shouldSkip` is `true`, Ajo will not render or update the `div`'s child nodes.
 
 #### `memo` Attribute:
 - **Purpose:** The `memo` attribute is used for memorization. It's a performance optimization technique to prevent unnecessary renders.
-- **Behavior:** When the `memo` attribute is provided, Ajo will shallow compare the memoized values with the new ones. If they are the same, Ajo will skip rendering the component and its children.
+- **Behavior:** When the `memo` attribute is provided, Ajo will shallow compare the memoized values with the new ones. If they are the same, Ajo will skip rendering the element attributes and child nodes. For stateful components, this also prevents the component from re-rendering.
 - **Example:** `h(div, { memo: [dependency1, dependency2] })` - the element (and all its child nodes) will re-render only if `dependency1` or `dependency2` change.
 
 #### `ref` Attribute:
@@ -266,7 +265,97 @@ In Ajo, there are several special attributes—`key`, `skip`, `memo`, and `ref`�
 
 These special attributes in Ajo offer powerful ways to manage rendering performance and interact with DOM elements and components elements directly. They provide developers with finer control over the update behavior and lifecycle of components in their applications.
 
-## Stateful components lifecycle methods
+## Stateful components
+
+Stateful components in Ajo are defined using generator functions. These components are designed with a minimalistic API for controlling rendering and state updates. They are equipped with several lifecycle methods that allow for advanced control over component behavior, error handling, and rendering processes.
+
+The following example demonstrates all the key features of stateful components in Ajo:
+
+```jsx
+function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive arguments initial values.
+  
+  // Define mutable state variables.
+  let messageToSend = '', isConnected = false
+
+  // WebSocket connection setup.
+  const chatServerURL = `ws://chatserver.com/${chatRoom}`
+  const chatConnection = new WebSocket(chatServerURL)
+
+  // Define event handlers.
+  const handleMessageChange = event => {
+
+    messageToSend = event.target.value
+
+    // Render the updated messageToSend (synchronously)
+    this.next()
+  }
+
+  const sendMessage = () => {
+
+    // Logic to send a message.
+    if (messageToSend) {
+
+      chatConnection.send(JSON.stringify({ user: this.$args.userName, message: messageToSend }))
+
+      // Reset message input after sending.
+      messageToSend = ''
+
+       // Refresh to clear input field (asynchronously).
+      this.refresh()
+    }
+  };
+
+  const handleConnectionOpen = () => {
+
+    isConnected = true
+
+     // Refresh to update connection status.
+    this.refresh()
+  };
+
+  const handleConnectionError = error => {
+    this.throw(new Error('Connection error: ' + error.message))
+  };
+
+  // Attach WebSocket event listeners.
+  chatConnection.onopen = handleConnectionOpen
+  chatConnection.onerror = handleConnectionError
+
+  // 'this' is a DOM element, so we can add a class to it.
+  this.classList.add('chat-component')
+
+  try { // Optional try/finally block for cleanup logic.
+
+    for ({ userName } of this) { // Iterates over generator, optionally receiving updated arguments.
+
+      try { // Optional try/catch block for error handling.
+
+        // Compute derived values.
+        const statusMessage = isConnected ? `You are connected as ${userName}.` : "Connecting to chat..."
+
+        // Render the chat component UI.
+        // Use set: prefix to set properties on DOM nodes, like event handlers.
+        yield (
+          <>
+            <div class="status-message">{statusMessage}</div>
+            <div class="connection-status">{isConnected ? 'Connected' : 'Connecting...'}</div>
+            <input type="text" value={messageToSend} set:onchange={handleMessageChange} />
+            <button set:onclick={sendMessage}>Send</button>
+          </>
+        )
+      } catch (e) {
+        // Handle any errors that occur during rendering or state updates.
+        yield <pre>Error: {e.message}</pre>
+      }
+    }
+  } finally {
+    // Cleanup logic: close WebSocket connection.
+    chatConnection.close()
+  }
+}
+```
+
+## Lifecycle methods
 
 Stateful components in Ajo are equipped with several methods that allow for advanced control over component behavior, error handling, and rendering processes. These methods are called lifecycle methods and are invoked at different stages of the component's lifecycle.
 
@@ -277,7 +366,7 @@ The `refresh` method is used to asynchronously trigger a re-render of a stateful
 #### Purpose:
 
 - **Asynchronous Rendering:** `this.refresh()` queues a render of the component in the next animation frame, making it asynchronous.
-- **Single Render:** If called multiple times before the browser paints, `this.refresh()` batches these calls into a single one, reducing unnecessary renders and improving performance.
+- **Single Render:** If called multiple times before the browser paints, `this.refresh()` schedules only one render, ensuring that the component is rendered only once.
 
 #### Usage:
 
