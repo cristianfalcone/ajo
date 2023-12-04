@@ -14,14 +14,17 @@
 </div>
 
 # Ajo
-Ajo is a modern and efficient library for building dynamic UI components using JSX. This library utilizes Generators for stateful component management and provides a lean API for declarative UI construction.
+
+Ajo is a cutting-edge library designed for building dynamic UI components using JSX. Integrating ideas from Incremental DOM and Crank.js, Ajo offers a unique approach in the landscape of UI libraries.
 
 Key features:
 
-* Stateful component management using Generators.
-* Efficient and minimalistic approach for faster rendering.
-* Familiar JSX syntax for easy adoption.
-* Highly optimized for performance and size.
+- **Efficient In-Place DOM Updating**: Ajo executes in-place DOM updates, directly applying the generated vDOM tree to the DOM. This approach avoids the need to store and diff a previous vDOM tree, leading to a reduced memory footprint.
+- **Generator-Based State Management**: Leverages JavaScript Generators for managing component states and effects, offering developers a robust tool for controlling UI lifecycle events.
+- **Minimalistic Rendering Approach**: Ajo’s rendering system is optimized for minimal overhead, enhancing the speed of DOM updates and overall application performance.
+- **JSX Syntax for Intuitive Development**: Supports JSX, making it easy for developers familiar with React or similar libraries to adopt and use Ajo effectively.
+- **Lifecycle Management for Components**: Provides a full suite of lifecycle methods for stateful components, facilitating precise control over component behaviors during their lifecycle.
+- **Flexibility and Lightweight Design**: Ajo is designed to be both adaptable for various use cases and lightweight, ensuring minimal impact on project size.
 
 ## Install
 
