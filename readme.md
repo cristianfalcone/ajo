@@ -85,16 +85,16 @@ render(<Counter />, document.body)
 
 ### render(vnode, element, [namespace])
 
-Renders a virtual DOM node (vnode) created by the `h` function into the actual DOM. It is the primary method used for updating the DOM with new content.
+Renders a virtual DOM node (`vnode`) created by the `h` function into the actual DOM `element`. It is the primary method used for updating the DOM with new content.
 
-When called, it efficiently updates the `parent` element with the new content, adding, updating, or removing DOM nodes as needed.
+When called, it efficiently updates the parent `element` with the new content, adding, updating, or removing DOM nodes as needed.
 
-This function is a cornerstone of the Ajo library, enabling the declarative description of the UI to be transformed into actual UI elements in the browser. It's designed to be efficient, minimizing updates to the actual DOM to improve performance and user experience.
+This function enables the declarative description of the UI to be transformed into actual UI elements in the browser. It's designed to be efficient, minimizing updates to the actual DOM to improve performance and user experience.
 
 #### Parameters:
 
 - **vnode** (Any): The virtual DOM node (created by `h`) to render. This can be any value, a simple string, a JSX element, or a more complex component.
-- **parent** (HTMLElement): The DOM element into which the `vnode` should be rendered. This is typically a container element in your application.
+- **element** (HTMLElement): The DOM element into which the `vnode` should be rendered. This is typically a container element in your application.
 - **namespace** (String, optional): An optional XML namespace URI. If specified, it allows for the creation of elements within a certain XML namespace, useful for SVG elements and other XML-based documents.
 
 #### Returns:
@@ -122,7 +122,7 @@ Creates a virtual DOM element (vnode) for rendering. It's the core function for 
 #### Parameters:
 
 - **name** (String | Function | Generator Function): The name of the tag for the DOM node you want to create. If it's a function, it's treated as a stateless component, and if it's a generator function, it's treated as a stateful component.
-- **attributes** (Object, pptional): An object containing the attributes you want to set on the element.
+- **attributes** (Object, optional): An object containing the attributes you want to set on the element.
 - **children** (Any, optional): Child nodes. Can be a nested array of children, a string, or any other renderable JSX elements. Booleans, null, and undefined children will be ignored, which is useful for conditional rendering.
 
 #### Returns:
@@ -188,8 +188,8 @@ const MyComponent = () => {
   return h(Fragment, null,
     h('h1', null, 'Hello'),
     h('h2', null, 'World')
-  );
-};
+  )
+}
 
 // Or using JSX syntax
 const MyComponentJSX = () => (
@@ -303,10 +303,10 @@ function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive argum
       // Reset message input after sending.
       messageToSend = ''
 
-       // Refresh to clear input field (asynchronously).
+      // Refresh to clear input field (asynchronously).
       this.refresh()
     }
-  };
+  }
 
   const handleConnectionOpen = () => {
 
@@ -314,11 +314,11 @@ function* ChatComponent({ userName = 'Anonymous', chatRoom }) { // Receive argum
 
      // Refresh to update connection status.
     this.refresh()
-  };
+  }
 
   const handleConnectionError = error => {
     this.throw(new Error('Connection error: ' + error.message))
-  };
+  }
 
   // Attach WebSocket event listeners.
   chatConnection.onopen = handleConnectionOpen
@@ -394,7 +394,7 @@ function* DataFetcher() {
   while (true) {
     yield (
       <div>
-        <button onClick={fetchData}>Fetch Data</button>
+        <button set:onclick={fetchData}>Fetch Data</button>
         {data && <DisplayData data={data} />}
       </div>
     )
@@ -470,7 +470,7 @@ function* ChildComponent() {
   }
 
   while (true) {
-    yield <button onClick={handleErrorProneOperation}>Click Me</button>
+    yield <button set:onclick={handleErrorProneOperation}>Click Me</button>
   }
 }
 
@@ -529,13 +529,24 @@ function* MultiStepForm({ initialData }) {
   while (true) {
     switch(currentStep) {
       case 0:
-        yield <StepOne data={formData} onNext={handleNextStep} onRestart={handleRestart} />
+        yield <StepOne
+                arg:data={formData}
+                arg:onNext={handleNextStep}
+                arg:onRestart={handleRestart}
+              />
         break
       case 1:
-        yield <StepTwo data={formData} onNext={handleNextStep} onRestart={handleRestart} />
+        yield <StepTwo
+                arg:data={formData}
+                arg:onNext={handleNextStep}
+                arg:onRestart={handleRestart}
+              />
         break
       default:
-        yield <FinalStep data={formData} onRestart={handleRestart} />;
+        yield <FinalStep
+                arg:data={formData}
+                arg:onRestart={handleRestart}
+              />
     }
   }
 }
@@ -573,7 +584,7 @@ In this example, `ParentComponent` renders `ChildComponent`, passing `someData` 
 This `arg:` prefixed attribute system in Ajo enhances the clarity and readability of component composition. It makes the intent of passing down arguments more explicit, reducing confusion between HTML attributes, and other special properties. This is especially beneficial in complex applications where components have multiple responsibilities and interact with both their children and the DOM.
 
 ## Acknowledgments
-ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [Crank.js](https://github.com/bikeshaving/crank)
+Ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [Crank.js](https://github.com/bikeshaving/crank)
 
 ## License
 
