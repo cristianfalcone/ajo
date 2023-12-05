@@ -1,4 +1,4 @@
-const { isArray, prototype: { slice } } = Array, { assign, setPrototypeOf, hasOwn, keys } = Object
+const { isArray, prototype: { slice } } = Array, { keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
 
 const isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
 
@@ -41,7 +41,9 @@ export const render = (h, el) => {
 
 			if (memo == null || some(node.$memo, node.$memo = memo)) {
 
-				const { $props } = node, props = {}, args = {}
+				const { $props } = node, props = {}
+
+				let args
 
 				for (const name in assign({}, $props, h)) {
 
@@ -49,7 +51,7 @@ export const render = (h, el) => {
 
 					if (name.startsWith('arg:')) {
 
-						args[name.slice(4)] = h[name]
+						(args ??= {})[name.slice(4)] = h[name]
 
 						continue
 					}
@@ -65,11 +67,13 @@ export const render = (h, el) => {
 					else node.setAttribute(name, value === true ? '' : value)
 				}
 
+				if (args) node.$args = args
+
 				node.$props = props
 
 				if (!skip) render(children, node)
 
-				if (typeof ref === 'function') (node.$ref = ref)(node, args)
+				if (typeof ref === 'function') (node.$ref = ref)(node)
 			}
 		}
 
@@ -104,9 +108,7 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 				if (nodeName.constructor.name === 'GeneratorFunction') {
 
-					const { is = nodeName.is ?? 'div', ref } = h
-
-					h.nodeName = is, delete h.is, h.skip = true, h.ref = next.bind(null, nodeName, is, ref)
+					h.nodeName = nodeName.is ?? 'div', h.skip = true, h.ref = next.bind(null, nodeName, h.ref)
 
 					if ('children' in h) h['arg:children'] = h.children, delete h.children
 
@@ -122,18 +124,18 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 	if (root && buffer.value) yield buffer.value
 }
 
-const next = (gen, is, ref, el, args) => {
+const next = (gen, ref, el) => {
 
 	if (!el) return
 
-	el.$gen ??= (new Component(el, is), gen), el.$ref = dispose.bind(null, el, ref), el.$args = args, el.next()
+	el.$gen ??= (new Component(el), gen), el.$ref = dispose.bind(null, el, ref), el.next()
 }
 
-const dispose = (component, ref, el, args) => {
+const dispose = (component, ref, el) => {
 
 	if (!el) component.return()
 
-	typeof ref === 'function' && ref(el, args)
+	typeof ref === 'function' && ref(el)
 }
 
 const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
@@ -171,12 +173,9 @@ const unref = el => {
 
 class Component {
 
-	constructor(el, is) {
+	constructor(el) { setPrototypeOf(el, setPrototypeOf(getPrototypeOf(this), getPrototypeOf(el))) }
 
-		return setPrototypeOf(el, setPrototypeOf(this.constructor.prototype, resolve(el, is).prototype))
-	}
-
-	*[Symbol.iterator]() { while (true) yield this.$args }
+	*[Symbol.iterator]() { while (true) yield this.$args ?? {} }
 
 	refresh() { schedule(this) }
 
@@ -184,7 +183,7 @@ class Component {
 
 		try {
 
-			render((this.$it ??= this.$gen.call(this, this.$args)).next().value, this)
+			render((this.$it ??= this.$gen.call(this, this.$args ?? {})).next().value, this)
 
 			if (typeof this.$ref === 'function') this.$ref(this)
 
@@ -207,21 +206,7 @@ class Component {
 	}
 }
 
-let registry, queue, queued
-
-const resolve = (el, is) => {
-
-	let constructor = (registry ??= new Map).get(is)
-
-	if (!constructor) {
-
-		({ constructor } = document.createElementNS(el.namespaceURI, is))
-
-		registry.set(is, constructor === HTMLUnknownElement ? constructor = HTMLElement : constructor)
-	}
-
-	return constructor
-}
+let queue, queued
 
 const schedule = el => {
 

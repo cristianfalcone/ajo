@@ -218,7 +218,7 @@ The `set:` prefix in Ajo allows you to directly set properties on DOM elements f
 ```jsx
 function* MyComponent() {
   const text = "Hello, Ajo!"
-  yield <div set:textContent={text} skip></div>
+  while (true) yield <div set:textContent={text} skip></div>
 }
 ```
 > Here, `set:textContent` directly sets the `textContent` property of the `div`'s DOM node. `skip` is used to prevent Ajo from overriding the `div`'s children.
@@ -227,7 +227,7 @@ function* MyComponent() {
 ```jsx
 function* MyComponent() {
   const html = "<p>Hello, Ajo!</p>"
-  yield <div set:innerHTML={html} skip></div>
+  while (true) yield <div set:innerHTML={html} skip></div>
 }
 ```
 > In this case, `set:innerHTML` is used to set the `innerHTML` property of the `div`'s DOM element. `skip` is used to prevent Ajo from overriding the `div`'s children.
@@ -236,7 +236,7 @@ function* MyComponent() {
 ```jsx
 function* MyComponent() {
   const handleClick = () => console.log('Clicked')
-  yield <button set:onclick={handleClick}>Click Me</button>
+  while (true) yield <button set:onclick={handleClick}>Click Me</button>
 }
 ```
 > `set:onclick` assigns the `handleClick` function as the click event listener for the button.
