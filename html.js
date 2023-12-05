@@ -59,8 +59,6 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 					for (const [key, value] of entries(h)) {
 
-						if (key === 'is') continue
-
 						if (key === 'children') args.children = value
 
 						else if (key.startsWith('arg:')) args[key.slice(4)] = value
@@ -68,7 +66,7 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 						else props[key] = value
 					}
 
-					props.nodeName = h.is ?? nodeName.is ?? 'div', props.children = run(nodeName, args), yield props
+					props.nodeName = nodeName.is ?? 'div', props.children = run(nodeName, args), yield props
 
 				} else delete h.nodeName, yield* normalize(nodeName(h), buffer, false)
 

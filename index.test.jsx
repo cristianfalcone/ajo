@@ -59,7 +59,7 @@ describe('component', () => {
 		render(null, document.body)
 	})
 
-	it('should render a stateful component with attrs and children', async () => {
+	it('should render a stateful component with attrs and children', () => {
 
 		function* Component() {
 			for (const { name, children } of this) yield <div>Hello {name},<br /> and {children}!</div>
@@ -70,7 +70,7 @@ describe('component', () => {
 		expect(document.body.innerHTML).toBe('<div class="container"><div>Hello world,<br> and you!</div></div>')
 	})
 
-  it('should reuse the same stateful component instance', async () => {
+  it('should reuse the same stateful component instance', () => {
 
 		function* Component() {
 			for (const { name } of this) yield <div ref={el => { ref = el; count++ }}>Hello {name}!</div>
@@ -93,7 +93,7 @@ describe('component', () => {
 		expect(count).toBe(2)
 	})
 
-  it('should extend a built-in element', async () => {
+  it('should extend a built-in element', () => {
 
 		function* Component() {
 			for (const { name } of this) yield <div>Hello {name}!</div>
@@ -106,7 +106,7 @@ describe('component', () => {
 		expect(document.body.innerHTML).toBe('<section class="container"><div>Hello world!</div></section>')
 	})
 
-  it('should hydrate a stateful component', async () => {
+  it('should properly use generator function', () => {
 
 		const html = '<div class="container"><div>Hello world!</div></div>'
 
@@ -159,7 +159,7 @@ describe('component', () => {
 		expect(child).toBe(null)
 	})
 
-  it('should call ref with null when unmounting a stateful component', async () => {
+  it('should call ref with null when unmounting a stateful component', () => {
 
 		function* Component () {
 			for (const { name } of this) yield <div>Hello {name}!</div>
