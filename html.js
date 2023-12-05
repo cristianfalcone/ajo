@@ -1,4 +1,6 @@
-const { entries, hasOwn } = Object, isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
+const { entries, hasOwn } = Object
+
+const isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
 
 export const render = h => [...html(h)].join('')
 
@@ -10,13 +12,13 @@ export const html = function* (h) {
 
 		else {
 
-			const { nodeName, key, skip, memo, ref, children, ...rest } = h
+			const { nodeName, skip, children = '' } = h
 
 			let attrs = ''
-			
-			for (const [key, value] of entries(rest)) {
 
-				if (key.startsWith('set:') || value == null || value === false) continue
+			for (const [key, value] of entries(h)) {
+
+				if (omit.has(key) || key.startsWith('set:') || value == null || value === false) continue
 
 				attrs += value === true ? `${attrs} ${key}` : `${attrs} ${key}="${escape(String(value))}"`
 			}
@@ -79,6 +81,8 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 }
 
 const Void = new Set('area,base,br,col,command,embed,hr,img,input,keygen,link,meta,param,source,track,wbr'.split(','))
+
+const omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
 
 const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 

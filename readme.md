@@ -265,7 +265,7 @@ In Ajo, there are several special attributes (`key`, `skip`, `memo`, and `ref`) 
 - **Behavior:** When an element is mounted or updated, the `ref` callback is called with the DOM element as an argument. This allows you to store a reference to it for later use, such as focusing an input or measuring dimensions.
 - **Example:** `h('input', { ref: el => (this.inputNode = el) })` - stores a reference to the input element.
 
-## Stateful components
+## Stateful Components
 
 Stateful components in Ajo are defined using generator functions. These components are designed with a minimalistic API for controlling rendering and state updates. They are equipped with several lifecycle methods that allow for advanced control over component behavior, error handling, and rendering processes.
 
@@ -348,6 +348,40 @@ function* ChatComponent({ user = 'Anonymous', room }) { // Receive arguments ini
   }
 }
 ```
+
+### Default Rendering Behavior
+
+By default, when a stateful component is rendered in Ajo, it wraps its yielded content within a `<div>` element. This `<div>` becomes the context of the component's generator function, referred to as `this` within the function. 
+
+For example:
+
+```javascript
+function* MyComponent() {
+  // The 'this' variable here refers to the default 'div' wrapper element
+}
+```
+> This default behavior ensures a consistent and predictable wrapper for your component's content, making it easier to manage and style.
+
+### Customizing the Wrapper Element
+
+While the default wrapper is a `<div>`, Ajo provides the flexibility to change this to any other HTML element type. This is particularly useful for semantic correctness or when integrating with existing HTML structures, especially in SSR scenarios.
+
+To specify a different element type for the wrapper, set the `is` property on the Generator Function of your component. For example:
+
+```javascript
+function* MyCustomRow() {
+  // The 'this' variable here refers to the default 'tr' wrapper element
+}
+
+MyCustomRow.is = 'tr'
+```
+> This code will instruct Ajo to render a `<tr>` element instead of the default `<div>`. This capability is crucial for rendering and hydrating any type of HTML element when using stateful components.
+
+#### SSR and Hydration
+
+In the context of Server-Side Rendering (SSR), this feature allows Ajo to gracefully hydrate existing SSR-generated DOM elements. It means that Ajo can extend the functionality of built-in browser DOM elements without relying on Web Components or standards like Declarative Shadow DOM.
+
+This approach provides a streamlined, efficient method for enhancing and manipulating built-in elements, offering a more practical solution compared to the complexities of Web Components.
 
 ## Lifecycle methods
 
@@ -579,6 +613,115 @@ function* ChildComponent({ data, onEvent }) {
 > In this example, `ParentComponent` renders `ChildComponent`, passing `someData` and `handleEvent` as arguments using the `arg:` prefix. `class` is a regular HTML attribute and is not passed to the component's generator function, it is applied to the DOM element associated with the component.
 
 This `arg:` prefixed attribute system in Ajo enhances the clarity and readability of component composition. It makes the intent of passing down arguments more explicit, reducing confusion between HTML attributes, and other special properties. This is especially beneficial in complex applications where components have multiple responsibilities and interact with both their children and the DOM.
+
+## Server-Side Rendering (SSR)
+
+Ajo supports Server-Side Rendering (SSR), enabling components to be rendered to HTML in server-side JavaScript environments. This feature enhances the capabilities of Ajo for projects requiring SEO-friendly pages and faster initial page loads.
+
+### SSR Implementation with `ajo/html`
+
+For SSR in Ajo, use the `render` and `html` functions from the `ajo/html` module. These functions are designed to convert a virtual DOM tree into an HTML string or HTML chunks for streaming, suitable for server-side environments.
+
+### Client-Side Hydration
+
+Once HTML is rendered on the server, it can be hydrated on the client-side by Ajo to become interactive. The client-side `render` function can render into the root element containing the SSR-generated DOM.
+
+### Example Usage
+
+Server-side:
+
+```javascript
+import express from 'express'
+import { render } from 'ajo/html'
+import { App } from './components'
+
+const app = express()
+
+app.get('/', (req, res) => {
+
+  const html = render(<App />)
+
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>My App</title>
+      </head>
+      <body>
+        <div id="root">${html}</div>
+      </body>
+    </html>`)
+})
+
+app.listen(3000)
+```
+
+Client-side:
+
+```javascript
+import { render } from 'ajo'
+import { App } from './components'
+
+// Hydrate the #root element with the server-rendered DOM
+render(<App />, document.getElementById('root'))
+```
+
+### Streaming HTML Chunks
+
+The `html` function is designed to be used with various streaming technologies. Its output can be seamlessly integrated into different streaming environments, offering developers the flexibility to choose the streaming solution that best fits their project requirements.
+
+This streaming capability is useful for progressively rendering content, enhancing Time to First Paint (TTFP) and user experience. It allows browsers to begin rendering content as soon as the initial chunks arrive.
+
+## SSR API
+
+### `render(h: Any): String`
+
+Renders a virtual DOM tree (`h`) into a complete HTML string.
+
+#### Parameters:
+
+- **h** (Any): The virtual DOM tree to render. This can be any value, a simple string, or a virtual DOM tree created by the `h` function.
+
+#### Returns:
+
+- A string representation of the rendered HTML.
+
+#### Example Usage:
+
+```javascript
+import { render } from 'ajo/html'
+import { App } from './components'
+
+const html = render(<App />)
+// The `html` can be sent as part of an HTTP response
+```
+
+### `html(h: Any): Generator`
+
+A generator function that iterates through a virtual DOM tree, yielding HTML strings.
+
+#### Parameters:
+
+- **h** (Any): The virtual DOM tree to iterate through.
+
+#### Yield:
+
+- Yields HTML strings corresponding to each node in the virtual DOM.
+
+#### Usage:
+
+- Suitable for streaming HTML chunks to the client, compatible with any streaming technology.
+
+#### Example Usage:
+
+```javascript
+import { html } from 'ajo/html'
+import { App } from './components'
+
+for (const chunk of html(<App />)) {
+  stream.push(chunk)
+}
+```
 
 ## Acknowledgments
 Ajo takes heavy inspiration from [Incremental DOM](https://github.com/google/incremental-dom) and [Crank.js](https://github.com/bikeshaving/crank)
