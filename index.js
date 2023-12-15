@@ -1,7 +1,3 @@
-const { isArray, prototype: { slice } } = Array, { keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
-
-const isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
-
 export const Fragment = ({ children }) => children
 
 export const h = function (type, props) {
@@ -37,7 +33,7 @@ export const render = (h, el) => {
 
 			while (node && !(node.localName === nodeName && (node.$key ??= key) == key)) node = node.nextSibling
 
-			node ??= assign(document.createElementNS(h.xmlns ?? nodeName === 'svg' ? 'http://www.w3.org/2000/svg' : el.namespaceURI, nodeName), { $key: key })
+			node ??= assign(document.createElementNS(h.xmlns ?? nodeName === 'svg' ? svg : el.namespaceURI, nodeName), { $key: key })
 
 			if (memo == null || some(node.$memo, node.$memo = memo)) {
 
@@ -92,6 +88,14 @@ export const render = (h, el) => {
 	}
 }
 
+const { isArray, prototype: { slice } } = Array, { keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
+
+const svg = 'http://www.w3.org/2000/svg', omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
+
+const isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
+
+const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
+
 const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 	for (h of isIterable(h) ? h : [h]) {
@@ -137,10 +141,6 @@ const dispose = (component, ref, el) => {
 
 	typeof ref === 'function' && ref(el)
 }
-
-const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
-
-const omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
 
 const before = (el, node, child) => {
 
@@ -195,7 +195,11 @@ class Component {
 
 	throw(value) {
 
-		for (let el = this; el; el = el.parentNode) if (typeof el.$it?.throw === 'function') try { return render(el.$it.throw(value).value, el) } catch { }
+		for (let el = this; el; el = el.parentNode) if (typeof el.$it?.throw === 'function') try {
+
+			return render(el.$it.throw(value).value, el)
+
+		} catch { }
 
 		throw value
 	}

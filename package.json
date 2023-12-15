@@ -26,8 +26,8 @@
   },
   "devDependencies": {
     "jsdom": "^23.0.1",
-    "vite": "^5.0.4",
-    "vitest": "^0.34.6"
+    "vite": "^5.0.10",
+    "vitest": "^1.0.4"
   },
   "keywords": [
     "ui",
