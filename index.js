@@ -2,7 +2,7 @@ export const Fragment = ({ children }) => children
 
 export const h = function (type, props) {
 
-	const { length } = arguments; (props ??= {}).nodeName = type
+	const { length } = arguments; (props ??= create(null)).nodeName = type
 
 	if (!('children' in props || length < 3)) props.children = length === 3 ? arguments[2] : slice.call(arguments, 2)
 
@@ -39,18 +39,9 @@ export const render = (h, el) => {
 
 				const { $props } = node, props = {}
 
-				let args
-
-				for (const name in assign({}, $props, h)) {
+				for (const name of keys(assign({}, $props, h))) {
 
 					if (omit.has(name)) continue
-
-					if (name.startsWith('arg:')) {
-
-						(args ??= {})[name.slice(4)] = h[name]
-
-						continue
-					}
 
 					const value = props[name] = h[name]
 
@@ -62,8 +53,6 @@ export const render = (h, el) => {
 
 					else node.setAttribute(name, value === true ? '' : value)
 				}
-
-				if (args) node.$args = args
 
 				node.$props = props
 
@@ -79,7 +68,7 @@ export const render = (h, el) => {
 	while (child) {
 
 		const next = child.nextSibling
-
+		
 		if (child.nodeType === 1) unref(child)
 
 		el.removeChild(child)
@@ -88,7 +77,7 @@ export const render = (h, el) => {
 	}
 }
 
-const { isArray, prototype: { slice } } = Array, { keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
+const { isArray, prototype: { slice } } = Array, { create, keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
 
 const svg = 'http://www.w3.org/2000/svg', omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
 
@@ -110,15 +99,26 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 			if (type === 'function') {
 
+				delete h.nodeName
+
 				if (nodeName.constructor.name === 'GeneratorFunction') {
 
-					h.nodeName = nodeName.is ?? 'div', h.skip = true, h.ref = next.bind(null, nodeName, h.ref)
+					const args = {}, attrs = assign({}, nodeName.attrs)
 
-					if ('children' in h) h['arg:children'] = h.children, delete h.children
+					for (const key of keys(h)) {
 
-					yield h
+						const value = h[key]
 
-				} else delete h.nodeName, yield* normalize(nodeName(h), buffer, false)
+						if (key.startsWith('attr:')) attrs[key.slice(5)] = value
+
+						if (key === 'key' || key === 'memo') attrs[key] = value
+
+						else args[key] = value
+					}
+
+					attrs.nodeName = nodeName.is ?? 'div', attrs.skip = true, attrs.ref = next.bind(null, nodeName, args), yield attrs
+
+				} else yield* normalize(nodeName(h), buffer, false)
 
 			} else if (type === 'string') yield h
 
@@ -128,19 +128,14 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 	if (root && buffer.value) yield buffer.value
 }
 
-const next = (gen, ref, el) => {
+const next = (gen, h, el) => {
 
 	if (!el) return
 
-	el.$gen ??= (new Component(el), gen), el.$ref = dispose.bind(null, el, ref), el.next()
+	el.$gen ??= (new Component(el), gen), el.$ref = dispose.bind(null, el), el.$args = h, el.next()
 }
 
-const dispose = (component, ref, el) => {
-
-	if (!el) component.return()
-
-	typeof ref === 'function' && ref(el)
-}
+const dispose = (component, el) => el ?? component.return()
 
 const before = (el, node, child) => {
 

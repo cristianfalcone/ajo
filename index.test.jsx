@@ -65,7 +65,7 @@ describe('component', () => {
 			for (const { name, children } of this) yield <div>Hello {name},<br /> and {children}!</div>
 		}
 
-		render(<Component class="container" arg:name="world">you</Component>, document.body)
+		render(<Component name="world" attr:class="container">you</Component>, document.body)
 
 		expect(document.body.innerHTML).toBe('<div class="container"><div>Hello world,<br> and you!</div></div>')
 	})
@@ -78,13 +78,13 @@ describe('component', () => {
 
 		let ref = null, count = 0
 
-		render(<Component class="container" arg:name="world" />, document.body)
+		render(<Component name="world" attr:class="container" />, document.body)
 
 		expect(document.body.innerHTML).toBe('<div class="container"><div>Hello world!</div></div>')
 
 		const firstDiv = ref
 
-		render(<Component arg:name="you" />, document.body)
+		render(<Component name="you" />, document.body)
 
 		const secondDiv = ref
 
@@ -101,7 +101,7 @@ describe('component', () => {
 
     Component.is = 'section'
 
-		render(<Component class="container" arg:name="world" />, document.body)
+		render(<Component name="world" attr:class="container" />, document.body)
 
 		expect(document.body.innerHTML).toBe('<section class="container"><div>Hello world!</div></section>')
 	})
@@ -122,7 +122,9 @@ describe('component', () => {
 		const end = vi.fn()
 		const click = vi.fn()
 
-		function* Component() {
+		function* Component({ ref }) {
+
+			if (typeof ref === 'function') ref(this)
 
 			init()
 
@@ -133,10 +135,11 @@ describe('component', () => {
 				}
 			} finally {
 				end()
+				if (typeof ref === 'function') ref(null)
 			}
 		}
 
-		render(<Component class="container" arg:name="world" ref={el => ref = el} />, document.body)
+		render(<Component name="world" ref={el => ref = el} attr:class="container" />, document.body)
 
 		child.click()
 
@@ -161,13 +164,20 @@ describe('component', () => {
 
   it('should call ref with null when unmounting a stateful component', () => {
 
-		function* Component () {
-			for (const { name } of this) yield <div>Hello {name}!</div>
+		function* Component ({ ref }) {
+
+			if (typeof ref === 'function') ref(this)
+
+			try {
+				for (const { name } of this) yield <div>Hello {name}!</div>
+			} finally {
+				if (typeof ref === 'function') ref(null)
+			}
 		}
 
 		let ref = null
 
-		render(<div><Component ref={el => ref = el} arg:name="world" /></div>, document.body)
+		render(<div><Component name="world" ref={el => ref = el} /></div>, document.body)
 
 		expect(ref).not.toBe(null)
 

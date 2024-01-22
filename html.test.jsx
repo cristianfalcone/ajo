@@ -21,7 +21,7 @@ describe('component', () => {
 			for (const { name, children } of this) yield <div>Hello {name},<br /> and {children}!</div>
 		}
 
-		const html = render(<Component arg:name="world">you</Component>)
+		const html = render(<Component name="world">you</Component>)
 		
 		expect(html).toBe('<div><div>Hello world,<br> and you!</div></div>')
 	})
@@ -46,7 +46,7 @@ describe('component', () => {
 			}
 		}
 
-		const html = render(<Component class="container" arg:name="world" ref={el => ref = el} />)
+		const html = render(<Component name="world" attr:class="container" />)
 
 		expect(html).toBe('<div class="container"><div>Hello world!</div></div>')
 		expect(init).toHaveBeenCalledTimes(1)
@@ -74,8 +74,8 @@ describe('component', () => {
 			}
 		}
 
-		const html = render(<Parent />)
+		const html = render(<Parent attr:class="parent" />)
 
-		expect(html).toBe('<div><div>test</div></div>')
+		expect(html).toBe('<div class="parent"><div>test</div></div>')
 	})
 })

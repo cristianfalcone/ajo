@@ -1,4 +1,4 @@
-const { entries, hasOwn } = Object
+const { assign, entries, hasOwn } = Object
 
 const isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
 
@@ -55,20 +55,22 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 			if (type === 'function') {
 
+				delete h.nodeName
+
 				if (nodeName.constructor.name === 'GeneratorFunction') {
 
-					const props = {}, args = {}
+					const args = {}, attrs = assign({}, nodeName.attrs)
 
-					for (const [key, value] of entries(h)) {
+					for (const key in h) {
 
-						if (key === 'children') args.children = value
+						const value = h[key]
 
-						else if (key.startsWith('arg:')) args[key.slice(4)] = value
+						if (key.startsWith('attr:')) attrs[key.slice(5)] = value
 
-						else props[key] = value
+						else args[key] = value
 					}
 
-					props.nodeName = nodeName.is ?? 'div', props.children = run(nodeName, args), yield props
+					attrs.nodeName = nodeName.is ?? 'div', attrs.children = run(nodeName, args), yield attrs
 
 				} else delete h.nodeName, yield* normalize(nodeName(h), buffer, false)
 

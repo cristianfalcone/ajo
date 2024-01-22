@@ -15,7 +15,7 @@
 
 # Ajo
 
-Ajo is a cutting-edge library designed for building dynamic UI components using JSX. Integrating ideas from Incremental DOM and Crank.js, Ajo offers a unique approach in the landscape of UI libraries.
+Ajo is a library designed for building dynamic UI components using JSX. Integrating ideas from Incremental DOM and Crank.js, Ajo offers a unique approach in the landscape of UI libraries.
 
 Key features:
 
@@ -23,7 +23,7 @@ Key features:
 - **Generator-Based State Management**: Leverages JavaScript Generators for managing component states and effects, offering developers a robust tool for controlling UI lifecycle events.
 - **Minimalistic Rendering Approach**: Ajo’s rendering system is optimized for minimal overhead, enhancing the speed of DOM updates and overall application performance.
 - **JSX Syntax for Intuitive Development**: Supports JSX, making it easy for developers familiar with React or similar libraries to adopt and use Ajo effectively.
-- **Lifecycle Management for Components**: Provides a full suite of lifecycle methods for stateful components, facilitating precise control over component behaviors during their lifecycle.
+- **Lifecycle Management for Components**: Provides a suite of lifecycle methods for stateful components, facilitating precise control over component behaviors during their lifecycle.
 - **Flexibility and Lightweight Design**: Ajo is designed to be both adaptable for various use cases and lightweight, ensuring minimal impact on project size.
 
 ## Install
@@ -137,9 +137,6 @@ import { h } from 'ajo'
 // Creating a simple virtual element
 const myElement = h('div', { id: 'my-div' }, 'Hello World')
 
-// or using JSX syntax
-const myElementJSX = <div id="my-div">Hello World</div>
-
 // Creating a virtual tree for a stateless component with children
 const MyComponent = ({ class: className }) => h('div', { class: className },
   h('h1', null, 'Header'),
@@ -147,26 +144,11 @@ const MyComponent = ({ class: className }) => h('div', { class: className },
   h('p', null, 'Paragraph'),
 )
 
-// or using JSX syntax
-const MyComponentJSX = ({ class: className }) => (
-  <div class={className}>
-    <h1>Header</h1>
-    Text Content
-    <p>Paragraph</p>
-  </div>
-)
-
 // Composing
 const MyApp = () => h(MyComponent, { class: 'my-class' })
 
-// or using JSX syntax
-const MyAppJSX = () => <MyComponent class="my-class" />
-
 // Render into a DOM element
 render(h(MyApp), document.body)
-
-// or using JSX syntax
-render(<MyAppJSX />, document.body)
 ```
 > You won't typically use the `h` function, it's automatically used when you write JSX code. The previous examples demonstrate how to use the `h` function directly if you need to.
 
@@ -183,6 +165,7 @@ In JSX, fragments are typically represented with empty tags (`<>...</>`), but th
 //* @jsxFrag Fragment */
 import { h, Fragment } from 'ajo'
 
+// Using the h function
 const MyComponent = () => {
   return h(Fragment, null,
     h('h1', null, 'Hello'),
@@ -201,16 +184,15 @@ const MyComponentJSX = () => (
 
 ### `set:`
 
-The `set:` prefix in Ajo allows you to directly set properties on DOM elements from within your JSX. This is distinct from simply setting attributes, as it interacts with the properties of the DOM elements, much like how you would in plain JavaScript.
+The `set:` prefix in Ajo allows you to directly set properties on DOM elements from within your JSX. This is distinct from simply setting attributes, as it interacts with the properties of the DOM elements, much like how you would in plain JavaScript. Ideal for situations where setting a DOM property is more appropriate or efficient than setting an HTML attribute.
 
 #### Purpose:
 
-- **Direct DOM Property Manipulation:** The `set:` prefix is used for directly setting properties on DOM elements. This is crucial for cases where you need to interact with the DOM API, or when a property does not have a direct attribute equivalent.
+- The `set:` prefix is used for directly setting properties on DOM elements. This is crucial for cases where you need to interact with the DOM API, or when a property does not have a direct attribute equivalent.
 
 #### Usage:
 
-- **Versatile Property Assignment:** Use `set:` to assign various types of properties to DOM elements, including but not limited to event handlers. It can be used for properties like `textContent`, `scrollTop`, custom data properties, and more.
-- **JavaScript-centric DOM Interaction:** Ideal for situations where setting a DOM property is more appropriate or efficient than setting an HTML attribute.
+- Use `set:` to assign various types of properties to DOM elements, including but not limited to event handlers. It can be used for properties like `textContent`, `scrollTop`, custom properties, and more.
 
 #### Examples:
 
@@ -290,6 +272,7 @@ function* ChatComponent({ user = 'Anonymous', room }) { // Receive arguments ini
 
     if (message) {
 
+      // Access current arguments values with 'this.$args'.
       connection.send(JSON.stringify({ user: this.$args.user, message }))
 
       message = ''
@@ -377,11 +360,58 @@ MyCustomRow.is = 'tr'
 ```
 > This code will instruct Ajo to render a `<tr>` element instead of the default `<div>`. This capability is crucial for rendering and hydrating any type of HTML element when using stateful components.
 
-#### SSR and Hydration
+### Wrapper Element Default Attributes
 
-In the context of Server-Side Rendering (SSR), this feature allows Ajo to gracefully hydrate existing SSR-generated DOM elements. It means that Ajo can extend the functionality of built-in browser DOM elements without relying on Web Components or standards like Declarative Shadow DOM.
+When a stateful component is rendered in Ajo, you can specify default attributes for all components instances of that type. This is useful for setting default attributes that are common to all instances of a component, such as `class` or `style`.
 
-This approach provides a streamlined, efficient method for enhancing and manipulating built-in elements, offering a more practical solution compared to the complexities of Web Components.
+To specify default attributes for a component, set the `attrs` property on the Generator Function of your component. For example:
+
+```javascript
+function* MyComponent() {
+  // ...
+}
+
+MyComponent.attrs = { class: 'my-class' }
+```
+> This code will instruct Ajo to set the `class` attribute to `my-class` on all instances of `MyComponent`.
+
+### `attr:`
+
+- **Purpose:** The `attr:` prefix is used in Ajo to explicitly set attributes to the underlying DOM element of a stateful component.
+This prefix distinguishes regular HTML attributes from component arguments, making it easier to identify and manage them.
+
+- **Behavior:**
+  - When a stateful component is rendered in Ajo, any property on it that starts with `attr:` is treated as a regular HTML attribute and is applied to the component's underlying DOM element.
+  - This mechanism ensures that the arguments are clearly identified and separated from the HTML attributes.
+
+- **Usage:** 
+  - Use `attr:` prefixed attributes when you need to pass attributes to a component's underlying DOM element.
+
+- **Example:**
+```jsx
+function* ParentComponent() {
+
+  const someData = { /* ... */ }
+  const handleEvent = () => { /* ... */ }
+
+  yield <ChildComponent
+          attr:class="my-class"
+          data={someData}
+          onEvent={handleEvent}
+        />
+}
+
+function* ChildComponent({ data, onEvent }) {
+  // ...
+}
+```
+> In this example, `ParentComponent` renders `ChildComponent`, passing `someData` and `handleEvent` as arguments. `attr:class` is a regular HTML attribute and is not passed to the component's generator function, it is applied to the DOM element associated with the component.
+
+This `attr:` prefixed attribute system in Ajo enhances the clarity and readability of component composition. It makes the intent of passing DOM attributes more explicit, reducing confusion between function arguments and HTML attributes.
+
+### SSR and Hydration
+
+In the context of Server-Side Rendering (SSR), this features allows Ajo to gracefully hydrate existing SSR-generated DOM elements. Ajo can extend the functionality of built-in browser DOM elements without relying on Web Components or standards like Declarative Shadow DOM. It provides a streamlined, efficient method for enhancing and manipulating built-in elements, offering a more practical solution compared to the complexities of Web Components.
 
 ## Lifecycle methods
 
@@ -557,62 +587,28 @@ function* MultiStepForm({ initialData }) {
     switch(currentStep) {
       case 0:
         yield <StepOne
-                arg:data={formData}
-                arg:onNext={handleNextStep}
-                arg:onRestart={handleRestart}
+                data={formData}
+                onNext={handleNextStep}
+                onRestart={handleRestart}
               />
         break
       case 1:
         yield <StepTwo
-                arg:data={formData}
-                arg:onNext={handleNextStep}
-                arg:onRestart={handleRestart}
+                data={formData}
+                onNext={handleNextStep}
+                onRestart={handleRestart}
               />
         break
       default:
         yield <FinalStep
-                arg:data={formData}
-                arg:onRestart={handleRestart}
+                data={formData}
+                onRestart={handleRestart}
               />
     }
   }
 }
 ```
 > In `handleRestart`, `this.return()` is first called to reset the generator function. This effectively ends the current execution of the component's generator function and prepares it to start from the beginning. Immediately after, `this.refresh()` is called to trigger a re-render of the component. This ensures that after the state is reset, the component's UI is also updated to reflect its initial state.
-
-### `arg:`
-
-- **Purpose:** The `arg:` prefix is used in Ajo to explicitly pass arguments to generator functions. This prefix distinguishes component arguments from regular HTML attributes and other special properties.
-
-- **Behavior:**
-  - When a stateful component is rendered in Ajo, any property on it that starts with `arg:` is treated as an argument to be passed to the component's generator function.
-  - This mechanism ensures that the arguments are clearly identified and separated from other attributes or DOM properties.
-
-- **Usage:** 
-  - Use `arg:` prefixed attributes when you need to pass data or event handlers to a component's generator function.
-  - This approach is particularly useful in maintaining a clear separation between component-specific arguments and other attributes that might be used for styling or DOM manipulation.
-
-- **Example:**
-```jsx
-function* ParentComponent() {
-
-  const someData = { /* ... */ }
-  const handleEvent = () => { /* ... */ }
-
-  yield <ChildComponent
-          class="my-class"
-          arg:data={someData}
-          arg:onEvent={handleEvent}
-        />
-}
-
-function* ChildComponent({ data, onEvent }) {
-  // ...
-}
-```
-> In this example, `ParentComponent` renders `ChildComponent`, passing `someData` and `handleEvent` as arguments using the `arg:` prefix. `class` is a regular HTML attribute and is not passed to the component's generator function, it is applied to the DOM element associated with the component.
-
-This `arg:` prefixed attribute system in Ajo enhances the clarity and readability of component composition. It makes the intent of passing down arguments more explicit, reducing confusion between HTML attributes, and other special properties. This is especially beneficial in complex applications where components have multiple responsibilities and interact with both their children and the DOM.
 
 ## Server-Side Rendering (SSR)
 
