@@ -1,5 +1,14 @@
 declare namespace Ajo {
 
+    interface VNode<TTag = Tag> extends Partial<AjoProps<ElementType<TTag>>> {
+        nodeName: TTag,
+        [key: string]: unknown,     
+    }
+
+    type Child = null | undefined | boolean | bigint | number | string | symbol | Node | VNode | Iterable<Child>
+
+    type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
+
     type ElementType<TTag> =
         TTag extends keyof HTMLElementTagNameMap
         ? HTMLElementTagNameMap[TTag]
@@ -12,7 +21,7 @@ declare namespace Ajo {
         skip: boolean,
         memo: unknown,
         ref: (el: TElement | null) => void,
-        children: any,
+        children: Child,
     }
 
     type SetProps<TTag> = {
@@ -29,19 +38,32 @@ declare namespace Ajo {
         throw: (error?: unknown) => void
         return: () => void
         refresh: () => void
-        [Symbol.iterator]: () => Generator<TArgs, void, any>
+        [Symbol.iterator]: () => Generator<TArgs, void, TArgs>
     }
 
-    type Component<TArgs, TElement extends keyof (HTMLElementTagNameMap & SVGElementTagNameMap) = 'div'> = {
-        (this: ElementType<TElement> & Context<TArgs>, props: TArgs): Generator<TArgs, void, any>
-    } & (TElement extends 'div' ? { is?: TElement } : { is: TElement })
+    type Function<TArgs = {}> = (args: TArgs) => Child
+
+    type Component<TArgs = {}, TTag extends Tag = 'div'> = {
+        (this: ElementType<TTag> & Context<TArgs>, args: TArgs): Generator<Child, void, Child>
+    } & (TTag extends 'div' ? { is?: TTag } : { is: TTag })
 }
 
 declare namespace JSX {
-    
+
     type IntrinsicElements = {
-        [K in keyof HTMLElementTagNameMap]: Partial<Ajo.SetProps<K> & Ajo.AjoProps<Ajo.ElementType<K>>>
+        [TTag in Ajo.Tag]: Partial<Ajo.SetProps<TTag> & Ajo.AjoProps<Ajo.ElementType<TTag>>>
     }
 
     type IntrinsicAttributes = Partial<Ajo.AttrProps<any> & Omit<Ajo.AjoProps<any>, "skip" | "ref">>
+}
+
+declare namespace React {
+    export const createElement: typeof import('ajo').h
+    export const Fragment: typeof import('ajo').Fragment
+}
+
+declare module 'ajo' {
+    function Fragment({ children }: { children: Ajo.Child }): typeof children
+    function h<TProps = {}>(type: Ajo.Tag | Ajo.Function<TProps> | Ajo.Component<TProps>, props?: TProps | null, ...children: Ajo.Child[]): Ajo.VNode<typeof type>
+    function render(h: Ajo.Child, el: Element): void
 }
