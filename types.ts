@@ -1,69 +1,82 @@
-declare namespace Ajo {
+declare module 'ajo' {
 
-    interface VNode<TTag = Tag> extends Partial<AjoProps<ElementType<TTag>>> {
-        nodeName: TTag,
-        [key: string]: unknown,     
-    }
+  type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
 
-    type Child = null | undefined | boolean | bigint | number | string | symbol | Node | VNode | Iterable<Child>
+  type Props = Record<string, unknown>
 
-    type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
+  type AjoNode<TTag = Tag> = { nodeName: TTag } & AjoProps<ElementType<TTag>> & Props
 
-    type ElementType<TTag> =
-        TTag extends keyof HTMLElementTagNameMap
-        ? HTMLElementTagNameMap[TTag]
-        : TTag extends keyof SVGElementTagNameMap
-        ? SVGElementTagNameMap[TTag]
-        : HTMLElement
+  type Children =
+    | null
+    | undefined
+    | boolean
+    | bigint
+    | number
+    | string
+    | symbol
+    | Node
+    | AjoNode
+    | Iterable<Children>
 
-    type AjoProps<TElement> = {
-        key: unknown,
-        skip: boolean,
-        memo: unknown,
-        ref: (el: TElement | null) => void,
-        children: Child,
-    }
+  type ElementType<TTag = Tag> = TTag extends keyof HTMLElementTagNameMap
+    ? HTMLElementTagNameMap[TTag]
+    : TTag extends keyof SVGElementTagNameMap
+    ? SVGElementTagNameMap[TTag]
+    : never
 
-    type SetProps<TTag> = {
-        [K in keyof ElementType<TTag> as `set:${Exclude<K, symbol>}`]: ElementType<TTag>[K]
-    }
+  type AjoProps<TElement> = {
+    key: unknown
+    skip: boolean
+    memo: unknown
+    ref: (el: TElement | null) => void
+  } & ElementChildrenAttribute
 
-    type AttrProps<T> = {
-        [K in keyof T as `attr:${Exclude<K, symbol>}`]: T[K]
-    }
+  type SetProps<TTag = Tag> = {
+    [K in keyof ElementType<TTag> as `set:${Exclude<K, symbol>}`]: ElementType<TTag>[K]
+  }
 
-    type Context<TArgs> = {
-        $args: TArgs
-        next: () => void
-        throw: (error?: unknown) => void
-        return: () => void
-        refresh: () => void
-        [Symbol.iterator]: () => Generator<TArgs, void, TArgs>
-    }
+  type AttrProps<TAttribute = Props> = {
+    [K in keyof TAttribute as `attr:${Exclude<K, symbol>}`]: TAttribute[K]
+  }
 
-    type Function<TArgs = {}> = (args: TArgs) => Child
+  type Context<TArguments = Props> = {
+    $args: TArguments
+    next: () => void
+    throw: (value?: unknown) => void
+    return: () => void
+    refresh: () => void
+    [Symbol.iterator]: () => Generator<TArguments, unknown, unknown>
+  }
 
-    type Component<TArgs = {}, TTag extends Tag = 'div'> = {
-        (this: ElementType<TTag> & Context<TArgs>, args: TArgs): Generator<Child, void, Child>
-    } & (TTag extends 'div' ? { is?: TTag } : { is: TTag })
+  type Function<TArguments = Props> = (args: TArguments) => Children
+
+  type Component<TArguments = Props, TTag extends Tag = 'div'> = {
+    (this: ComponentElement<TArguments, TTag>, args: TArguments): Generator<Children, unknown, unknown>
+  } & (TTag extends 'div' ? { is?: TTag } : { is: TTag })
+
+  type ComponentElement<TArguments = Props, TTag = Tag> = Context<TArguments> & ElementType<TTag>
+
+  type IntrinsicElements = {
+    [TTag in Tag]: Partial<SetProps<TTag> & AjoProps<ElementType<TTag>>> & Props
+  }
+
+  type IntrinsicAttributes = Partial<Omit<AjoProps<ElementType<Tag>>, 'skip' | 'ref'>> & AttrProps
+
+  type ElementChildrenAttribute = { children: Children }
+
+  function Fragment({ children }: ElementChildrenAttribute): typeof children
+  function h<TProps = Props>(type: Tag | Function<TProps> | Component<TProps>, props?: TProps | null, ...children: Children[]): AjoNode<typeof type>
+  function render(h: Children, el: Element): void
 }
 
 declare namespace JSX {
-
-    type IntrinsicElements = {
-        [TTag in Ajo.Tag]: Partial<Ajo.SetProps<TTag> & Ajo.AjoProps<Ajo.ElementType<TTag>>>
-    }
-
-    type IntrinsicAttributes = Partial<Ajo.AttrProps<any> & Omit<Ajo.AjoProps<any>, "skip" | "ref">>
+  type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
+  type IntrinsicElements = import('ajo').IntrinsicElements
+  type IntrinsicAttributes = import('ajo').IntrinsicAttributes
 }
 
 declare namespace React {
-    export const createElement: typeof import('ajo').h
-    export const Fragment: typeof import('ajo').Fragment
-}
-
-declare module 'ajo' {
-    function Fragment({ children }: { children: Ajo.Child }): typeof children
-    function h<TProps = {}>(type: Ajo.Tag | Ajo.Function<TProps> | Ajo.Component<TProps>, props?: TProps | null, ...children: Ajo.Child[]): Ajo.VNode<typeof type>
-    function render(h: Ajo.Child, el: Element): void
+  const createElement: typeof import('ajo').h
+  const Fragment: typeof import('ajo').Fragment
+  type ReactNode = import('ajo').Children
 }

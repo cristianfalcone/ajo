@@ -3,17 +3,16 @@
   "version": "0.1.14",
   "description": "ajo is a JavaScript view library for building user interfaces",
   "type": "module",
-  "module": "./dist/index.js",
-  "main": "./dist/index.cjs",
-  "types": "./types.ts",
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "require": "./dist/index.cjs",
+      "types": "./types.ts"
     },
     "./html": {
       "import": "./dist/html.js",
-      "require": "./dist/html.umd.cjs"
+      "require": "./dist/html.cjs",
+      "types": "./types.ts"
     }
   },
   "files": [
@@ -27,9 +26,10 @@
     "release": "pnpm test && pnpm build && pnpm bump && pnpm publish"
   },
   "devDependencies": {
+    "@types/node": "^20.12.7",
     "jsdom": "24.0.0",
-    "vite": "5.0.12",
-    "vitest": "1.2.1"
+    "vite": "5.2.8",
+    "vitest": "1.5.0"
   },
   "keywords": [
     "ui",

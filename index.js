@@ -68,7 +68,7 @@ export const render = (h, el) => {
 	while (child) {
 
 		const next = child.nextSibling
-		
+
 		if (child.nodeType === 1) unref(child)
 
 		el.removeChild(child)
@@ -166,13 +166,34 @@ const unref = el => {
 	for (const key of keys(el)) el[key] = null
 }
 
+let queue, queued
+
+const run = () => {
+
+	for (const el of queue) if (el.isConnected) el.next()
+
+	queue.clear(), queued = null
+}
+
 class Component {
 
 	constructor(el) { setPrototypeOf(el, setPrototypeOf(getPrototypeOf(this), getPrototypeOf(el))) }
 
 	*[Symbol.iterator]() { while (true) yield this.$args ?? {} }
 
-	refresh() { schedule(this) }
+	refresh() {
+
+		if ((queue ??= new Set).has(this)) queue.delete(this)
+
+		for (const el of queue) {
+
+			if (el.contains(this)) return
+
+			if (this.contains(el)) queue.delete(el)
+		}
+
+		queue.add(this), queued ??= requestAnimationFrame(run)
+	}
 
 	next() {
 
@@ -203,27 +224,4 @@ class Component {
 
 		try { this.$it?.return() } catch (value) { this.throw(value) } finally { this.$it = null }
 	}
-}
-
-let queue, queued
-
-const schedule = el => {
-
-	if ((queue ??= new Set).has(el)) queue.delete(el)
-
-	for (const n of queue) {
-
-		if (n.contains(el)) return
-
-		if (el.contains(n)) queue.delete(n)
-	}
-
-	queue.add(el), queued ??= requestAnimationFrame(run)
-}
-
-const run = () => {
-
-	for (const el of queue) if (el.isConnected) el.next()
-
-	queue.clear(), queued = null
 }
