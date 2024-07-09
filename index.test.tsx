@@ -1,6 +1,6 @@
 /// <reference types="." />
 // @vitest-environment jsdom
-import type { Children, Component, ComponentElement } from 'ajo'
+import type { Children, Component, Ref } from 'ajo'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render } from 'ajo'
 
@@ -79,11 +79,11 @@ describe('component', () => {
 	})
 
 	it('should render a stateful component with attrs and children', () => {
-		const Component: Component<{ name: string, children: Children }> = function* () {
-			for (const { name, children } of this)
+		const Component: Component<{ name: string, children: Children }> = function* (props) {
+			while (true)
 				yield (
 					<div>
-						Hello {name},<br /> and {children}!
+						Hello {props.name},<br /> and {props.children}!
 					</div>
 				)
 		}
@@ -101,8 +101,8 @@ describe('component', () => {
 	})
 
 	it('should reuse the same stateful component instance', () => {
-		const Component: Component<{ name: string }> = function* () {
-			for (const { name } of this)
+		const Component: Component<{ name: string }> = function* (props) {
+			while (true)
 				yield (
 					<div
 						ref={(el) => {
@@ -110,7 +110,7 @@ describe('component', () => {
 							count++
 						}}
 					>
-						Hello {name}!
+						Hello {props.name}!
 					</div>
 				)
 		}
@@ -136,8 +136,8 @@ describe('component', () => {
 	})
 
 	it('should extend a built-in element', () => {
-		const Component: Component<{ name: string }, 'section'> = function* () {
-			for (const { name } of this) yield <div>Hello {name}!</div>
+		const Component: Component<{ name: string }, 'section'> = function* (props) {
+			while (true) yield <div>Hello {props.name}!</div>
 		}
 
 		Component.is = 'section'
@@ -157,8 +157,10 @@ describe('component', () => {
 		const el = document.querySelector(
 			'[class="container"]'
 		) as typeof ref
+
+		type ComponentElement = ThisParameterType<typeof Component> | null
 		
-		let ref: ComponentElement<ComponentProps, typeof Component.is> | null = null
+		let ref: ComponentElement | null = null
 		let child: HTMLSpanElement | null = null
 
 		const init = vi.fn()
@@ -171,25 +173,23 @@ describe('component', () => {
 			name: string
 		}
 
-		const Component: Component<ComponentProps, 'section'> = function* ({
-			ref,
-		}) {
-			if (typeof ref === 'function') ref(this)
+		const Component: Ref<Component<ComponentProps, 'section'>> = function* (props) {
+			props.ref(this)
 
 			init()
 
 			try {
-				for (const { name } of this) {
+				while (true) {
 					loop()
 					yield (
 						<span ref={(el) => (child = el)} set:onclick={click}>
-							Hello {name}!
+							Hello {props.name}!
 						</span>
 					)
 				}
 			} finally {
 				end()
-				if (typeof ref === 'function') ref(null)
+				if (typeof props.ref === 'function') props.ref(null)
 			}
 		}
 
@@ -215,7 +215,7 @@ describe('component', () => {
 		expect(el).toBe(ref)
 		expect(child!.innerHTML).toBe('Hello world!')
 
-		el!.next()
+		el!.$next()
 
 		expect(loop).toHaveBeenCalledTimes(2)
 
@@ -228,20 +228,22 @@ describe('component', () => {
 
 	it('should call ref with null when unmounting a stateful component', () => {
 
-		let ref: ComponentElement<ComponentProps> | null = null
+		type ComponentElement = ThisParameterType<typeof Component> | null
+
+		let ref: ComponentElement | null = null
 
 		type ComponentProps = {
 			name: string;
 			ref: (el: typeof ref) => void
 		}
 
-		const Component: Component<ComponentProps> = function* ({ ref }) {
-			if (typeof ref === 'function') ref(this)
+		const Component: Ref<Component<ComponentProps>> = function* (props) {
+			if (typeof props.ref === 'function') props.ref(this)
 
 			try {
-				for (const { name } of this) yield <div>Hello {name}!</div>
+				while (true) yield <div>Hello {props.name}!</div>
 			} finally {
-				if (typeof ref === 'function') ref(null)
+				if (typeof props.ref === 'function') props.ref(null)
 			}
 		}
 
@@ -265,11 +267,11 @@ describe('component', () => {
 		}
 
 		function* Child() {
-			for ({} of this) yield <Thrower />
+			while (true) yield <Thrower />
 		}
 
 		function* Parent() {
-			for ({} of this) {
+			while (true) {
 				try {
 					yield <Child />
 				} catch (e) {

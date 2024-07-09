@@ -2,7 +2,7 @@ export const Fragment = ({ children }) => children
 
 export const h = function (type, props) {
 
-	const { length } = arguments; (props ??= create(null)).nodeName = type
+	const { length } = arguments; (props ??= {}).nodeName = type
 
 	if (!('children' in props || length < 3)) props.children = length === 3 ? arguments[2] : slice.call(arguments, 2)
 
@@ -22,10 +22,6 @@ export const render = (h, el) => {
 			while (node && node.nodeType != 3) node = node.nextSibling
 
 			node ? node.data != h && (node.data = h) : node = document.createTextNode(h)
-
-		} else if (h instanceof Node) {
-
-			node = h
 
 		} else {
 
@@ -77,27 +73,25 @@ export const render = (h, el) => {
 	}
 }
 
-const { isArray, prototype: { slice } } = Array, { create, keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
+const { isArray, prototype: { slice } } = Array, { keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
 
 const svg = 'http://www.w3.org/2000/svg', omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
-
-const isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
 
 const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
 
 const normalize = function* (h, buffer = { value: '' }, root = true) {
 
-	for (h of isIterable(h) ? h : [h]) {
+	for (h of isArray(h) ? h : [h]) {
 
 		if (h == null || typeof h === 'boolean') continue
 
 		if (hasOwn(h, 'nodeName')) {
 
-			const { value } = buffer, { nodeName } = h, type = typeof nodeName
+			const { value } = buffer, { nodeName } = h
 
 			if (value) yield value, buffer.value = ''
 
-			if (type === 'function') {
+			if (typeof nodeName === 'function') {
 
 				delete h.nodeName
 
@@ -111,18 +105,24 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 						if (key.startsWith('attr:')) attrs[key.slice(5)] = value
 
-						if (key === 'key' || key === 'memo') attrs[key] = value
+						else if (key === 'key' || key === 'memo') attrs[key] = value
 
 						else args[key] = value
 					}
 
-					attrs.nodeName = nodeName.is ?? 'div', attrs.skip = true, attrs.ref = next.bind(null, nodeName, args), yield attrs
+					attrs.nodeName = nodeName.is ?? 'div'
+
+					attrs.skip = true
+
+					attrs.ref = next.bind(null, nodeName, args)
+
+					yield attrs
 
 				} else yield* normalize(nodeName(h), buffer, false)
 
-			} else if (type === 'string') yield h
+			} else yield h
 
-		} else isIterable(h) ? yield* normalize(h, buffer, false) : buffer.value += h
+		} else isArray(h) ? yield* normalize(h, buffer, false) : buffer.value += h
 	}
 
 	if (root && buffer.value) yield buffer.value
@@ -132,10 +132,16 @@ const next = (gen, h, el) => {
 
 	if (!el) return
 
-	el.$gen ??= (new Component(el), gen), el.$ref = dispose.bind(null, el), el.$args = h, el.next()
+	el.$gen ??= (new Component(el), gen)
+
+	el.$ref = dispose.bind(null, el)
+
+	assign(el.$args ??= {}, h)
+
+	el.$next()
 }
 
-const dispose = (component, el) => el ?? component.return()
+const dispose = (component, el) => el ?? component.$return()
 
 const before = (el, node, child) => {
 
@@ -162,54 +168,30 @@ const unref = el => {
 	const { $ref } = el
 
 	if (typeof $ref === 'function') $ref(null)
-
-	for (const key of keys(el)) el[key] = null
-}
-
-let queue, queued
-
-const run = () => {
-
-	for (const el of queue) if (el.isConnected) el.next()
-
-	queue.clear(), queued = null
 }
 
 class Component {
 
-	constructor(el) { setPrototypeOf(el, setPrototypeOf(getPrototypeOf(this), getPrototypeOf(el))) }
+	constructor(el) {
 
-	*[Symbol.iterator]() { while (true) yield this.$args ?? {} }
-
-	refresh() {
-
-		if ((queue ??= new Set).has(this)) queue.delete(this)
-
-		for (const el of queue) {
-
-			if (el.contains(this)) return
-
-			if (this.contains(el)) queue.delete(el)
-		}
-
-		queue.add(this), queued ??= requestAnimationFrame(run)
+    setPrototypeOf(el, setPrototypeOf(getPrototypeOf(this), getPrototypeOf(el)))
 	}
 
-	next() {
+	$next() {
 
 		try {
 
-			render((this.$it ??= this.$gen.call(this, this.$args ?? {})).next().value, this)
+			render((this.$it ??= this.$gen.call(this, this.$args)).next().value, this)
 
 			if (typeof this.$ref === 'function') this.$ref(this)
 
 		} catch (value) {
 
-			this.throw(value)
+			this.$throw(value)
 		}
 	}
 
-	throw(value) {
+	$throw(value) {
 
 		for (let el = this; el; el = el.parentNode) if (typeof el.$it?.throw === 'function') try {
 
@@ -220,8 +202,19 @@ class Component {
 		throw value
 	}
 
-	return() {
+	$return() {
 
-		try { this.$it?.return() } catch (value) { this.throw(value) } finally { this.$it = null }
+		try {
+
+			this.$it?.return()
+
+		} catch (value) {
+
+			this.$throw(value)
+
+		} finally {
+
+			this.$it = null
+		}
 	}
 }

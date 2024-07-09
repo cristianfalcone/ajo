@@ -1,6 +1,4 @@
-const { assign, entries, hasOwn } = Object
-
-const isIterable = v => typeof v !== 'string' && typeof v?.[Symbol.iterator] === 'function'
+const { assign, entries, hasOwn } = Object, { isArray } = Array
 
 export const render = h => [...html(h)].join('')
 
@@ -43,17 +41,17 @@ export const html = function* (h) {
 
 const normalize = function* (h, buffer = { value: '' }, root = true) {
 
-	for (h of isIterable(h) ? h : [h]) {
+	for (h of isArray(h) ? h : [h]) {
 
 		if (h == null || typeof h === 'boolean') continue
 
 		if (hasOwn(h, 'nodeName')) {
 
-			const { value } = buffer, { nodeName } = h, type = typeof nodeName
+			const { value } = buffer, { nodeName } = h
 
 			if (value) yield value, buffer.value = ''
 
-			if (type === 'function') {
+			if (typeof nodeName === 'function') {
 
 				delete h.nodeName
 
@@ -70,13 +68,17 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 						else args[key] = value
 					}
 
-					attrs.nodeName = nodeName.is ?? 'div', attrs.children = run(nodeName, args), yield attrs
+					attrs.nodeName = nodeName.is ?? 'div'
+
+					attrs.children = run(nodeName, args)
+
+					yield attrs
 
 				} else delete h.nodeName, yield* normalize(nodeName(h), buffer, false)
 
-			} else if (type === 'string') yield h
+			} else yield h
 
-		} else isIterable(h) ? yield* normalize(h, buffer, false) : buffer.value += h
+		} else isArray(h) ? yield* normalize(h, buffer, false) : buffer.value += h
 	}
 
 	if (root && buffer.value) yield buffer.value
@@ -98,27 +100,37 @@ const run = (gen, $args) => {
 
 			$args,
 
-			*[Symbol.iterator]() { while (true) yield $args },
+			*[Symbol.iterator]() {
 
-			refresh() { },
+				while (true) yield $args
+			},
 
-			next() { children = render(iterator.next().value) },
+			$next() {
 
-			throw(value) { children = render(iterator.throw(value).value) },
+				children = render(iterator.next().value)
+			},
 
-			return() { iterator.return() }
+			$throw(value) {
+
+				children = render(iterator.throw(value).value)
+			},
+
+			$return() {
+
+				iterator.return()
+			}
 
 		}, $args)
 
-		self.next()
+		self.$next()
 
 	} catch (value) {
 
-		self.throw(value)
+		self.$throw(value)
 
 	} finally {
 
-		self.return()
+		self.$return()
 	}
 
 	return children

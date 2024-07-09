@@ -2,21 +2,13 @@ declare module 'ajo' {
 
   type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
 
+  type Type = Tag | Function | Component
+
   type Props = Record<string, unknown>
 
-  type AjoNode<TTag = Tag> = { nodeName: TTag } & AjoProps<ElementType<TTag>> & Props
+  type AjoNode<TTag extends Type> = { nodeName: TTag } & TagProps<TTag>
 
-  type Children =
-    | null
-    | undefined
-    | boolean
-    | bigint
-    | number
-    | string
-    | symbol
-    | Node
-    | AjoNode
-    | Iterable<Children>
+  type Children = any
 
   type ElementType<TTag = Tag> = TTag extends keyof HTMLElementTagNameMap
     ? HTMLElementTagNameMap[TTag]
@@ -41,20 +33,21 @@ declare module 'ajo' {
 
   type Context<TArguments = Props> = {
     $args: TArguments
-    next: () => void
-    throw: (value?: unknown) => void
-    return: () => void
-    refresh: () => void
-    [Symbol.iterator]: () => Generator<TArguments, unknown, unknown>
+    $next: () => void
+    $throw: (value?: unknown) => void
+    $return: () => void
+    [Symbol.iterator]: () => Iterator<TArguments, unknown, unknown>
   }
 
   type Function<TArguments = Props> = (args: TArguments) => Children
 
   type Component<TArguments = Props, TTag extends Tag = 'div'> = {
-    (this: ComponentElement<TArguments, TTag>, args: TArguments): Generator<Children, unknown, unknown>
+    (this: ElementType<TTag> & Context<TArguments>, args: TArguments): Iterator<Children, unknown, unknown>
   } & (TTag extends 'div' ? { is?: TTag } : { is: TTag })
 
-  type ComponentElement<TArguments = Props, TTag = Tag> = Context<TArguments> & ElementType<TTag>
+  type Ref<TComponent> = TComponent extends Component<infer TArguments, infer TTag>
+    ? Component<TArguments & { ref: (el: ThisParameterType<Ref<TComponent>> | null) => void }, TTag>
+    : never 
 
   type IntrinsicElements = {
     [TTag in Tag]: Partial<SetProps<TTag> & AjoProps<ElementType<TTag>>> & Props
@@ -64,8 +57,16 @@ declare module 'ajo' {
 
   type ElementChildrenAttribute = { children: Children }
 
+  type TagProps<TTag extends Type> = TTag extends Tag
+    ? IntrinsicElements[TTag] & IntrinsicAttributes
+    : TTag extends Function<infer TArguments>
+    ? TArguments
+    : TTag extends Component<infer TArguments>
+    ? TArguments
+    : never
+
   function Fragment({ children }: ElementChildrenAttribute): typeof children
-  function h<TProps = Props>(type: Tag | Function<TProps> | Component<TProps>, props?: TProps | null, ...children: Children[]): AjoNode<typeof type>
+  function h<TTag extends Tag>(tag: TTag, props?: TagProps<TTag> | null, ...children: Array<unknown>): AjoNode<TTag>
   function render(h: Children, el: Element): void
 }
 

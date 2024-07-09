@@ -19,11 +19,11 @@ describe('render', () => {
 
 describe('component', () => {
 	it('should render a stateful component with attrs and children', () => {
-		const Component: Component<{ name: string, children: Children }> = function* () {
-			for (const { name, children } of this)
+		const Component: Component<{ name: string, children: Children }> = function* (props) {
+			while (true)
 				yield (
 					<div>
-						Hello {name},<br /> and {children}!
+						Hello {props.name},<br /> and {props.children}!
 					</div>
 				)
 		}
@@ -38,13 +38,13 @@ describe('component', () => {
 		const loop = vi.fn()
 		const end = vi.fn()
 
-		const Component: Component<{ name: string }> = function* () {
+		const Component: Component<{ name: string }> = function* (props) {
 			init()
 
 			try {
-				for (const { name } of this) {
+				while (true) {
 					loop()
-					yield <div>Hello {name}!</div>
+					yield <div>Hello {props.name}!</div>
 				}
 			} finally {
 				end()
@@ -65,11 +65,11 @@ describe('component', () => {
 		}
 
 		function* Child() {
-			for ({} of this) yield <Thrower />
+			while (true) yield <Thrower />
 		}
 
 		function* Parent() {
-			for ({} of this) {
+			while (true) {
 				try {
 					yield <Child />
 				} catch (e) {

@@ -68,7 +68,7 @@ function* Counter() {
 
   const handleClick = () => {
     count++
-    this.refresh()
+    this.$next()
   }
 
   while (true) yield (
@@ -254,7 +254,7 @@ Stateful components in Ajo are defined using generator functions. These componen
 The following example demonstrates key features of stateful components in Ajo:
 
 ```jsx
-function* ChatComponent({ user = 'Anonymous', room }) { // Receive arguments initial values.
+function* ChatComponent(props) {
 
   // Define mutable state variables.
   let message = '', connected = false
@@ -264,36 +264,33 @@ function* ChatComponent({ user = 'Anonymous', room }) { // Receive arguments ini
 
     message = event.target.value
 
-    // Render synchronously.
-    this.next()
+    this.$next()
   }
 
   const send = () => {
 
     if (message) {
 
-      // Access current arguments values with 'this.$args'.
-      connection.send(JSON.stringify({ user: this.$args.user, message }))
+      connection.send(JSON.stringify({ user: props.user ?? 'Anonymous', message }))
 
       message = ''
 
-      // Render asynchronously.
-      this.refresh()
+      this.$next()
     }
   }
 
   const handleConnectionOpen = () => {
     connected = true
-    this.refresh()
+    this.$next()
   }
 
   const handleConnectionError = error => {
     // Throw error to be caught by the component itself or a parent component.
-    this.throw(new Error('Connection error: ' + error.message))
+    this.$throw(new Error('Connection error: ' + error.message))
   }
 
   // Setup resources.
-  const server = `ws://chat.com/${room}`
+  const server = `ws://chat.com/${props.room}`
   const connection = new WebSocket(server)
 
   connection.onopen = handleConnectionOpen
@@ -304,12 +301,12 @@ function* ChatComponent({ user = 'Anonymous', room }) { // Receive arguments ini
 
   try { // Optional try/finally block for cleanup logic.
 
-    for ({ user } of this) { // Iterates over generator, optionally receiving updated arguments.
+    while (true) {
 
       try { // Optional try/catch block for error handling.
 
         // Compute derived values.
-        const status = connected ? `You are connected as ${user}.` : "Connecting to chat..."
+        const status = connected ? `You are connected as ${props.user ?? 'Anonymous'}.` : "Connecting to chat..."
 
         // Render the component UI.
         yield (
@@ -401,7 +398,7 @@ function* ParentComponent() {
         />
 }
 
-function* ChildComponent({ data, onEvent }) {
+function* ChildComponent(props) { // props is an object containing data and onEvent
   // ...
 }
 ```
@@ -417,60 +414,17 @@ In the context of Server-Side Rendering (SSR), this features allows Ajo to grace
 
 Stateful components in Ajo are equipped with several methods that allow for advanced control over component behavior, error handling, and rendering processes. These methods are called lifecycle methods and are invoked at different stages of the component's lifecycle.
 
-### `this.refresh()`
+### `this.$next()`
 
-The `refresh` method is used to asynchronously trigger a re-render of a stateful component in Ajo. It schedules a render using `requestAnimationFrame`, ensuring that the rendering aligns with the browser's paint cycle.
-
-#### Purpose:
-
-- **Asynchronous Rendering:** `this.refresh()` queues a render of the component in the next animation frame, making it asynchronous.
-- **Single Render:** If called multiple times before the browser paints, `this.refresh()` schedules only one render, ensuring that the component is rendered only once.
-
-#### Usage:
-
-- **For Performance Optimization:** Ideal in scenarios where multiple state updates occur in quick succession.
-- **In Event Handlers and Async Operations:** Useful in event handlers or after asynchronous operations where you need to update the UI in response to changes.
-
-#### Example:
-
-```jsx
-function* DataFetcher() {
-
-  let data = null
-
-  const fetchData = async () => {
-
-    data = await fetchSomeData()
-
-    // Queue a re-render to update the component with the fetched data:
-    this.refresh()
-  }
-
-  while (true) {
-    yield (
-      <div>
-        <button set:onclick={fetchData}>Fetch Data</button>
-        {data && <DisplayData data={data} />}
-      </div>
-    )
-  }
-}
-```
-> In this example, `DataFetcher` uses `this.refresh()` to update its display after data is fetched. The use of `this.refresh()` ensures that the rendering is efficient and aligned with the browser's rendering cycle.
-
-### `this.next()`
-> **Note:** `this.next()` is called asynchronously when calling `this.refresh()`.
-
-The `next` method is used within stateful components in Ajo to manually advance the component's generator function to its next yield point. This method is crucial for synchronously rendering the next state of the component.
+The `$next` method is used within stateful components in Ajo to advance the component's generator function to its next yield point. This method is crucial for rendering the next state of the component.
 
 #### Purpose:
 
-- **Synchronous Rendering:** `this.next()` is used to immediately render the next state of the component. It advances the generator function to the next yield, reflecting any changes in state or props right away.
+- **Synchronous Rendering:** `this.$next()` is used to render the next state of the component. It advances the generator function to the next yield, reflecting any changes in state or props right away.
 
 #### Usage:
 
-- **In Response to State Changes:** Typically, `this.next()` is called in scenarios where the component's state has changed and an immediate update to the DOM is required.
-- **For Controlled Updates:** It allows for more controlled and predictable updates, as it bypasses the asynchronous rendering cycle from `this.refresh()`.
+- **In Response to State Changes:** Typically, `this.$next()` is called in scenarios where the component's state has changed and an update to the DOM is required.
 
 #### Example:
 
@@ -483,8 +437,7 @@ function* Counter() {
 
     count++
 
-    // Immediately render the updated count
-    this.next()
+    this.$next()
   }
 
   while (true) {
@@ -492,20 +445,45 @@ function* Counter() {
   }
 }
 ```
-> In this example, `Counter` uses `this.next()` in its `increment` function to immediately render the updated count whenever the button is clicked.
+> In this example, `Counter` uses `this.$next()` in its `increment` function to render the updated count whenever the button is clicked.
 
-### `this.throw()`
-> **Note:** `this.throw()` is automatically called when an error is thrown from a component's generator function.
+```jsx
+function* DataFetcher() {
 
-The `throw` method in Ajo stateful components is designed for error propagation within the component hierarchy. It allows developers to throw errors from a child component to be caught and handled by itself or a parent component, facilitating a structured approach to error management.
+  let data = null
+
+  const fetchData = async () => {
+
+    data = await fetchSomeData()
+
+    // Queue a re-render to update the component with the fetched data:
+    this.$next()
+  }
+
+  while (true) {
+    yield (
+      <div>
+        <button set:onclick={fetchData}>Fetch Data</button>
+        {data && <DisplayData data={data} />}
+      </div>
+    )
+  }
+}
+```
+> In this example, `DataFetcher` uses `this.$next()` to update its display after data is fetched.
+
+### `this.$throw()`
+> **Note:** `this.$throw()` is automatically called when an error is thrown from a component's generator function.
+
+The `$throw` method in Ajo stateful components is designed for error propagation within the component hierarchy. It allows developers to throw errors from a child component to be caught and handled by itself or a parent component, facilitating a structured approach to error management.
 
 #### Purpose:
 
-- **Error Propagation:** `this.throw()` is used to send errors from the current component up to its parents component, akin to creating an error boundary.
+- **Error Propagation:** `this.$throw()` is used to send errors from the current component up to its parents component, akin to creating an error boundary.
 
 #### Usage:
 
-- **Handling Uncaught Exceptions:** Typically used within event handlers or asynchronous operations where errors might occur. Instead of handling these errors locally within the component, `this.throw()` sends them to the parent component for a more centralized handling approach.
+- **Handling Uncaught Exceptions:** Typically used within event handlers or asynchronous operations where errors might occur. Instead of handling these errors locally within the component, `this.$throw()` sends them to the parent component for a more centralized handling approach.
 - **Creating Error Boundaries:** Useful in scenarios where a parent component is designed to handle errors from its child components, maintaining separation of concerns and cleaner code.
 
 #### Example:
@@ -522,7 +500,7 @@ function* ChildComponent() {
     } catch (err) {
 
       // Propagate error to parent component
-      this.throw(err) 
+      this.$throw(err) 
     }
   }
 
@@ -541,16 +519,16 @@ function* ParentComponent() {
   }
 }
 ```
-> In this example, `ChildComponent` uses `this.throw()` within an event handler to propagate errors upwards to its parent component, `ParentComponent`. The parent component then catches the error and renders it to the DOM.
+> In this example, `ChildComponent` uses `this.$throw()` within an event handler to propagate errors upwards to its parent component, `ParentComponent`. The parent component then catches the error and renders it to the DOM.
 
-### `this.return()`
-> **Note:** `this.return()` is automatically called when a stateful component is unmounted.
+### `this.$return()`
+> **Note:** `this.$return()` is automatically called when a stateful component is unmounted.
 
-The `return` method in Ajo is used to reset and restart the generator function of a stateful component. It effectively ends the current execution of the component's generator function, and optionally re-execute it from scratch allowing for a complete reset of the component's state and behavior.
+The `$return` method in Ajo is used to reset and restart the generator function of a stateful component. It effectively ends the current execution of the component's generator function, and optionally re-execute it from scratch allowing for a complete reset of the component's state and behavior.
 
 #### Purpose:
 
-- **Component Reset:** `this.return()` is used to restart a component's generator function from the beginning, resetting its internal state and re-initializing it as needed.
+- **Component Reset:** `this.$return()` is used to restart a component's generator function from the beginning, resetting its internal state and re-initializing it as needed.
 
 #### Usage:
 
@@ -571,16 +549,16 @@ function* MultiStepForm({ initialData }) {
     currentStep++
 
     // Re-render with the next step
-    this.refresh()
+    this.$next()
   }
 
   const handleRestart = () => {
 
     // Reset the generator function
-    this.return()
+    this.$return()
 
     // Re-render the component in its initial state
-    this.refresh()
+    this.$next()
   }
 
   while (true) {
@@ -608,7 +586,7 @@ function* MultiStepForm({ initialData }) {
   }
 }
 ```
-> In `handleRestart`, `this.return()` is first called to reset the generator function. This effectively ends the current execution of the component's generator function and prepares it to start from the beginning. Immediately after, `this.refresh()` is called to trigger a re-render of the component. This ensures that after the state is reset, the component's UI is also updated to reflect its initial state.
+> In `handleRestart`, `this.$return()` is first called to reset the generator function. This effectively ends the current execution of the component's generator function and prepares it to start from the beginning. Immediately after, `this.$next()` is called to trigger a re-render of the component. This ensures that after the state is reset, the component's UI is also updated to reflect its initial state.
 
 ## Server-Side Rendering (SSR)
 
