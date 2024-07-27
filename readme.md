@@ -68,7 +68,7 @@ function* Counter() {
 
   const handleClick = () => {
     count++
-    this.$next()
+    this.render()
   }
 
   while (true) yield (
@@ -264,7 +264,7 @@ function* ChatComponent(props) {
 
     message = event.target.value
 
-    this.$next()
+    this.render()
   }
 
   const send = () => {
@@ -275,13 +275,13 @@ function* ChatComponent(props) {
 
       message = ''
 
-      this.$next()
+      this.render()
     }
   }
 
   const handleConnectionOpen = () => {
     connected = true
-    this.$next()
+    this.render()
   }
 
   const handleConnectionError = error => {
@@ -549,7 +549,7 @@ function* MultiStepForm({ initialData }) {
     currentStep++
 
     // Re-render with the next step
-    this.$next()
+    this.render()
   }
 
   const handleRestart = () => {
@@ -558,7 +558,7 @@ function* MultiStepForm({ initialData }) {
     this.$return()
 
     // Re-render the component in its initial state
-    this.$next()
+    this.render()
   }
 
   while (true) {

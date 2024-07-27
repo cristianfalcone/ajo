@@ -32,11 +32,12 @@ declare module 'ajo' {
   }
 
   type Context<TArguments = Props> = {
-    $args: TArguments
+    $args: TArguments,
+    $context: { [key: symbol]: unknown },
+    render: () => void,
     $next: () => void
     $throw: (value?: unknown) => void
     $return: () => void
-    [Symbol.iterator]: () => Iterator<TArguments, unknown, unknown>
   }
 
   type Function<TArguments = Props> = (args: TArguments) => Children
@@ -68,6 +69,7 @@ declare module 'ajo' {
   function Fragment({ children }: ElementChildrenAttribute): typeof children
   function h<TTag extends Tag>(tag: TTag, props?: TagProps<TTag> | null, ...children: Array<unknown>): AjoNode<TTag>
   function render(h: Children, el: Element): void
+  function context<T>(fallback?: T): { (el: ThisParameterType<Component<unknown, Tag>>, value?: T): T }
 }
 
 declare namespace JSX {

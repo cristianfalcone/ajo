@@ -1,6 +1,6 @@
-const { assign, entries, hasOwn } = Object, { isArray } = Array
+const { create, assign, entries, hasOwn } = Object, { isArray, from } = Array, Marker = '\u0001'
 
-export const render = h => [...html(h)].join('')
+export const render = h => from(html(h)).join('')
 
 export const html = function* (h) {
 
@@ -18,7 +18,7 @@ export const html = function* (h) {
 
 				if (omit.has(key) || key.startsWith('set:') || value == null || value === false) continue
 
-				attrs += value === true ? `${attrs} ${key}` : `${attrs} ${key}="${escape(String(value))}"`
+				attrs += value === true ? ` ${key}` : ` ${key}="${escape(String(value))}"`
 			}
 
 			if (Void.has(nodeName)) {
@@ -27,9 +27,11 @@ export const html = function* (h) {
 
 			} else if (!skip) {
 
-				if (typeof children === 'string') yield `<${nodeName}${attrs}>${children}</${nodeName}>`
+				yield `<${nodeName}${attrs}>`
 
-				else yield `<${nodeName}${attrs}>`, yield* html(children), yield `</${nodeName}>`
+				typeof children === 'string' && children.startsWith(Marker) ? yield children.slice(1) : yield* html(children)
+
+				yield `</${nodeName}>`
 
 			} else {
 
@@ -53,8 +55,6 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 			if (typeof nodeName === 'function') {
 
-				delete h.nodeName
-
 				if (nodeName.constructor.name === 'GeneratorFunction') {
 
 					const args = {}, attrs = assign({}, nodeName.attrs)
@@ -74,7 +74,7 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 					yield attrs
 
-				} else delete h.nodeName, yield* normalize(nodeName(h), buffer, false)
+				} else yield* normalize(nodeName(h), buffer, false)
 
 			} else yield h
 
@@ -90,6 +90,8 @@ const omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
 
 const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 
+let current = null
+
 const run = (gen, $args) => {
 
 	let self, children
@@ -100,14 +102,24 @@ const run = (gen, $args) => {
 
 			$args,
 
-			*[Symbol.iterator]() {
+			$context: create(current ? current.$context : null),
 
-				while (true) yield $args
+			render() {
+
+				if (current === self) return
+
+				self.$next()
 			},
 
 			$next() {
 
+				const parent = current
+
+				current = self
+
 				children = render(iterator.next().value)
+
+				current = parent
 			},
 
 			$throw(value) {
@@ -133,5 +145,10 @@ const run = (gen, $args) => {
 		self.$return()
 	}
 
-	return children
+	return Marker + children
+}
+
+export const context = (fallback, key = Symbol()) => function (el, value) {
+
+	return arguments.length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
 }

@@ -2,7 +2,7 @@ export const Fragment = ({ children }) => children
 
 export const h = function (type, props) {
 
-	const { length } = arguments; (props ??= {}).nodeName = type
+	const { length } = arguments; (props ??= create(null)).nodeName = type
 
 	if (!('children' in props || length < 3)) props.children = length === 3 ? arguments[2] : slice.call(arguments, 2)
 
@@ -73,7 +73,7 @@ export const render = (h, el) => {
 	}
 }
 
-const { isArray, prototype: { slice } } = Array, { keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
+const { isArray, prototype: { slice } } = Array, { create, keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
 
 const svg = 'http://www.w3.org/2000/svg', omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
 
@@ -92,8 +92,6 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 			if (value) yield value, buffer.value = ''
 
 			if (typeof nodeName === 'function') {
-
-				delete h.nodeName
 
 				if (nodeName.constructor.name === 'GeneratorFunction') {
 
@@ -136,9 +134,11 @@ const next = (gen, h, el) => {
 
 	el.$ref = dispose.bind(null, el)
 
-	assign(el.$args ??= {}, h)
+	const { skip, ...args } = h
 
-	el.$next()
+	assign(el.$args ??= {}, args)
+
+	skip || el.$next()
 }
 
 const dispose = (component, el) => el ?? component.$return()
@@ -170,14 +170,29 @@ const unref = el => {
 	if (typeof $ref === 'function') $ref(null)
 }
 
+let current = null
+
 class Component {
 
 	constructor(el) {
 
     setPrototypeOf(el, setPrototypeOf(getPrototypeOf(this), getPrototypeOf(el)))
+
+		el.$context = create(current?.$context ?? null)
+	}
+
+	render() {
+
+		if (current?.contains(this)) return
+
+		this.$next()
 	}
 
 	$next() {
+
+		const parent = current
+
+		current = this
 
 		try {
 
@@ -188,6 +203,10 @@ class Component {
 		} catch (value) {
 
 			this.$throw(value)
+
+		} finally {
+
+			current = parent
 		}
 	}
 
@@ -217,4 +236,9 @@ class Component {
 			this.$it = null
 		}
 	}
+}
+
+export const context = (fallback, key = Symbol()) => function(el, value) {
+
+  return arguments.length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
 }
