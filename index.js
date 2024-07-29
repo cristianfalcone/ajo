@@ -240,5 +240,9 @@ class Component {
 
 export const context = (fallback, key = Symbol()) => function(el, value) {
 
-  return arguments.length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
+	const { length } = arguments
+
+	if (length === 0) return (current && key in current.$context) ? current.$context[key] : fallback
+
+  return length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
 }
