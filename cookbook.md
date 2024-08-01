@@ -63,7 +63,7 @@ function* Counter() {
     yield (
       <>
         <p>Count: {count}</p>
-        <button onClick={increment}>Increment</button>
+        <button set:onclick={increment}>Increment</button>
       </>
     )
   }
@@ -145,7 +145,7 @@ function* Counter() {
     yield (
       <>
         <p>Count: {count}</p>
-        <button onClick={increment}>Increment</button>
+        <button set:onclick={increment}>Increment</button>
       </>
     )
   }
@@ -181,7 +181,7 @@ function* TodoList() {
             <li key={index}>{todo}</li>
           ))}
         </ul>
-        <button onClick={addTodo}>Add Todo</button>
+        <button set:onclick={addTodo}>Add Todo</button>
       </>
     )
   }
@@ -246,7 +246,7 @@ function* TodoList() {
             <li key={todo.id}>{todo.text}</li>
           ))}
         </ul>
-        <button onClick={addTodo}>Add Todo</button>
+        <button set:onclick={addTodo}>Add Todo</button>
       </>
     )
   }
@@ -709,7 +709,7 @@ const ParentComponent: Component = function* () {
     yield (
       <>
         <ChildComponent ref={el => childRef = el} value={value} />
-        <button onClick={incrementChild}>Increment Child</button>
+        <button set:onclick={incrementChild}>Increment Child</button>
       </>
     )
   }
@@ -750,7 +750,7 @@ function* DynamicGreeter(args) {
     yield (
       <>
         <h1>{greeting}, {args.name}!</h1>
-        <button onClick={changeGreeting}>Switch Language</button>
+        <button set:onclick={changeGreeting}>Switch Language</button>
       </>
     )
   }
@@ -809,8 +809,8 @@ function* ColorCycler(args) {
         <div style={`background-color: ${colors[index]}; padding: 20px;`}>
           Current Color: {colors[index]}
         </div>
-        <button onClick={cycleColor}>Next Color</button>
-        <button onClick={reset}>Reset</button>
+        <button set:onclick={cycleColor}>Next Color</button>
+        <button set:onclick={reset}>Reset</button>
       </>
     )
   }
@@ -1075,7 +1075,7 @@ function* DynamicScene(props) {
     yield (
       <div>
         <p>The protagonist is feeling {mood}!</p>
-        <button onClick={changeMood}>Change Mood</button>
+        <button set:onclick={changeMood}>Change Mood</button>
       </div>
     )
   }
@@ -1180,7 +1180,7 @@ const Counter: Component<CounterProps> = function* (args) {
     yield (
       <div>
         <p>Count: {count}</p>
-        <button onClick={increment}>Spice it up!</button>
+        <button set:onclick={increment}>Spice it up!</button>
       </div>
     )
   }
@@ -1208,7 +1208,7 @@ const ThemedButton: Component = function* () {
   while (true) {
     const theme = ThemeContext(this)
     yield (
-      <button style={{ backgroundColor: theme.primaryColor, color: theme.secondaryColor }}>
+      <button style={`background-color: ${theme.primaryColor}; color: ${theme.secondaryColor};`}>
         Spicy Button
       </button>
     )
@@ -1239,7 +1239,7 @@ const InputWithFocus: Component = function* () {
     yield (
       <>
         <input ref={el => inputRef = el} />
-        <button onClick={focusInput}>Focus Input</button>
+        <button set:onclick={focusInput}>Focus Input</button>
       </>
     )
   }
@@ -1335,7 +1335,7 @@ const SpicyForm: Component = function* () {
   while (true) {
     yield (
       <form onSubmit={handleSubmit}>
-        <input type="text" value={spiceLevel} onInput={handleInput} />
+        <input type="text" value={spiceLevel} set:oninput={handleInput} />
         <button type="submit">Bring the heat!</button>
       </form>
     )
@@ -1351,4 +1351,4 @@ const SpicyForm: Component = function* () {
 4. Turn up the heat with `strictNullChecks` in your `tsconfig.json` to catch any bland null or undefined errors.
 5. When using refs, always check if they're fully cooked (not null) before digging in.
 
-By following these recipes, you'll be cooking up type-safe, delicious Ajo applications that are a feast for the eyes (and the linter)! Now go forth and create some TypeScript masterpieces that would make any code chef proud! 👩‍🍳👨‍🍳🎉
+By following these recipes, you'll be cooking up type-safe, delicious Ajo applications that are a feast for the eyes (and the linter)! Now go forth and create some TypeScript masterpieces that would make any code chef proud! 👨‍🍳🎉

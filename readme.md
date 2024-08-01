@@ -51,7 +51,7 @@ function* Counter() {
     yield (
       <>
         <p>Count: {count}</p>
-        <button onClick={increment}>Increment</button>
+        <button set:onclick={increment}>Increment</button>
       </>
     )
   }
