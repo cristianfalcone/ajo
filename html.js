@@ -1,4 +1,6 @@
-const { create, assign, entries, hasOwn } = Object, { isArray, from } = Array, Marker = '\u0001'
+const { isArray, from } = Array, Marker = '\u0001'
+
+const { create, assign, entries,  prototype: { hasOwnProperty }, hasOwn = (o, k) => hasOwnProperty.call(o, k) } = Object
 
 export const render = h => from(html(h)).join('')
 
@@ -102,7 +104,7 @@ const run = (gen, $args) => {
 
 			$args,
 
-			$context: create(current ? current.$context : null),
+			$context: create(current?.$context ?? null),
 
 			render() {
 
@@ -149,6 +151,8 @@ const run = (gen, $args) => {
 }
 
 export const context = (fallback, key = Symbol()) => function (el, value) {
+
+	if (arguments.length === 0) return (current && key in current.$context) ? current.$context[key] : fallback
 
 	return arguments.length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
 }

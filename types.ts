@@ -6,7 +6,7 @@ declare module 'ajo' {
 
   type Props = Record<string, unknown>
 
-  type AjoNode<TTag extends Type> = { nodeName: TTag } & TagProps<TTag>
+  type VNode<TTag extends Type> = { nodeName: TTag } & TagProps<TTag>
 
   type Children = any
 
@@ -31,7 +31,7 @@ declare module 'ajo' {
     [K in keyof TAttribute as `attr:${Exclude<K, symbol>}`]: TAttribute[K]
   }
 
-  type Context<TArguments = Props> = {
+  type ComponentThis<TArguments = Props> = {
     $args: TArguments,
     $context: { [key: symbol]: unknown },
     render: () => void,
@@ -43,7 +43,7 @@ declare module 'ajo' {
   type Function<TArguments = Props> = (args: TArguments) => Children
 
   type Component<TArguments = Props, TTag extends Tag = 'div'> = {
-    (this: ElementType<TTag> & Context<TArguments>, args: TArguments): Iterator<Children, unknown, unknown>
+    (this: ElementType<TTag> & ComponentThis<TArguments>, args: TArguments): Iterator<Children, unknown, unknown>
   } & (TTag extends 'div' ? { is?: TTag } : { is: TTag })
 
   type Ref<TComponent> = TComponent extends Component<infer TArguments, infer TTag>
@@ -67,9 +67,9 @@ declare module 'ajo' {
     : never
 
   function Fragment({ children }: ElementChildrenAttribute): typeof children
-  function h<TTag extends Tag>(tag: TTag, props?: TagProps<TTag> | null, ...children: Array<unknown>): AjoNode<TTag>
+  function h<TTag extends Tag>(tag: TTag, props?: TagProps<TTag> | null, ...children: Array<unknown>): VNode<TTag>
   function render(h: Children, el: Element): void
-  function context<T>(fallback?: T): { (el: ThisParameterType<Component<unknown, Tag>>, value?: T): T }
+  function context<T>(fallback?: T): (el?: ThisParameterType<Component<unknown, Tag>>, value?: T) => T
 }
 
 declare namespace JSX {

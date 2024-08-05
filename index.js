@@ -73,7 +73,9 @@ export const render = (h, el) => {
 	}
 }
 
-const { isArray, prototype: { slice } } = Array, { create, keys, assign, hasOwn, setPrototypeOf, getPrototypeOf } = Object
+const { isArray, prototype: { slice } } = Array
+
+const { create, assign, keys, prototype: { hasOwnProperty }, hasOwn = (o, k) => hasOwnProperty.call(o, k) } = Object
 
 const svg = 'http://www.w3.org/2000/svg', omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
 
@@ -130,7 +132,7 @@ const next = (gen, h, el) => {
 
 	if (!el) return
 
-	el.$gen ??= (new Component(el), gen)
+	el.$gen ??= (assign(el, methods), el.$context ??= create(current?.$context ?? null), gen)
 
 	el.$ref = dispose.bind(null, el)
 
@@ -138,7 +140,7 @@ const next = (gen, h, el) => {
 
 	assign(el.$args ??= {}, args)
 
-	skip || el.$next()
+	if (!skip) el.$next()
 }
 
 const dispose = (component, el) => el ?? component.$return()
@@ -172,21 +174,12 @@ const unref = el => {
 
 let current = null
 
-class Component {
-
-	constructor(el) {
-
-    setPrototypeOf(el, setPrototypeOf(getPrototypeOf(this), getPrototypeOf(el)))
-
-		el.$context = create(current?.$context ?? null)
-	}
+const methods = {
 
 	render() {
 
-		if (current?.contains(this)) return
-
-		this.$next()
-	}
+		current?.contains(this) || this.$next()
+	},
 
 	$next() {
 
@@ -208,7 +201,7 @@ class Component {
 
 			current = parent
 		}
-	}
+	},
 
 	$throw(value) {
 
@@ -219,7 +212,7 @@ class Component {
 		} catch { }
 
 		throw value
-	}
+	},
 
 	$return() {
 
@@ -238,11 +231,9 @@ class Component {
 	}
 }
 
-export const context = (fallback, key = Symbol()) => function(el, value) {
+export const context = (fallback, key = Symbol()) => function (el, value) {
 
-	const { length } = arguments
+	if (arguments.length === 0) return (current && key in current.$context) ? current.$context[key] : fallback
 
-	if (length === 0) return (current && key in current.$context) ? current.$context[key] : fallback
-
-  return length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
+	return arguments.length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
 }

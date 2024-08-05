@@ -719,8 +719,102 @@ describe('context', () => {
 			'<div><div><div><span style="color: red">Text</span></div></div></div>'
 		)
 	})
-})
 
+	it('should access context in a stateless component', () => {
+
+    const ThemeContext = context('light')
+
+    const ThemedButton = () => {
+      const theme = ThemeContext()
+      return <button class={`theme-${theme}`}>Click me</button>
+    }
+
+    const App = () => (
+      <div>
+        <ThemedButton />
+      </div>
+    )
+
+    render(<App />, document.body)
+    expect(document.body.innerHTML).toBe('<div><button class="theme-light">Click me</button></div>')
+  })
+
+  it('should update context for stateless components', () => {
+
+    const CountContext = context(0)
+
+    const Counter = () => {
+      const count = CountContext()
+      return <span>Count: {count}</span>
+    }
+
+    const App: Component = function* () {
+      let count = 0
+
+      const increment = () => {
+        count++
+        CountContext(this, count)
+        this.render()
+      }
+
+      while (true) {
+        yield (
+          <>
+            <Counter />
+            <button set:onclick={increment}>Increment</button>
+          </>
+        )
+      }
+    }
+
+    render(<App />, document.body)
+    expect(document.body.innerHTML).toBe('<div><span>Count: 0</span><button>Increment</button></div>')
+
+    document.querySelector('button')!.click()
+    expect(document.body.innerHTML).toBe('<div><span>Count: 1</span><button>Increment</button></div>')
+  })
+
+  it('should handle multiple contexts in stateless components', () => {
+
+    const ThemeContext = context('light')
+    const LanguageContext = context('en')
+
+    const ThemedMultiLingualButton = () => {
+      const theme = ThemeContext()
+      const lang = LanguageContext()
+      return <button class={`theme-${theme}`}>{lang === 'en' ? 'Click me' : 'Cliquez-moi'}</button>
+    }
+
+    const App: Component = function* () {
+      ThemeContext(this, 'dark')
+      LanguageContext(this, 'fr')
+      while (true) yield <ThemedMultiLingualButton />
+    }
+
+    render(<App />, document.body)
+    expect(document.body.innerHTML).toBe('<div><button class="theme-dark">Cliquez-moi</button></div>')
+  })
+
+  it('should propagate context through nested stateless components', () => {
+
+    const ColorContext = context('blue')
+
+    const GrandChild = () => {
+      const color = ColorContext()
+      return <span style={`color: ${color}`}>Text</span>
+    }
+
+    const Child = () => <div><GrandChild /></div>
+
+    const Parent: Component = function* () {
+      ColorContext(this, 'red')
+      while (true) yield <Child />
+    }
+
+    render(<Parent />, document.body)
+    expect(document.body.innerHTML).toBe('<div><div><span style="color: red">Text</span></div></div>')
+  })
+})
 
 describe('key special attribute', () => {
 
