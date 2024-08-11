@@ -1,6 +1,6 @@
 /// <reference types="." />
 // @vitest-environment jsdom
-import type { Children, Component, Ref } from 'ajo'
+import type { Children, Component } from 'ajo'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, context } from 'ajo'
 
@@ -252,9 +252,7 @@ describe('component', () => {
 			'[class="container"]'
 		) as typeof ref
 
-		type ComponentElement = ThisParameterType<typeof Self> | null
-
-		let ref: ComponentElement | null = null
+		let ref: ThisParameterType<typeof Self> | null = null
 		let child: HTMLSpanElement | null = null
 
 		const init = vi.fn()
@@ -262,13 +260,7 @@ describe('component', () => {
 		const end = vi.fn()
 		const click = vi.fn()
 
-		type ComponentProps = {
-			ref: (el: typeof ref) => void
-			name: string
-		}
-
-		const Self: Ref<Component<ComponentProps, 'section'>> = function* (props) {
-			props.ref(this)
+		const Self: Component<{ name: string }, 'section'> = function* (props) {
 
 			init()
 
@@ -283,7 +275,6 @@ describe('component', () => {
 				}
 			} finally {
 				end()
-				if (typeof props.ref === 'function') props.ref(null)
 			}
 		}
 
@@ -294,7 +285,6 @@ describe('component', () => {
 				name="world"
 				ref={(el) => (ref = el)}
 				attr:class="container"
-
 			/>,
 			document.body
 		)
@@ -309,7 +299,7 @@ describe('component', () => {
 		expect(el).toBe(ref)
 		expect(child!.innerHTML).toBe('Hello world!')
 
-		el!.$next()
+		el!.render()
 
 		expect(loop).toHaveBeenCalledTimes(2)
 
@@ -596,7 +586,7 @@ describe('context', () => {
 
 		const ThemedButton: Component = function* () {
 			while (true) {
-				const theme = ThemeContext(this)
+				const theme = ThemeContext()
 				yield <button class={`theme-${theme}`}>Click me</button>
 			}
 		}
@@ -613,13 +603,13 @@ describe('context', () => {
 
 		const UserProfile: Component = function* () {
 			while (true) {
-				const user = UserContext(this)
+				const user = UserContext()
 				yield <div>Welcome, {user ? user.name : 'Guest'}!</div>
 			}
 		}
 
 		const App: Component = function* () {
-			UserContext(this, { name: 'John' })
+			UserContext({ name: 'John' })
 			while (true) yield <UserProfile />
 		}
 
@@ -635,7 +625,7 @@ describe('context', () => {
 
 		const Counter: Component = function* () {
 			while (true) {
-				const count = CountContext(this)
+				const count = CountContext()
 				yield <span>Count: {count}</span>
 			}
 		}
@@ -645,7 +635,7 @@ describe('context', () => {
 
 			const increment = () => {
 				count++
-				CountContext(this, count)
+				CountContext.call(this, count)
 				this.render()
 			}
 
@@ -678,15 +668,15 @@ describe('context', () => {
 
 		const Component: Component = function* () {
 			while (true) {
-				const theme = ThemeContext(this)
-				const lang = LanguageContext(this)
+				const theme = ThemeContext()
+				const lang = LanguageContext()
 				yield <span class={`theme-${theme}`}>{lang === 'en' ? 'Hello' : 'Hola'}</span>
 			}
 		}
 
 		const App: Component = function* () {
-			ThemeContext(this, 'dark')
-			LanguageContext(this, 'es')
+			ThemeContext('dark')
+			LanguageContext('es')
 			while (true) yield <Component />
 		}
 
@@ -702,7 +692,7 @@ describe('context', () => {
 
 		const GrandChild: Component = function* () {
 			while (true) {
-				const color = ColorContext(this)
+				const color = ColorContext()
 				yield <span style={`color: ${color}`}>Text</span>
 			}
 		}
@@ -710,7 +700,7 @@ describe('context', () => {
 		const Child = () => <div><GrandChild /></div>
 
 		const Parent: Component = function* () {
-			ColorContext(this, 'red')
+			ColorContext('red')
 			while (true) yield <Child />
 		}
 
@@ -753,7 +743,7 @@ describe('context', () => {
 
       const increment = () => {
         count++
-        CountContext(this, count)
+        CountContext.call(this, count)
         this.render()
       }
 
@@ -786,8 +776,8 @@ describe('context', () => {
     }
 
     const App: Component = function* () {
-      ThemeContext(this, 'dark')
-      LanguageContext(this, 'fr')
+      ThemeContext('dark')
+      LanguageContext('fr')
       while (true) yield <ThemedMultiLingualButton />
     }
 
@@ -807,7 +797,7 @@ describe('context', () => {
     const Child = () => <div><GrandChild /></div>
 
     const Parent: Component = function* () {
-      ColorContext(this, 'red')
+      ColorContext('red')
       while (true) yield <Child />
     }
 
@@ -1120,9 +1110,7 @@ describe('ref special attribute', () => {
 
 		let componentRef: ComponentElement = null
 
-		const StatefulComponent: Ref<Component> = function* (props) {
-
-			props.ref(this)
+		const StatefulComponent: Component = function* () {
 
 			let count = 0
 
@@ -1146,18 +1134,10 @@ describe('ref special attribute', () => {
 
 		type ComponentProps = {
 			name: string
-			ref: (el: typeof ref) => void
 		}
 
-		const Self: Ref<Component<ComponentProps>> = function* (props) {
-
-			props.ref(this)
-
-			try {
-				while (true) yield <div>Hello {props.name}!</div>
-			} finally {
-				props.ref(null)
-			}
+		const Self: Component<ComponentProps> = function* (props) {
+			while (true) yield <div>Hello {props.name}!</div>
 		}
 
 		render(
@@ -1286,14 +1266,11 @@ describe('memo attribute', () => {
     let ref: ThisParameterType<typeof StatefulMemoComponent> | null = null
 
     type ComponentProps = {
-      ref: (el: typeof ref) => void
       count: number
       text: string
     }
 
-    const StatefulMemoComponent: Ref<Component<ComponentProps>> = function* (props) {
-
-      props.ref(this)
+    const StatefulMemoComponent: Component<ComponentProps> = function* (props) {
 
       while (true) {
         yield (
@@ -1323,13 +1300,10 @@ describe('memo attribute', () => {
     let childRef: ThisParameterType<typeof StatefulChild> | null
 
     type ChildProps = {
-      ref: (el: typeof childRef) => void
       text: string
     }
 
-    const StatefulChild: Ref<Component<ChildProps>> = function* (props) {
-
-      props.ref(this)
+    const StatefulChild: Component<ChildProps> = function* (props) {
 
       let internalCount = 0
 
@@ -1374,14 +1348,11 @@ describe('memo attribute', () => {
     let componentRef: ThisParameterType<typeof MemoStatefulComponent> | null
 
     type ComponentProps = {
-      ref: (el: typeof componentRef) => void
       count: number
       text: string
     }
 
-    const MemoStatefulComponent: Ref<Component<ComponentProps>> = function* (props) {
-
-      props.ref(this)
+    const MemoStatefulComponent: Component<ComponentProps> = function* (props) {
 
       let internalCount = 0
 
@@ -1417,14 +1388,11 @@ describe('memo attribute', () => {
     let componentRef: ThisParameterType<typeof StatefulComponent> | null = null
 
     type ComponentProps = {
-      ref: (el: typeof componentRef) => void
       count: number
       text: string
     }
 
-    const StatefulComponent: Ref<Component<ComponentProps>> = function* (props) {
-
-      props.ref(this)
+    const StatefulComponent: Component<ComponentProps> = function* (props) {
 
       let internalCount = 0
 

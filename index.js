@@ -2,9 +2,9 @@ export const Fragment = ({ children }) => children
 
 export const h = function (type, props) {
 
-	const { length } = arguments; (props ??= create(null)).nodeName = type
+	(props ??= create(null)).nodeName = type
 
-	if (!('children' in props || length < 3)) props.children = length === 3 ? arguments[2] : slice.call(arguments, 2)
+	if (!('children' in props || arguments.length < 3)) props.children = arguments.length === 3 ? arguments[2] : slice.call(arguments, 2)
 
 	return props
 }
@@ -132,18 +132,23 @@ const next = (gen, h, el) => {
 
 	if (!el) return
 
-	el.$gen ??= (assign(el, methods), el.$context ??= create(current?.$context ?? null), gen)
+	el.$generator ??= (assign(el, methods), el.$context ??= create(current?.$context ?? null), gen)
 
-	el.$ref = dispose.bind(null, el)
+	const { skip, ref, ...args } = h
 
-	const { skip, ...args } = h
+	el.$ref = dispose.bind(null, ref, el)
 
 	assign(el.$args ??= {}, args)
 
-	if (!skip) el.$next()
+	if (!skip) el.next()
 }
 
-const dispose = (component, el) => el ?? component.$return()
+const dispose = (ref, component, el) => {
+
+	if (typeof ref === 'function') ref(el)
+
+	if (!el) component.return()
+}
 
 const before = (el, node, child) => {
 
@@ -178,10 +183,10 @@ const methods = {
 
 	render() {
 
-		current?.contains(this) || this.$next()
+		if (!current?.contains(this)) this.next()
 	},
 
-	$next() {
+	next() {
 
 		const parent = current
 
@@ -189,13 +194,13 @@ const methods = {
 
 		try {
 
-			render((this.$it ??= this.$gen.call(this, this.$args)).next().value, this)
+			render((this.$iterator ??= this.$generator.call(this, this.$args)).next().value, this)
 
 			if (typeof this.$ref === 'function') this.$ref(this)
 
 		} catch (value) {
 
-			this.$throw(value)
+			this.throw(value)
 
 		} finally {
 
@@ -203,37 +208,37 @@ const methods = {
 		}
 	},
 
-	$throw(value) {
+	throw(value) {
 
-		for (let el = this; el; el = el.parentNode) if (typeof el.$it?.throw === 'function') try {
+		for (let el = this; el; el = el.parentNode) if (typeof el.$iterator?.throw === 'function') try {
 
-			return render(el.$it.throw(value).value, el)
+			return render(el.$iterator.throw(value).value, el)
 
 		} catch { }
 
 		throw value
 	},
 
-	$return() {
+	return() {
 
 		try {
 
-			this.$it?.return()
+			this.$iterator?.return()
 
 		} catch (value) {
 
-			this.$throw(value)
+			this.throw(value)
 
 		} finally {
 
-			this.$it = null
+			this.$iterator = null
 		}
 	}
 }
 
-export const context = (fallback, key = Symbol()) => function (el, value) {
+export const context = (fallback, key = Symbol()) => function () {
 
-	if (arguments.length === 0) return (current && key in current.$context) ? current.$context[key] : fallback
+	const ctx = this ?? current
 
-	return arguments.length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
+	return ctx ? arguments.length === 0 ? key in ctx.$context ? ctx.$context[key] : fallback : ctx.$context[key] = arguments[0] : fallback
 }

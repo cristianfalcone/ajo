@@ -264,14 +264,14 @@ const StatelessComponent = () => {
 // In a stateful component:
 function* StatefulComponent() {
   while (true) {
-    const theme = ThemeContext(this)
+    const theme = ThemeContext()
     yield <div>Current theme: {theme}</div>
   }
 }
 
 // Setting context value:
 function* App() {
-  ThemeContext(this, 'dark')
+  ThemeContext('dark')
   while (true) {
     yield (
       <>
@@ -313,9 +313,9 @@ Component methods:
   }
   ```
 
-- `this.$next()`: Advances the generator to the next yield point. It's automatically called by `this.render()` and is rarely used directly.
+- `this.next()`: Advances the generator to the next yield point. It's automatically called by `this.render()` and is rarely used directly.
 
-- `this.$throw(error)`: Throws an error in the generator. Useful for error propagation and creating error boundaries. Ajo automatically calls this method when an error occurs during rendering.
+- `this.throw(error)`: Throws an error in the generator. Useful for error propagation and creating error boundaries. Ajo automatically calls this method when an error occurs during rendering.
 
   ```javascript
   function* ErrorBoundary(props) {
@@ -329,14 +329,14 @@ Component methods:
   }
   ```
 
-- `this.$return()`: Completes the generator execution. It's automatically called by Ajo when a component is unmounted, but can be used manually to reset a component's state.
+- `this.return()`: Completes the generator execution. It's automatically called by Ajo when a component is unmounted, but can be used manually to reset a component's state.
 
   ```javascript
   function* ResetableComponent() {
     let count = 0
     const reset = () => {
-      this.$return()  // Reset the generator
-      this.render()   // Re-render from the beginning
+      this.return()  // Reset the generator
+      this.render()  // Re-render from the beginning
     }
     while (true) {
       yield (
@@ -360,7 +360,7 @@ Component methods:
   }
   ```
 
-These methods provide powerful control over the component's lifecycle and state management, allowing for efficient and flexible UI updates. Note that `this.$throw()` and `this.$return()` are often called automatically by Ajo in response to errors or component unmounting, respectively, but can also be used manually when needed.
+These methods provide powerful control over the component's lifecycle and state management, allowing for efficient and flexible UI updates. Note that `this.throw()` and `this.return()` are often called automatically by Ajo in response to errors or component unmounting, respectively, but can also be used manually when needed.
 
 ### `ajo/html` module
 

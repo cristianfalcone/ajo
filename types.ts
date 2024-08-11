@@ -4,9 +4,9 @@ declare module 'ajo' {
 
   type Type = Tag | Function | Component
 
-  type Props = Record<string, unknown>
+  type Attrs = Record<string, unknown>
 
-  type VNode<TTag extends Type> = { nodeName: TTag } & TagProps<TTag>
+  type VNode<TTag extends Type> = { nodeName: TTag } & Attrs
 
   type Children = any
 
@@ -16,66 +16,56 @@ declare module 'ajo' {
     ? SVGElementTagNameMap[TTag]
     : never
 
-  type AjoProps<TElement> = {
+  type AjoAttrs<TElement> = {
     key: unknown
     skip: boolean
     memo: unknown
     ref: (el: TElement | null) => void
   } & ElementChildrenAttribute
 
-  type SetProps<TTag = Tag> = {
+  type PropSetter<TTag = Tag> = {
     [K in keyof ElementType<TTag> as `set:${Exclude<K, symbol>}`]: ElementType<TTag>[K]
   }
 
-  type AttrProps<TAttribute = Props> = {
-    [K in keyof TAttribute as `attr:${Exclude<K, symbol>}`]: TAttribute[K]
+  type AttrSetter = {
+    [key: `attr:${string}`]: unknown
   }
 
-  type ComponentThis<TArguments = Props> = {
+  type Function<TArguments extends Attrs = Attrs> = (args: TArguments) => Children
+
+  type Component<TArguments extends Attrs = Attrs, TTag extends Tag = 'div'> = {
+    (this: ComponentElement<TArguments, TTag>, args: ComponentProps<TArguments, TTag>): Iterator<Children, unknown, unknown>
+  } & (TTag extends 'div' ? { is?: TTag } : { is: TTag })
+
+  type ComponentProps<TArguments extends Attrs = Attrs, TTag extends Tag = 'div'> =
+    Partial<PropSetter<TTag> & AjoAttrs<ComponentElement<TArguments, TTag>>> &
+    AttrSetter &
+    TArguments
+
+  type ComponentElement<TArguments extends Attrs = Attrs, TTag extends Tag = Tag> = ElementType<TTag> & {
     $args: TArguments,
     $context: { [key: symbol]: unknown },
     render: () => void,
-    $next: () => void
-    $throw: (value?: unknown) => void
-    $return: () => void
+    next: () => void
+    throw: (value?: unknown) => void
+    return: () => void
   }
-
-  type Function<TArguments = Props> = (args: TArguments) => Children
-
-  type Component<TArguments = Props, TTag extends Tag = 'div'> = {
-    (this: ElementType<TTag> & ComponentThis<TArguments>, args: TArguments): Iterator<Children, unknown, unknown>
-  } & (TTag extends 'div' ? { is?: TTag } : { is: TTag })
-
-  type Ref<TComponent> = TComponent extends Component<infer TArguments, infer TTag>
-    ? Component<TArguments & { ref: (el: ThisParameterType<Ref<TComponent>> | null) => void }, TTag>
-    : never 
 
   type IntrinsicElements = {
-    [TTag in Tag]: Partial<SetProps<TTag> & AjoProps<ElementType<TTag>>> & Props
+    [TTag in Tag]: Partial<PropSetter<TTag> & AjoAttrs<ElementType<TTag>>> & Attrs
   }
-
-  type IntrinsicAttributes = Partial<Omit<AjoProps<ElementType<Tag>>, 'skip' | 'ref'>> & AttrProps
 
   type ElementChildrenAttribute = { children: Children }
 
-  type TagProps<TTag extends Type> = TTag extends Tag
-    ? IntrinsicElements[TTag] & IntrinsicAttributes
-    : TTag extends Function<infer TArguments>
-    ? TArguments
-    : TTag extends Component<infer TArguments>
-    ? TArguments
-    : never
-
   function Fragment({ children }: ElementChildrenAttribute): typeof children
-  function h<TTag extends Tag>(tag: TTag, props?: TagProps<TTag> | null, ...children: Array<unknown>): VNode<TTag>
+  function h<TTag extends Tag>(tag: TTag, props?: Attrs | null, ...children: Array<unknown>): VNode<TTag>
   function render(h: Children, el: Element): void
-  function context<T>(fallback?: T): (el?: ThisParameterType<Component<unknown, Tag>>, value?: T) => T
+  function context<T>(fallback?: T): (value?: T) => T
 }
 
 declare namespace JSX {
   type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
   type IntrinsicElements = import('ajo').IntrinsicElements
-  type IntrinsicAttributes = import('ajo').IntrinsicAttributes
 }
 
 declare namespace React {

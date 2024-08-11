@@ -110,10 +110,10 @@ const run = (gen, $args) => {
 
 				if (current === self) return
 
-				self.$next()
+				self.next()
 			},
 
-			$next() {
+			next() {
 
 				const parent = current
 
@@ -124,35 +124,35 @@ const run = (gen, $args) => {
 				current = parent
 			},
 
-			$throw(value) {
+			throw(value) {
 
 				children = render(iterator.throw(value).value)
 			},
 
-			$return() {
+			return() {
 
 				iterator.return()
 			}
 
 		}, $args)
 
-		self.$next()
+		self.next()
 
 	} catch (value) {
 
-		self.$throw(value)
+		self.throw(value)
 
 	} finally {
 
-		self.$return()
+		self.return()
 	}
 
 	return Marker + children
 }
 
-export const context = (fallback, key = Symbol()) => function (el, value) {
+export const context = (fallback, key = Symbol()) => function () {
 
-	if (arguments.length === 0) return (current && key in current.$context) ? current.$context[key] : fallback
+	const ctx = this ?? current
 
-	return arguments.length === 1 ? key in el.$context ? el.$context[key] : fallback : el.$context[key] = value
+	return ctx ? arguments.length === 0 ? key in ctx.$context ? ctx.$context[key] : fallback : ctx.$context[key] = arguments[0] : fallback
 }

@@ -759,9 +759,9 @@ function* DynamicGreeter(args) {
 
 🎵 Pro Tip: `this.render()` ensures your component doesn't try to sing two songs at once. If it's already in the middle of a performance (execution), it won't start another until the current one is done.
 
-## The Understudy: this.$next()
+## The Understudy: this.next()
 
-While `this.$next()` is the behind-the-scenes hero, it's rarely in the spotlight of your code. It's called automatically by `this.render()` and Ajo's rendering process.
+While `this.next()` is the behind-the-scenes hero, it's rarely in the spotlight of your code. It's called automatically by `this.render()` and Ajo's rendering process.
 
 ```jsx
 function* AsyncGreeter(args) {
@@ -770,7 +770,7 @@ function* AsyncGreeter(args) {
 
   const fetchGreeting = async () => {
     greeting = await getRandomGreeting()
-    this.render()  // 🌟 We use render() here, not $next()
+    this.render()  // 🌟 We use render() here, not next()
   }
 
   fetchGreeting()
@@ -781,11 +781,11 @@ function* AsyncGreeter(args) {
 }
 ```
 
-🎭 Stage Whisper: You'll rarely need to call `this.$next()` directly. Let Ajo handle this backstage work!
+🎭 Stage Whisper: You'll rarely need to call `this.next()` directly. Let Ajo handle this backstage work!
 
-## The Reset Button: this.$return()
+## The Reset Button: this.return()
 
-`this.$return()` is like the "reset" button on your component. Use it to start fresh or clean up when your component leaves the stage!
+`this.return()` is like the "reset" button on your component. Use it to start fresh or clean up when your component leaves the stage!
 
 ```jsx
 function* ColorCycler(args) {
@@ -799,8 +799,8 @@ function* ColorCycler(args) {
   }
 
   const reset = () => {
-    this.$return()  // 🔄 Reset the generator state
-    this.render()   // 🎬 Start fresh!
+    this.return()  // 🔄 Reset the generator state
+    this.render()  // 🎬 Start fresh!
   }
 
   while (true) {
@@ -817,11 +817,11 @@ function* ColorCycler(args) {
 }
 ```
 
-🎭 Director's Note: Clicking "Reset" will call `this.$return()`, resetting `index` to 0 on the next render. It's like giving your component a fresh start!
+🎭 Director's Note: Clicking "Reset" will call `this.return()`, resetting `index` to 0 on the next render. It's like giving your component a fresh start!
 
-## The Error Handler: this.$throw()
+## The Error Handler: this.throw()
 
-When things go off-script, `this.$throw()` is your error-handling superhero. But Ajo has some built-in error handling tricks up its sleeve too!
+When things go off-script, `this.throw()` is your error-handling superhero. But Ajo has some built-in error handling tricks up its sleeve too!
 
 ```jsx
 function* PotentiallyErrorProneComponent(args) {
@@ -844,7 +844,7 @@ function* ErrorBoundary(args) {
 }
 ```
 
-🎭 Safety Net: Ajo automatically propagates errors thrown in the generator function during rendering. You don't need to explicitly use `this.$throw()` for errors in the main component body!
+🎭 Safety Net: Ajo automatically propagates errors thrown in the generator function during rendering. You don't need to explicitly use `this.throw()` for errors in the main component body!
 
 ## Putting It All Together
 
@@ -855,18 +855,18 @@ Now that we've explored each lifecycle method, let's recap how they work in harm
    - It's smart enough to avoid overlapping renders.
    - Example: `this.render()` after updating a counter or fetching new data.
 
-2. **this.$next()**: The behind-the-scenes hero 🎬
+2. **this.next()**: The behind-the-scenes hero 🎬
    - Rarely called directly in your code.
    - Automatically used by `this.render()` and Ajo's internal rendering process.
    - Advances the generator to its next yield point.
 
-3. **this.$return()**: The grand finale (or intermission) 🎟️
+3. **this.return()**: The grand finale (or intermission) 🎟️
    - Automatically called by Ajo when the component is unmounted from the DOM.
    - Can be called manually to reset the component's state.
    - Ensures proper cleanup of resources.
    - Example: Resetting a form or clearing intervals before unmounting.
 
-4. **this.$throw()**: The plot-twist handler 🎭
+4. **this.throw()**: The plot-twist handler 🎭
    - Use it to manually propagate errors up the component tree.
    - Allows parent components to catch and handle errors from children.
    - Ajo automatically propagates errors thrown in the generator function during rendering.
@@ -875,9 +875,9 @@ Now that we've explored each lifecycle method, let's recap how they work in harm
 Remember, these methods work together to create the lifecycle of your Ajo components:
 
 - Use `this.render()` for most UI updates.
-- Let Ajo handle `this.$next()` for you.
-- `this.$return()` will clean up automatically on unmount, but you can also use it for manual resets.
-- Errors in your generator function will automatically propagate, but use `this.$throw()` for manual error handling when needed.
+- Let Ajo handle `this.next()` for you.
+- `this.return()` will clean up automatically on unmount, but you can also use it for manual resets.
+- Errors in your generator function will automatically propagate, but use `this.throw()` for manual error handling when needed.
 
 By mastering these lifecycle methods, you'll be able to create Ajo components that are not just reactive, but proactive – anticipating and handling all the twists and turns of user interaction, data flow, and even unexpected errors. Your components will perform like seasoned actors, ready for any scenario, from opening night jitters to surprise plot twists!
 
@@ -906,7 +906,7 @@ Let's see how components can taste this flavor:
 ```jsx
 function* ThemedButton() {
   while (true) {
-    const theme = ThemeContext(this)  // Sampling the current flavor
+    const theme = ThemeContext()  // Sampling the current flavor
     yield (
       <button class={`btn-${theme}`}>
         I'm a {theme} themed button!
@@ -916,7 +916,7 @@ function* ThemedButton() {
 }
 ```
 
-🍯 Flavor Note: `ThemeContext(this)` is like dipping a spoon into our layered dessert - you taste the most immediate flavor.
+🍯 Flavor Note: `ThemeContext()` is like dipping a spoon into our layered dessert - you taste the most immediate flavor.
 
 ## Layering Flavors: The Prototype Chain in Action 🎂
 
@@ -925,7 +925,7 @@ Now, let's see how we can layer different flavors down our component tree:
 ```jsx
 function* App() {
 
-  ThemeContext(this, 'dark')  // Changing the base flavor to 'dark'
+  ThemeContext('dark')  // Changing the base flavor to 'dark'
   
   while (true) {
     yield (
@@ -939,7 +939,7 @@ function* App() {
 
 function* NestedTheme() {
 
-  ThemeContext(this, 'neon')  // Adding a new flavor layer
+  ThemeContext('neon')  // Adding a new flavor layer
   
   while (true) {
     yield (
@@ -953,7 +953,7 @@ function* NestedTheme() {
 
 function* DeeplyNestedTheme() {
 
-  const theme = ThemeContext(this)  // Still tasting 'neon' here
+  const theme = ThemeContext()  // Still tasting 'neon' here
   
   while (true) {
     yield (
@@ -966,7 +966,7 @@ function* DeeplyNestedTheme() {
 }
 ```
 
-🍯 Flavor Note: Each call to `ThemeContext(this, value)` is like adding a new layer to our dessert. Components further down the tree taste the most recently added flavor, thanks to the prototype chain!
+🍯 Flavor Note: Each call to `ThemeContext(value)` is like adding a new layer to our dessert. Components further down the tree taste the most recently added flavor, thanks to the prototype chain!
 
 ## The Flavor Doesn't Rise: Preserving Upper Layers 🏗️
 
@@ -975,10 +975,10 @@ Here's the kicker - changing the flavor down the tree doesn't affect the taste u
 ```jsx
 function* App() {
 
-  ThemeContext(this, 'dark')
+  ThemeContext('dark')
   
   while (true) {
-    const appTheme = ThemeContext(this)  // Still 'dark'
+    const appTheme = ThemeContext()  // Still 'dark'
     yield (
       <>
         <p>App theme: {appTheme}</p>{/* Shows 'dark' */}
@@ -997,9 +997,8 @@ function* App() {
 Context in Ajo leverages JavaScript's prototype chain, creating a delicious layer cake of data:
 
 - Create your base context with `const MyContext = context(defaultValue)`.
-- Access the current context value in stateful components with `MyContext(this)`.
-- Access the current context value in stateless components with `MyContext()`.
-- Set a new context value with `MyContext(this, newValue)` in stateful components. This creates a new "layer" in the prototype chain.
+- Access the current context value in components with `MyContext()`.
+- Set a new context value with `MyContext(newValue)` in stateful components. This creates a new "layer" in the prototype chain.
 - Child components inherit context from their parents but can override it without affecting their ancestors.
 - Each component tastes the most immediate flavor in its prototype chain.
 
@@ -1206,7 +1205,7 @@ const ThemeContext = context<Theme>({
 
 const ThemedButton: Component = function* () {
   while (true) {
-    const theme = ThemeContext(this)
+    const theme = ThemeContext()
     yield (
       <button style={`background-color: ${theme.primaryColor}; color: ${theme.secondaryColor};`}>
         Spicy Button
@@ -1253,24 +1252,15 @@ Here, we're using a ref to get a handle on the input element, allowing us to foc
 Now, for the more advanced flavor - refs with stateful components. This is like creating a special connection between your main dish and a complex side dish:
 
 ```typescript
-import { Component, Ref } from 'ajo'
+import { Component } from 'ajo'
 
 // First, let's define the type for our component's "this" context
 type ComponentElement = ThisParameterType<typeof StatefulComponent> | null
 
-// Now, let's create our stateful component with a ref
-const StatefulComponent: Ref<Component<{ name: string }>> = function* (props) {
-
-  // The ref callback will be called with 'this' or null
-  props.ref(this)
-
-  try {
-    while (true) {
-      yield <div>Hello, {props.name}!</div>
-    }
-  } finally {
-    // Clean up by calling the ref with null when the component unmounts
-    props.ref(null)
+// Now, let's create our stateful component
+const StatefulComponent: Component<{ name: string }> = function* (props) {
+  while (true) {
+    yield <div>Hello, {props.name}!</div>
   }
 }
 
@@ -1292,20 +1282,16 @@ function* ParentComponent() {
 
 In this gourmet recipe:
 1. We define `ComponentElement` as the type of our component instance.
-2. We use `Ref<Component<Props>>` to type our component, which adds a `ref` property to its props.
-3. Inside the component, we call `props.ref(this)` to set the ref when the component mounts.
-4. We use a `finally` block to call `props.ref(null)` when the component unmounts.
-5. In the parent component, we can now use the `ref` prop to get a reference to the child component instance.
+2. We use `Component<Props>` to type our component, which has a `ref` property added to its props.
+3. In the component, we can now use the `ref` prop to get a reference to the component instance.
 
 This approach allows for type-safe refs that play nicely with Ajo's component lifecycle. It's like having a perfectly coordinated multi-course meal where each dish complements the others!
 
 ## Chef's Tips for Refs 👨‍🍳💡
 
 1. Use DOM node refs when you need to interact directly with HTML elements.
-2. Use stateful component refs when you need to access or control a child component from a parent.
-3. Always check if your refs are "fully cooked" (not null) before using them.
-4. For stateful component refs, remember to handle both the mounting (setting the ref) and unmounting (clearing the ref) phases.
-5. Use TypeScript's type inference and the provided types (`Ref<Component<Props>>`) to ensure type safety when working with refs.
+2. Use stateful component refs when you need to access or control a component instance.
+3. Use TypeScript's type inference and the provided types (`Component<Props>`) to ensure type safety when working with refs.
 
 By mastering these two types of refs, you'll be able to create more interactive and dynamic Ajo applications. It's like having two secret ingredients that can elevate your code cuisine to new heights! 🚀🍽️
 

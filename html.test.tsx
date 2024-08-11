@@ -295,7 +295,7 @@ describe('context', () => {
 
     const ThemedButton: Component = function* () {
       while (true) {
-        const theme = ThemeContext(this)
+        const theme = ThemeContext()
         yield <button class={`theme-${theme}`}>Click me</button>
       }
     }
@@ -311,13 +311,13 @@ describe('context', () => {
 
     const Greeting: Component = function* () {
       while (true) {
-        const user = UserContext(this)
+        const user = UserContext()
         yield <h1>Welcome, {user}!</h1>
       }
     }
 
     const App: Component = function* () {
-      UserContext(this, 'John')
+      UserContext('John')
       while (true) yield <Greeting />
     }
 
@@ -333,15 +333,15 @@ describe('context', () => {
 
     const MultiContextComponent: Component = function* () {
       while (true) {
-        const theme = ThemeContext(this)
-        const lang = LanguageContext(this)
+        const theme = ThemeContext()
+        const lang = LanguageContext()
         yield <div class={`theme-${theme}`}>{lang === 'en' ? 'Hello' : 'Bonjour'}</div>
       }
     }
 
     const App: Component = function* () {
-      ThemeContext(this, 'dark')
-      LanguageContext(this, 'fr')
+      ThemeContext('dark')
+      LanguageContext('fr')
       while (true) yield <MultiContextComponent />
     }
 
@@ -356,7 +356,7 @@ describe('context', () => {
 
     const DeepChild: Component = function* () {
       while (true) {
-        const color = ColorContext(this)
+        const color = ColorContext()
         yield <span style={`color: ${color}`}>Nested Content</span>
       }
     }
@@ -364,7 +364,7 @@ describe('context', () => {
     const MiddleComponent = () => <div><DeepChild /></div>
 
     const ParentComponent: Component = function* () {
-      ColorContext(this, 'blue')
+      ColorContext('blue')
       while (true) yield <MiddleComponent />
     }
 
@@ -379,7 +379,7 @@ describe('context', () => {
 
     const CustomComponent: Component<{}, 'section'> = function* () {
       while (true) {
-        const value = CustomContext(this)
+        const value = CustomContext()
         yield <p>{value}</p>
       }
     }
@@ -398,32 +398,32 @@ describe('context', () => {
 
     const Header: Component = function* () {
       while (true) {
-        const theme = ThemeContext(this)
-        const lang = LanguageContext(this)
+        const theme = ThemeContext()
+        const lang = LanguageContext()
         yield <header class={`theme-${theme}`}>{lang === 'en' ? 'Welcome' : 'Bienvenue'}</header>
       }
     }
 
     const Content: Component = function* () {
       while (true) {
-        const user = UserContext(this)
-        const lang = LanguageContext(this)
+        const user = UserContext()
+        const lang = LanguageContext()
         yield <main>{lang === 'en' ? `Hello, ${user}!` : `Bonjour, ${user}!`}</main>
       }
     }
 
     const Footer: Component = function* () {
       while (true) {
-        const theme = ThemeContext(this)
+        const theme = ThemeContext()
         yield <footer class={`theme-${theme}`}>© 2024</footer>
       }
     }
 
     const App: Component = function* () {
 
-      ThemeContext(this, 'dark')
-      UserContext(this, 'Alice')
-      LanguageContext(this, 'fr')
+      ThemeContext('dark')
+      UserContext('Alice')
+      LanguageContext('fr')
 
       while (true) yield (
         <>
@@ -469,7 +469,7 @@ describe('context', () => {
     }
 
     const App: Component = function* () {
-      CountContext(this, 5)
+      CountContext(5)
       while (true) {
         yield (
           <>
@@ -497,8 +497,8 @@ describe('context', () => {
     }
 
     const App: Component = function* () {
-      ThemeContext(this, 'dark')
-      LanguageContext(this, 'fr')
+      ThemeContext('dark')
+      LanguageContext('fr')
       while (true) yield <ThemedMultiLingualButton />
     }
 
@@ -519,7 +519,7 @@ describe('context', () => {
     const Child = () => <div><GrandChild /></div>
 
     const Parent: Component = function* () {
-      ColorContext(this, 'red')
+      ColorContext('red')
       while (true) yield <Child />
     }
 
