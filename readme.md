@@ -40,6 +40,7 @@ import { h, render } from 'ajo'
 const Greeting = ({ name }) => <h1>Hello, {name}!</h1>
 
 function* Counter() {
+
   let count = 0
 
   const increment = () => {
@@ -47,25 +48,21 @@ function* Counter() {
     this.render()
   }
 
-  while (true) {
-    yield (
-      <>
-        <p>Count: {count}</p>
-        <button set:onclick={increment}>Increment</button>
-      </>
-    )
-  }
+  while (true) yield (
+    <>
+      <p>Count: {count}</p>
+      <button set:onclick={increment}>Increment</button>
+    </>
+  )
 }
 
 function* App() {
-  while (true) {
-    yield (
-      <>
-        <Greeting name="Ajo Developer" />
-        <Counter />
-      </>
-    )
-  }
+  while (true) yield (
+    <>
+      <Greeting name="Ajo Developer" />
+      <Counter />
+    </>
+  )
 }
 
 render(<App />, document.body)
@@ -124,57 +121,64 @@ Stateful components use generator functions:
 
 ```jsx
 function* Counter() {
+
   let count = 0
-  while (true) {
-    yield (
-      <button set:onclick={() => { count++; this.render(); }}>
-        {count}
-      </button>
-    )
-  }
+
+  while (true) yield (
+    <button set:onclick={() => { count++; this.render(); }}>
+      {count}
+    </button>
+  )
 }
 ```
 
 State handling in Ajo is straightforward:
 - State is managed using regular variables within the generator function.
 - The `this.render()` method triggers a re-render when state changes.
+- The `this.cleanup()` method is used to clean up resources when the component unmounts.
 - Each iteration of the generator function represents a new render cycle.
 
 ```jsx
 function* Timer() {
+
   let seconds = 0
+
   const intervalId = setInterval(() => {
     seconds++
     this.render()  // Trigger a re-render
   }, 1000)
 
-  try {
-    while (true) {
-      yield <div>Seconds: {seconds}</div>
-    }
-  } finally {
-    clearInterval(intervalId)  // Cleanup
-  }
+  this.cleanup(() => clearInterval(intervalId))  // Cleanup
+
+  while (true) yield <div>Seconds: {seconds}</div>
 }
 ```
 
 ### Component Lifecycle
 
-Stateful components have a simple lifecycle:
-- Initialization: When the generator is first called
-- Rendering: Each time the generator yields
-- Cleanup: When the generator's `finally` block is executed
+Stateful components have a simple lifecycle pattern:
+- After mount: Component's element is mounted and the generator function is called. You can initialize resources here.
+- Before render: Before component's children render
+- After render: After component's children render
+- Before re-render: Before component's children re-render
+- Before unmount: Component's element is about to be unmounted. You can clean up resources here.
 
 ```jsx
 function* LifecycleDemo() {
-  console.log('Initialized')
-  try {
-    while (true) {
-      console.log('Rendering')
-      yield <div>Hello, Ajo!</div>
-    }
-  } finally {
-    console.log('Cleanup')
+
+  console.log('After mount')
+
+  this.cleanup(() => console.log('Before unmount'))
+
+  while (true) {
+
+    console.log('Before render')
+
+    this.effect(() => console.log('After render'))
+
+    yield <div>Hello, Ajo!</div>
+
+    console.log('Before re-render')
   }
 }
 ```
@@ -195,21 +199,30 @@ CustomButton.is = 'button'
 </CustomButton>
 ```
 
-### Component.attrs and Component.is
+### Component.attrs, Component.args and Component.is
 
 Use `Component.attrs` to set default attributes for a component:
 
 ```jsx
-function* CustomButton(props) {
+function* CustomButton(args) {
   while (true) yield <>{props.children}</>
 }
 CustomButton.attrs = { class: 'btn btn-primary' }
 ```
 
+Use `Component.args` to set default arguments for a component:
+
+```jsx
+function* Greeting(args) {
+  while (true) yield <>Hello, {props.name}!</>
+}
+Greeting.args = { name: 'Guest' }
+```
+
 Use `Component.is` to specify the HTML element for a component:
 
 ```jsx
-function* CustomInput(props) {
+function* CustomInput(args) {
   while (true) yield <>{props.children}</>
 }
 CustomInput.is = 'input'
@@ -271,11 +284,13 @@ function* StatefulComponent() {
 
 // Setting context value:
 function* App() {
+
   ThemeContext('dark')
+
   while (true) {
     yield (
       <>
-        <FunctionalComponent />
+        <StatelessComponent />
         <StatefulComponent />
       </>
     )
@@ -302,65 +317,120 @@ Component methods:
 
   ```javascript
   function* Counter() {
+
     let count = 0
+
     const increment = () => {
       count++
       this.render()  // Re-render to reflect the new count
     }
+
     while (true) {
       yield <button set:onclick={increment}>{count}</button>
     }
   }
   ```
 
+- `this.queueMicrotasks()`: Schedules an asynchronous re-render of the component. This is useful for batching multiple updates together for better performance.
+
+  ```javascript
+  function* AsyncCounter() {
+
+    let count = 0
+
+    const increment = () => {
+      count++
+      this.queueMicrotask()  // Schedule an asynchronous re-render
+    }
+
+    while (true) {
+      yield <button set:onclick={increment}>{count}</button>
+    }
+  }
+  ```
+
+- `this.requestAnimationFrame()`: Similar to `this.queueMicrotask()`, but uses `requestAnimationFrame` for smooth animations.
+
+  ```javascript
+  function* AnimatedCounter() {
+
+    let count = 0
+
+    const increment = () => {
+      count++
+      this.requestAnimationFrame()  // Schedule a re-render on the next animation frame
+    }
+
+    while (true) {
+      yield <button set:onclick={increment}>{count}</button>
+    }
+  }
+  ```
+
+- `this.cleanup(fn)`: Registers a callback to be executed when the component unmounts. This is useful for cleaning up resources or subscriptions.
+
+  ```javascript
+  function* TimerComponent() {
+
+    let seconds = 0
+
+    const timer = setInterval(() => {
+      seconds++
+      this.render()
+    }, 1000)
+
+    this.cleanup(() => clearInterval(timer))  // Clean up the timer when unmounting
+
+    while (true) {
+      yield <div>Seconds: {seconds}</div>
+    }
+  }
+  ```
+
+- `this.effect(fn)`: Registers a callback to be run after the next render.
+
+  ```javascript
+  function* DataFetchingComponent() {
+
+    let data = null
+
+    this.effect(async () => {
+      const response = await fetch('https://api.example.com/data')
+      data = await response.json()
+      this.render()
+    })
+
+    while (true) {
+      yield data ? <div>{JSON.stringify(data)}</div> : <div>Loading...</div>
+    }
+  }
+  ```
+
+  If you want to execute an effect after each render, place it inside the main loop:
+
+  ```javascript
+  function* EffectfulComponent() {
+
+    let count = 0
+
+    while (true) {
+
+      this.effect(() => console.log(`Count updated to ${count}`))
+
+      yield <button set:onclick={() => { count++; this.render() }}>{count}</button>
+
+      console.log(`Optionally you can clean up effect for count ${count} here`)
+    }
+  }
+  ```
+
 - `this.next()`: Advances the generator to the next yield point. It's automatically called by `this.render()` and is rarely used directly.
 
-- `this.throw(error)`: Throws an error in the generator. Useful for error propagation and creating error boundaries. Ajo automatically calls this method when an error occurs during rendering.
+- `this.throw(error)`: Throws an error in the generator. Useful for error propagation and creating error boundaries.
 
-  ```javascript
-  function* ErrorBoundary(props) {
-    try {
-      while (true) {
-        yield <div>{props.children}</div>
-      }
-    } catch (error) {
-      yield <div>An error occurred: {error.message}</div>
-    }
-  }
-  ```
+- `this.return()`: Completes the generator execution. It's automatically called when a component is unmounted, but can be used manually to reset a component's state.
 
-- `this.return()`: Completes the generator execution. It's automatically called by Ajo when a component is unmounted, but can be used manually to reset a component's state.
-
-  ```javascript
-  function* ResetableComponent() {
-    let count = 0
-    const reset = () => {
-      this.return()  // Reset the generator
-      this.render()  // Re-render from the beginning
-    }
-    while (true) {
-      yield (
-        <div>
-          <p>Count: {count}</p>
-          <button set:onclick={() => { count++; this.render(); }}>Increment</button>
-          <button set:onclick={reset}>Reset</button>
-        </div>
-      )
-    }
-  }
-  ```
-
-- `this.$args`: Provides access to the current args of the component.
-
-  ```javascript
-  function* DynamicGreeting() {
-    while (true) {
-      yield <h1>Hello, {this.$args.name}!</h1>
-    }
-  }
-  ```
-
-These methods provide powerful control over the component's lifecycle and state management, allowing for efficient and flexible UI updates. Note that `this.throw()` and `this.return()` are often called automatically by Ajo in response to errors or component unmounting, respectively, but can also be used manually when needed.
+These methods provide powerful control over the component's lifecycle, state management, and side effects, allowing for efficient and flexible UI updates. Note that `this.throw()` and `this.return()` are often called automatically by Ajo in response to errors or component unmounting, respectively, but can also be used manually when needed.
 
 ### `ajo/html` module
 

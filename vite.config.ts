@@ -2,14 +2,22 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  plugins: [
+    tsconfigPaths()
+  ],
+  test: {
+    environment: 'happy-dom',
+  },
   resolve: {
-    alias: {
-      'ajo': './index.js',
-    },
+    alias: [
+      { find: 'ajo/html', replacement: resolve(__dirname, 'html.js') },
+      { find: 'ajo', replacement: resolve(__dirname, 'index.js') },
+    ],
   },
   esbuild: {
     jsxFactory: 'h',

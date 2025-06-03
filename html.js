@@ -1,8 +1,10 @@
-const { isArray, from } = Array, Marker = '\u0001'
+const Args = Symbol.for('ajo.args'), Context = Symbol.for('ajo.context'), Marker = '\u0001'
 
-const { create, assign, entries,  prototype: { hasOwnProperty }, hasOwn = (o, k) => hasOwnProperty.call(o, k) } = Object
+const Void = new Set(['area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'])
 
-export const render = h => from(html(h)).join('')
+const Special = new Set(['key', 'skip', 'memo', 'ref']), Omit = new Set(['nodeName', 'children'].concat(Array.from(Special)))
+
+export const render = h => Array.from(html(h)).join('')
 
 export const html = function* (h) {
 
@@ -12,54 +14,52 @@ export const html = function* (h) {
 
 		else {
 
-			const { nodeName, skip, children = '' } = h
-
 			let attrs = ''
 
-			for (const [key, value] of entries(h)) {
+			for (const [key, value] of Object.entries(h)) {
 
-				if (omit.has(key) || key.startsWith('set:') || value == null || value === false) continue
+				if (Omit.has(key) || key.startsWith('set:') || value == null || value === false) continue
 
 				attrs += value === true ? ` ${key}` : ` ${key}="${escape(String(value))}"`
 			}
 
-			if (Void.has(nodeName)) {
+			if (Void.has(h.nodeName)) {
 
-				yield `<${nodeName}${attrs}>`
+				yield `<${h.nodeName}${attrs}>`
 
-			} else if (!skip) {
+			} else if (!h.skip) {
 
-				yield `<${nodeName}${attrs}>`
+				yield `<${h.nodeName}${attrs}>`
 
-				typeof children === 'string' && children.startsWith(Marker) ? yield children.slice(1) : yield* html(children)
+				typeof h.children === 'string' && h.children.startsWith(Marker) ? yield h.children.slice(1) : yield* html(h.children)
 
-				yield `</${nodeName}>`
+				yield `</${h.nodeName}>`
 
 			} else {
 
-				yield `<${nodeName}${attrs}></${nodeName}>`
+				yield `<${h.nodeName}${attrs}></${h.nodeName}>`
 			}
 		}
 	}
 }
 
-const normalize = function* (h, buffer = { value: '' }, root = true) {
+const normalize = function* (h, buffer = { h: '' }, root = true) {
 
-	for (h of isArray(h) ? h : [h]) {
+	for (h of Array.isArray(h) ? h.flat(Infinity) : [h]) {
 
-		if (h == null || typeof h === 'boolean') continue
+		const type = typeof h
 
-		if (hasOwn(h, 'nodeName')) {
+		if (h == null || type === 'boolean') continue
 
-			const { value } = buffer, { nodeName } = h
+		if (type === 'object' && 'nodeName' in h) {
 
-			if (value) yield value, buffer.value = ''
+			if (buffer.h) yield buffer.h, buffer.h = ''
 
-			if (typeof nodeName === 'function') {
+			if (typeof h.nodeName === 'function') {
 
-				if (nodeName.constructor.name === 'GeneratorFunction') {
+				if (h.nodeName.constructor.name === 'GeneratorFunction') {
 
-					const args = {}, attrs = assign({}, nodeName.attrs)
+					const attrs = Object.assign({}, h.nodeName.attrs), args = Object.assign({}, h.nodeName.args)
 
 					for (const key in h) {
 
@@ -67,34 +67,32 @@ const normalize = function* (h, buffer = { value: '' }, root = true) {
 
 						if (key.startsWith('attr:')) attrs[key.slice(5)] = value
 
+						else if (Special.has(key) || key.startsWith('set:')) attrs[key] = value
+
 						else args[key] = value
 					}
 
-					attrs.nodeName = nodeName.is ?? 'div'
+					attrs.nodeName = h.nodeName.is ?? 'div'
 
-					attrs.children = run(nodeName, args)
+					attrs.children = run(h.nodeName, args)
 
 					yield attrs
 
-				} else yield* normalize(nodeName(h), buffer, false)
+				} else yield* normalize(h.nodeName(h), buffer, false)
 
 			} else yield h
 
-		} else isArray(h) ? yield* normalize(h, buffer, false) : buffer.value += h
+		} else buffer.h += h
 	}
 
-	if (root && buffer.value) yield buffer.value
+	if (root && buffer.h) yield buffer.h
 }
 
-const Void = new Set('area,base,br,col,command,embed,hr,img,input,keygen,link,meta,param,source,track,wbr'.split(','))
-
-const omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
-
-const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`), noop = () => { }
 
 let current = null
 
-const run = (gen, $args) => {
+const run = (gen, args) => {
 
 	let self, children
 
@@ -102,18 +100,19 @@ const run = (gen, $args) => {
 
 		const iterator = gen.call(self = {
 
-			$args,
-
-			$context: create(current?.$context ?? null),
-
-			render() {
-
-				if (current === self) return
-
-				self.next()
+			*[Symbol.iterator]() {
+				while (true) yield args
 			},
 
+			[Args]: args,
+
+			[Context]: Object.create(current?.[Context] ?? null),
+
+			render: noop, queueMicrotask: noop, requestAnimationFrame: noop, effect: noop, cleanup: noop,
+
 			next() {
+
+				if (current === self) return
 
 				const parent = current
 
@@ -134,7 +133,7 @@ const run = (gen, $args) => {
 				iterator.return()
 			}
 
-		}, $args)
+		}, args)
 
 		self.next()
 
@@ -150,9 +149,9 @@ const run = (gen, $args) => {
 	return Marker + children
 }
 
-export const context = (fallback, key = Symbol()) => function () {
+export const context = (fallback, key = Symbol()) => function (...args) {
 
 	const ctx = this ?? current
 
-	return ctx ? arguments.length === 0 ? key in ctx.$context ? ctx.$context[key] : fallback : ctx.$context[key] = arguments[0] : fallback
+	return ctx ? args.length == 0 ? key in ctx[Context] ? ctx[Context][key] : fallback : ctx[Context][key] = args[0] : fallback
 }

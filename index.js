@@ -1,17 +1,23 @@
-export const Fragment = ({ children }) => children
+const
+	Key = Symbol.for('ajo.key'),
+	Memo = Symbol.for('ajo.memo'),
+	Ref = Symbol.for('ajo.ref'),
+	Cache = Symbol.for('ajo.cache')
 
-export const h = function (type, props) {
+const Omit = new Set(['nodeName', 'children', 'key', 'skip', 'memo', 'ref'])
 
-	(props ??= create(null)).nodeName = type
+export const Fragment = props => props.children
 
-	if (!('children' in props || arguments.length < 3)) props.children = arguments.length === 3 ? arguments[2] : slice.call(arguments, 2)
+export const h = (type, props, ...children) => {
+
+	(props ??= {}).nodeName = type
+
+	if (!('children' in props) && children.length) props.children = children.length == 1 ? children[0] : children
 
 	return props
 }
 
-export const render = (h, el) => {
-
-	let child = el.firstChild
+export const render = (h, el, child = el.firstChild, ref) => {
 
 	for (h of normalize(h)) {
 
@@ -23,25 +29,23 @@ export const render = (h, el) => {
 
 			node ? node.data != h && (node.data = h) : node = document.createTextNode(h)
 
+		} else if (h instanceof Node) {
+
+			node = h
+
 		} else {
 
-			const { nodeName, key, skip, memo, ref, children } = h
+			while (node && !(node.localName == h.nodeName && (node[Key] ??= h.key) == h.key)) node = node.nextSibling
 
-			while (node && !(node.localName === nodeName && (node.$key ??= key) == key)) node = node.nextSibling
+			node ??= Object.assign(document.createElementNS(h.xmlns ?? el.namespaceURI, h.nodeName), { [Key]: h.key })
 
-			node ??= assign(document.createElementNS(h.xmlns ?? nodeName === 'svg' ? svg : el.namespaceURI, nodeName), { $key: key })
+			if (h.memo == null || some(node[Memo], node[Memo] = h.memo)) {
 
-			if (memo == null || some(node.$memo, node.$memo = memo)) {
+				let value, next = {}, prev = node[Cache] ?? Array.from(node.attributes).reduce((o, a) => (o[a.name] = a.value, o), {})
 
-				const { $props } = node, props = {}
+				for (const name of Object.keys(Object.assign({}, prev, h))) {
 
-				for (const name of keys(assign({}, $props, h))) {
-
-					if (omit.has(name)) continue
-
-					const value = props[name] = h[name]
-
-					if (value === $props?.[name]) continue
+					if (Omit.has(name) || prev[name] === (value = next[name] = h[name])) continue
 
 					if (name.startsWith('set:')) node[name.slice(4)] = value
 
@@ -50,22 +54,22 @@ export const render = (h, el) => {
 					else node.setAttribute(name, value === true ? '' : value)
 				}
 
-				node.$props = props
+				node[Cache] = next
 
-				if (!skip) render(children, node)
+				if (!h.skip) render(h.children, node)
 
-				if (typeof ref === 'function') (node.$ref = ref)(node)
+				if (typeof h.ref == 'function') (node[Ref] = h.ref)(node)
 			}
 		}
 
 		node === child ? child = child.nextSibling : before(el, node, child)
 	}
 
-	while (child) {
+	while (child && child != ref) {
 
 		const next = child.nextSibling
 
-		if (child.nodeType === 1) unref(child)
+		if (child.nodeType == 1) unref(child)
 
 		el.removeChild(child)
 
@@ -73,81 +77,51 @@ export const render = (h, el) => {
 	}
 }
 
-const { isArray, prototype: { slice } } = Array
+const some = (a, b) => Array.isArray(a) && Array.isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
 
-const { create, assign, keys, prototype: { hasOwnProperty }, hasOwn = (o, k) => hasOwnProperty.call(o, k) } = Object
+const normalize = function* (h, buffer = { h: '' }, root = true) {
 
-const svg = 'http://www.w3.org/2000/svg', omit = new Set('nodeName,key,skip,memo,ref,children'.split(','))
+	for (h of Array.isArray(h) ? h.flat(Infinity) : [h]) {
 
-const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
+		if (h == null || typeof h == 'boolean') continue
 
-const normalize = function* (h, buffer = { value: '' }, root = true) {
+		if (typeof h == 'object' && 'nodeName' in h) {
 
-	for (h of isArray(h) ? h : [h]) {
+			if (buffer.h) yield buffer.h, buffer.h = ''
 
-		if (h == null || typeof h === 'boolean') continue
+			if (typeof h.nodeName == 'function') {
 
-		if (hasOwn(h, 'nodeName')) {
+				if (h.nodeName.constructor.name == 'GeneratorFunction') {
 
-			const { value } = buffer, { nodeName } = h
+					const attrs = Object.assign({}, h.nodeName.attrs), args = Object.assign({}, h.nodeName.args)
 
-			if (value) yield value, buffer.value = ''
-
-			if (typeof nodeName === 'function') {
-
-				if (nodeName.constructor.name === 'GeneratorFunction') {
-
-					const args = {}, attrs = assign({}, nodeName.attrs)
-
-					for (const key of keys(h)) {
+					for (const key in h) {
 
 						const value = h[key]
 
 						if (key.startsWith('attr:')) attrs[key.slice(5)] = value
 
-						else if (key === 'key' || key === 'memo') attrs[key] = value
+						else if (key == 'key' || key == 'memo' || key.startsWith('set:')) attrs[key] = value
 
 						else args[key] = value
 					}
 
-					attrs.nodeName = nodeName.is ?? 'div'
+					attrs.nodeName = h.nodeName.is ?? 'div'
 
 					attrs.skip = true
 
-					attrs.ref = next.bind(null, nodeName, args)
+					attrs.ref = next.bind(null, h.nodeName, args)
 
 					yield attrs
 
-				} else yield* normalize(nodeName(h), buffer, false)
+				} else yield* normalize(h.nodeName(h), buffer, false)
 
 			} else yield h
 
-		} else isArray(h) ? yield* normalize(h, buffer, false) : buffer.value += h
+		} else buffer.h += h
 	}
 
-	if (root && buffer.value) yield buffer.value
-}
-
-const next = (gen, h, el) => {
-
-	if (!el) return
-
-	el.$generator ??= (assign(el, methods), el.$context ??= create(current?.$context ?? null), gen)
-
-	const { skip, ref, ...args } = h
-
-	el.$ref = dispose.bind(null, ref, el)
-
-	assign(el.$args ??= {}, args)
-
-	if (!skip) el.next()
-}
-
-const dispose = (ref, component, el) => {
-
-	if (typeof ref === 'function') ref(el)
-
-	if (!el) component.return()
+	if (root && buffer.h) yield buffer.h
 }
 
 const before = (el, node, child) => {
@@ -172,18 +146,141 @@ const unref = el => {
 
 	for (const child of el.children) unref(child)
 
-	const { $ref } = el
+	el[Ref]?.(null)
+}
 
-	if (typeof $ref === 'function') $ref(null)
+const
+	Generator = Symbol.for('ajo.generator'),
+	Iterator = Symbol.for('ajo.iterator'),
+	Args = Symbol.for('ajo.args'),
+	Context = Symbol.for('ajo.context'),
+	Effects = Symbol.for('ajo.effects'),
+	Disposers = Symbol.for('ajo.disposers'),
+	Cleanups = Symbol.for('ajo.cleanups')
+
+const next = (gen, h, el) => {
+
+	if (!el) return
+
+	el[Generator] ??= (Object.assign(el, methods), el[Context] = Object.create(current?.[Context] ?? null), gen)
+
+	const { skip, ref, ...args } = h
+
+	el[Ref] = dispose.bind(null, ref, el)
+
+	Object.assign(el[Args] ??= {}, args)
+
+	if (!skip) el.next()
+}
+
+const dispose = (ref, component, el) => {
+
+	if (typeof ref == 'function') ref(el)
+
+	if (!el) component.return()
+}
+
+const refresh = el => el.isConnected && el.render()
+
+const flush = (el, set = Effects) => {
+
+	if (set == Effects) for (const child of el.children) flush(child, set)
+
+	if (el[set]?.size) for (const fn of el[set]) {
+
+		el[set].delete(fn)
+
+		try {
+
+			const disposer = fn()
+
+			if (set == Effects && typeof disposer == 'function') (el[Disposers] ??= new Set).add(disposer)
+
+		} catch (value) {
+
+			el.throw(value)
+		}
+	}
+}
+
+const run = (queue, fn) => {
+
+	for (const el of queue.set) fn(el)
+
+	queue.set.clear()
+
+	queue.queued = false
+}
+
+const Microtask = () => queueMicrotask.bind(null, run.bind(null, Microtask, refresh))
+
+const Animation = () => requestAnimationFrame.bind(null, run.bind(null, Animation, refresh))
+
+const Effect = () => {
+
+	const channel = new MessageChannel
+
+	channel.port1.onmessage = run.bind(null, Effect, flush)
+
+	return channel.port2.postMessage.bind(channel.port2, null)
+}
+
+const schedule = (queue, el) => {
+
+	if (!queue.queued) {
+
+		(queue.run ??= queue())()
+
+		queue.queued = true
+	}
+
+	const set = queue.set ??= new Set
+
+	for (const i of set) {
+
+		if (i.contains(el)) return
+
+		if (el.contains(i)) set.delete(i)
+	}
+
+	set.add(el)
+}
+
+const add = (el, set, fn) => {
+
+	if (typeof fn != 'function') return
+
+	(el[set] ??= new Set).add(fn)
+
+	return () => el[set].delete(fn)
 }
 
 let current = null
 
 const methods = {
 
-	render() {
+	*[Symbol.iterator]() {
+		while (true) yield this[Args]
+	},
 
+	render() {
 		if (!current?.contains(this)) this.next()
+	},
+
+	queueMicrotask() {
+		schedule(Microtask, this)
+	},
+
+	requestAnimationFrame() {
+		schedule(Animation, this)
+	},
+
+	effect(fn) {
+		return add(this, Effects, fn)
+	},
+
+	cleanup(fn) {
+		return add(this, Cleanups, fn)
 	},
 
 	next() {
@@ -194,9 +291,17 @@ const methods = {
 
 		try {
 
-			render((this.$iterator ??= this.$generator.call(this, this.$args)).next().value, this)
+			if (this[Disposers]?.size) flush(this, Disposers)
 
-			if (typeof this.$ref === 'function') this.$ref(this)
+			const iteration = (this[Iterator] ??= this[Generator].call(this, this[Args])).next()
+
+			if (this[Effects]?.size) schedule(Effect, this)
+
+			render(iteration.value, this)
+
+			this[Ref]?.(this)
+
+			if (iteration.done) this.return()
 
 		} catch (value) {
 
@@ -210,11 +315,14 @@ const methods = {
 
 	throw(value) {
 
-		for (let el = this; el; el = el.parentNode) if (typeof el.$iterator?.throw === 'function') try {
+		for (let el = this; el; el = el.parentNode) if (typeof el[Iterator]?.throw == 'function') try {
 
-			return render(el.$iterator.throw(value).value, el)
+			return render(el[Iterator].throw(value).value, el)
 
-		} catch { }
+		} catch (error) {
+
+			value = new Error(error instanceof Error ? error.message : error, { cause: value })
+		}
 
 		throw value
 	},
@@ -223,7 +331,11 @@ const methods = {
 
 		try {
 
-			this.$iterator?.return()
+			if (this[Disposers]?.size) flush(this, Disposers)
+
+			if (this[Cleanups]?.size) flush(this, Cleanups)
+
+			this[Iterator]?.return()
 
 		} catch (value) {
 
@@ -231,14 +343,14 @@ const methods = {
 
 		} finally {
 
-			this.$iterator = null
+			this[Iterator] = null
 		}
 	}
 }
 
-export const context = (fallback, key = Symbol()) => function () {
+export const context = (fallback, key = Symbol()) => function (...args) {
 
 	const ctx = this ?? current
 
-	return ctx ? arguments.length === 0 ? key in ctx.$context ? ctx.$context[key] : fallback : ctx.$context[key] = arguments[0] : fallback
+	return ctx ? args.length == 0 ? key in ctx[Context] ? ctx[Context][key] : fallback : ctx[Context][key] = args[0] : fallback
 }

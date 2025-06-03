@@ -1,11 +1,10 @@
-/// <reference types="." />
-import type { Component, Children } from 'ajo'
+import type { Stateful, Children } from 'ajo'
 import { describe, it, expect, vi } from 'vitest'
-import { render, context } from './html.js'
+import { render, context } from 'ajo/html'
 
 describe('render', () => {
 
-	it('should render simple elements', () => {
+  it('should render simple elements', () => {
 
     const html = render(<div>Hello, World!</div>)
 
@@ -24,7 +23,7 @@ describe('render', () => {
     expect(html).toBe('<div><h1>Title</h1><p>Paragraph</p></div>')
   })
 
-	it('should render fragments', () => {
+  it('should render fragments', () => {
 
     const html = render(
       <>
@@ -36,21 +35,21 @@ describe('render', () => {
     expect(html).toBe('<div>First</div><div>Second</div>')
   })
 
-	it('should handle boolean attributes', () => {
+  it('should handle boolean attributes', () => {
 
     const html = render(<input type="checkbox" checked disabled />)
 
     expect(html).toBe('<input type="checkbox" checked disabled>')
   })
 
-	it('should escape attribute values', () => {
+  it('should escape attribute values', () => {
 
     const html = render(<div data-text="<script>alert('XSS')</script>">Safe</div>)
 
     expect(html).toBe('<div data-text="&#60;script&#62;alert(&#39;XSS&#39;)&#60;/script&#62;">Safe</div>')
   })
 
-	it('should escape text content', () => {
+  it('should escape text content', () => {
 
     const html = render(<div>{'<script>alert("XSS")</script>'}</div>)
 
@@ -60,20 +59,20 @@ describe('render', () => {
 
 describe('components', () => {
 
-	it('should render components with attrs and children', () => {
+  it('should render components with attrs and children', () => {
 
-		const Simple = ({ name, children }) => (
-			<div>
-				Hello {name},<br /> and {children}!
-			</div>
-		)
+    const Simple = ({ name, children }: { name: string, children: Children }) => (
+      <div>
+        Hello {name},<br /> and {children}!
+      </div>
+    )
 
-		const html = render(<Simple name="world">all who inhabit it</Simple>)
+    const html = render(<Simple name="world">all who inhabit it</Simple>)
 
-		expect(html).toBe('<div>Hello world,<br> and all who inhabit it!</div>')
-	})
+    expect(html).toBe('<div>Hello world,<br> and all who inhabit it!</div>')
+  })
 
-	it('should render nested components', () => {
+  it('should render nested components', () => {
 
     const Child = () => <span>Child</span>
     const Parent = () => <div><Child /></div>
@@ -83,9 +82,9 @@ describe('components', () => {
     expect(html).toBe('<div><span>Child</span></div>')
   })
 
-	it('should handle conditional rendering', () => {
+  it('should handle conditional rendering', () => {
 
-    const ConditionalComponent = ({ showExtra }) => (
+    const ConditionalComponent = ({ showExtra }: { showExtra: boolean }) => (
       <div>
         <p>Always shown</p>
         {showExtra && <p>Extra content</p>}
@@ -101,9 +100,9 @@ describe('components', () => {
     expect(htmlWithoutExtra).toBe('<div><p>Always shown</p></div>')
   })
 
-	it('should render lists', () => {
+  it('should render lists', () => {
 
-    const List = ({ items }) => (
+    const List = ({ items }: { items: string[] }) => (
       <ul>
         {items.map(item => <li key={item}>{item}</li>)}
       </ul>
@@ -114,10 +113,10 @@ describe('components', () => {
     expect(html).toBe('<ul><li>Apple</li><li>Banana</li><li>Cherry</li></ul>')
   })
 
-	it('should not render set: prefixed attributes', () => {
+  it('should not render set: prefixed attributes', () => {
 
     const ButtonComponent = () => (
-      <button 
+      <button
         set:onclick={() => console.log('Clicked')}
         set:disabled={false}
       >
@@ -133,7 +132,7 @@ describe('components', () => {
   it('should render normal attributes but not set: prefixed ones', () => {
 
     const MixedAttributesComponent = () => (
-      <div 
+      <div
         id="test-div"
         class="test-class"
         set:textContent="This should not appear"
@@ -149,7 +148,7 @@ describe('components', () => {
     expect(html).toBe('<div id="test-div" class="test-class" data-test="This should appear">Visible Content</div>')
   })
 
-	it('should handle components with set: attributes in children', () => {
+  it('should handle components with set: attributes in children', () => {
 
     const ChildComponent = () => (
       <button set:onclick={() => console.log('Child clicked')}>
@@ -168,7 +167,7 @@ describe('components', () => {
     expect(html).toBe('<div><button>Child Button</button></div>')
   })
 
-	it('should handle void elements correctly', () => {
+  it('should handle void elements correctly', () => {
 
     const VoidElements = () => (
       <div>
@@ -184,23 +183,23 @@ describe('components', () => {
     expect(html).toBe('<div><input type="text"><br><img src="image.jpg" alt="An image"><hr></div>')
   })
 
-	it('should handle numeric and boolean prop values', () => {
+  it('should handle numeric and boolean attrs values', () => {
 
-    const NumberProps = () => (
+    const NumberAttrs = () => (
       <div>
         <input type="number" value={42} min={0} max={100} />
         <progress value={0.5}></progress>
       </div>
     )
 
-    const html = render(<NumberProps />)
+    const html = render(<NumberAttrs />)
 
     expect(html).toBe('<div><input type="number" value="42" min="0" max="100"><progress value="0.5"></progress></div>')
   })
 
-	it('should handle undefined and null children', () => {
+  it('should handle undefined and null children', () => {
 
-    const NullableContent = ({ showContent }) => (
+    const NullableContent = ({ showContent }: { showContent: boolean }) => (
       <div>
         <h1>Title</h1>
         {showContent ? <p>Content</p> : null}
@@ -217,74 +216,74 @@ describe('components', () => {
     expect(htmlWithoutContent).toBe('<div><h1>Title</h1></div>')
   })
 
-	it('should render a stateful component with attrs and children', () => {
+  it('should render a stateful component with attrs and children', () => {
 
-		const Component: Component<{ name: string, children: Children }> = function* (props) {
-			while (true)
-				yield (
-					<div>
-						Hello {props.name},<br /> and {props.children}!
-					</div>
-				)
-		}
+    const Component: Stateful<{ name: string, children: Children }> = function* (args) {
+      while (true)
+        yield (
+          <div>
+            Hello {args.name},<br /> and {args.children}!
+          </div>
+        )
+    }
 
-		const html = render(<Component name="world">you</Component>)
+    const html = render(<Component name="world">you</Component>)
 
-		expect(html).toBe('<div><div>Hello world,<br> and you!</div></div>')
-	})
+    expect(html).toBe('<div><div>Hello world,<br> and you!</div></div>')
+  })
 
-	it('should properly use generator function', () => {
+  it('should properly use generator function', () => {
 
-		const init = vi.fn()
-		const loop = vi.fn()
-		const end = vi.fn()
+    const init = vi.fn()
+    const loop = vi.fn()
+    const end = vi.fn()
 
-		const Component: Component<{ name: string }> = function* (props) {
+    const Component: Stateful<{ name: string }> = function* (args) {
 
-			init()
+      init()
 
-			try {
-				while (true) {
-					loop()
-					yield <div>Hello {props.name}!</div>
-				}
-			} finally {
-				end()
-			}
-		}
+      try {
+        while (true) {
+          loop()
+          yield <div>Hello {args.name}!</div>
+        }
+      } finally {
+        end()
+      }
+    }
 
-		const html = render(<Component name="world" attr:class="container" />)
+    const html = render(<Component name="world" attr:class="container" />)
 
-		expect(html).toBe('<div class="container"><div>Hello world!</div></div>')
-		expect(init).toHaveBeenCalledTimes(1)
-		expect(loop).toHaveBeenCalledTimes(1)
-		expect(end).toHaveBeenCalledTimes(1)
-	})
+    expect(html).toBe('<div class="container"><div>Hello world!</div></div>')
+    expect(init).toHaveBeenCalledTimes(1)
+    expect(loop).toHaveBeenCalledTimes(1)
+    expect(end).toHaveBeenCalledTimes(1)
+  })
 
-	it('should catch errors from children', () => {
+  it('should catch errors from children', () => {
 
-		const Thrower = () => {
-			throw new Error('test')
-		}
+    const Thrower = () => {
+      throw new Error('test')
+    }
 
-		function* Child() {
-			while (true) yield <Thrower />
-		}
+    function* Child() {
+      while (true) yield <Thrower />
+    }
 
-		function* Parent() {
-			while (true) {
-				try {
-					yield <Child />
-				} catch (e) {
-					yield <div>{e.message}</div>
-				}
-			}
-		}
+    function* Parent() {
+      while (true) {
+        try {
+          yield <Child />
+        } catch (e) {
+          yield <div>{e instanceof Error ? e.message : String(e)}</div>
+        }
+      }
+    }
 
-		const html = render(<Parent attr:class="parent" />)
+    const html = render(<Parent attr:class="parent" />)
 
-		expect(html).toBe('<div class="parent"><div>test</div></div>')
-	})
+    expect(html).toBe('<div class="parent"><div>test</div></div>')
+  })
 })
 
 describe('context', () => {
@@ -293,7 +292,7 @@ describe('context', () => {
 
     const ThemeContext = context('light')
 
-    const ThemedButton: Component = function* () {
+    const ThemedButton: Stateful = function* () {
       while (true) {
         const theme = ThemeContext()
         yield <button class={`theme-${theme}`}>Click me</button>
@@ -309,14 +308,14 @@ describe('context', () => {
 
     const UserContext = context('Guest')
 
-    const Greeting: Component = function* () {
+    const Greeting: Stateful = function* () {
       while (true) {
         const user = UserContext()
         yield <h1>Welcome, {user}!</h1>
       }
     }
 
-    const App: Component = function* () {
+    const App: Stateful = function* () {
       UserContext('John')
       while (true) yield <Greeting />
     }
@@ -331,7 +330,7 @@ describe('context', () => {
     const ThemeContext = context('light')
     const LanguageContext = context('en')
 
-    const MultiContextComponent: Component = function* () {
+    const MultiContextComponent: Stateful = function* () {
       while (true) {
         const theme = ThemeContext()
         const lang = LanguageContext()
@@ -339,7 +338,7 @@ describe('context', () => {
       }
     }
 
-    const App: Component = function* () {
+    const App: Stateful = function* () {
       ThemeContext('dark')
       LanguageContext('fr')
       while (true) yield <MultiContextComponent />
@@ -354,7 +353,7 @@ describe('context', () => {
 
     const ColorContext = context('black')
 
-    const DeepChild: Component = function* () {
+    const DeepChild: Stateful = function* () {
       while (true) {
         const color = ColorContext()
         yield <span style={`color: ${color}`}>Nested Content</span>
@@ -363,7 +362,7 @@ describe('context', () => {
 
     const MiddleComponent = () => <div><DeepChild /></div>
 
-    const ParentComponent: Component = function* () {
+    const ParentComponent: Stateful = function* () {
       ColorContext('blue')
       while (true) yield <MiddleComponent />
     }
@@ -377,7 +376,7 @@ describe('context', () => {
 
     const CustomContext = context('default')
 
-    const CustomComponent: Component<{}, 'section'> = function* () {
+    const CustomComponent: Stateful<{}, 'section'> = function* () {
       while (true) {
         const value = CustomContext()
         yield <p>{value}</p>
@@ -396,7 +395,7 @@ describe('context', () => {
     const UserContext = context('Anonymous')
     const LanguageContext = context('en')
 
-    const Header: Component = function* () {
+    const Header: Stateful = function* () {
       while (true) {
         const theme = ThemeContext()
         const lang = LanguageContext()
@@ -404,7 +403,7 @@ describe('context', () => {
       }
     }
 
-    const Content: Component = function* () {
+    const Content: Stateful = function* () {
       while (true) {
         const user = UserContext()
         const lang = LanguageContext()
@@ -412,14 +411,14 @@ describe('context', () => {
       }
     }
 
-    const Footer: Component = function* () {
+    const Footer: Stateful = function* () {
       while (true) {
         const theme = ThemeContext()
         yield <footer class={`theme-${theme}`}>© 2024</footer>
       }
     }
 
-    const App: Component = function* () {
+    const App: Stateful = function* () {
 
       ThemeContext('dark')
       UserContext('Alice')
@@ -468,7 +467,7 @@ describe('context', () => {
       return <span>Count: {count}</span>
     }
 
-    const App: Component = function* () {
+    const App: Stateful = function* () {
       CountContext(5)
       while (true) {
         yield (
@@ -496,7 +495,7 @@ describe('context', () => {
       return <button class={`theme-${theme}`}>{lang === 'en' ? 'Click me' : 'Cliquez-moi'}</button>
     }
 
-    const App: Component = function* () {
+    const App: Stateful = function* () {
       ThemeContext('dark')
       LanguageContext('fr')
       while (true) yield <ThemedMultiLingualButton />
@@ -518,7 +517,7 @@ describe('context', () => {
 
     const Child = () => <div><GrandChild /></div>
 
-    const Parent: Component = function* () {
+    const Parent: Stateful = function* () {
       ColorContext('red')
       while (true) yield <Child />
     }

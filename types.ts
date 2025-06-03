@@ -2,13 +2,17 @@ declare module 'ajo' {
 
   type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
 
-  type Type = Tag | Function | Component
+  type Type = Tag | Stateless | Stateful
 
-  type Attrs = Record<string, unknown>
+  type Component = Stateless | Stateful
 
-  type VNode<TTag extends Type> = { nodeName: TTag } & Attrs
+  type Props = Record<string, unknown>
 
-  type Children = any
+  type VNode<TTag extends Type, TProps extends Props = Props> = TProps & {
+    nodeName: TTag,
+  }
+
+  type Children = unknown
 
   type ElementType<TTag = Tag> = TTag extends keyof HTMLElementTagNameMap
     ? HTMLElementTagNameMap[TTag]
@@ -16,11 +20,11 @@ declare module 'ajo' {
     ? SVGElementTagNameMap[TTag]
     : never
 
-  type AjoAttrs<TElement> = {
-    key: unknown
-    skip: boolean
-    memo: unknown
-    ref: (el: TElement | null) => void
+  type SpecialProps<TElement> = {
+    key: unknown,
+    skip: boolean,
+    memo: unknown,
+    ref: (el: TElement | null) => void,
   } & ElementChildrenAttribute
 
   type PropSetter<TTag = Tag> = {
@@ -31,45 +35,48 @@ declare module 'ajo' {
     [key: `attr:${string}`]: unknown
   }
 
-  type Function<TArguments extends Attrs = Attrs> = (args: TArguments) => Children
+  type Stateless<TArguments extends Props = Props> = (args: TArguments) => Children
 
-  type Component<TArguments extends Attrs = Attrs, TTag extends Tag = 'div'> = {
-    (this: ComponentElement<TArguments, TTag>, args: ComponentProps<TArguments, TTag>): Iterator<Children, unknown, unknown>
-  } & (TTag extends 'div' ? { is?: TTag } : { is: TTag })
+  type Stateful<TArguments extends Props = Props, TTag extends Tag = 'div'> = {
+    (this: StatefulElement<TArguments, TTag>, args: StatefulProps<TArguments, TTag>): Iterator<Children>
+  } & (TTag extends 'div' ? { is?: TTag } : { is: TTag }) & { attrs?: Partial<PropSetter<TTag>> & Props, args?: Partial<TArguments> }
 
-  type ComponentProps<TArguments extends Attrs = Attrs, TTag extends Tag = 'div'> =
-    Partial<PropSetter<TTag> & AjoAttrs<ComponentElement<TArguments, TTag>>> &
+  type StatefulProps<TArguments extends Props = Props, TTag extends Tag = 'div'> =
+    Partial<SpecialProps<StatefulElement<TArguments, TTag>> & PropSetter<TTag>> &
     AttrSetter &
     TArguments
 
-  type ComponentElement<TArguments extends Attrs = Attrs, TTag extends Tag = Tag> = ElementType<TTag> & {
-    $args: TArguments,
-    $context: { [key: symbol]: unknown },
+  type StatefulElement<TArguments extends Props = Props, TTag extends Tag = Tag> = ElementType<TTag> & {
+    [Symbol.iterator]: () => Iterator<TArguments>,
     render: () => void,
-    next: () => void
-    throw: (value?: unknown) => void
-    return: () => void
+    queueMicrotask: () => void,
+    requestAnimationFrame: () => void,
+    effect: (fn: () => void | (() => void)) => () => void,
+    cleanup: (fn: () => void) => () => void,
+    next: () => void,
+    throw: (value?: unknown) => void,
+    return: () => void,
   }
 
   type IntrinsicElements = {
-    [TTag in Tag]: Partial<PropSetter<TTag> & AjoAttrs<ElementType<TTag>>> & Attrs
+    [TTag in Tag]: Partial<PropSetter<TTag> & SpecialProps<ElementType<TTag>>> & Props
   }
 
   type ElementChildrenAttribute = { children: Children }
 
   function Fragment({ children }: ElementChildrenAttribute): typeof children
-  function h<TTag extends Tag>(tag: TTag, props?: Attrs | null, ...children: Array<unknown>): VNode<TTag>
-  function render(h: Children, el: Element): void
+  function h(tag: Type, props?: Props | null, ...children: Children[]): VNode<Type, Props>
+  function render(h: Children, el: Element, child?: Node, ref?: Node): void
+  function context<T>(fallback?: T): (value?: T) => T
+}
+
+declare module 'ajo/html' {
+  function render(h: import('ajo').Children): string
+  function html(h: import('ajo').Children): IterableIterator<string>
   function context<T>(fallback?: T): (value?: T) => T
 }
 
 declare namespace JSX {
   type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
   type IntrinsicElements = import('ajo').IntrinsicElements
-}
-
-declare namespace React {
-  const createElement: typeof import('ajo').h
-  const Fragment: typeof import('ajo').Fragment
-  type ReactNode = import('ajo').Children
 }
