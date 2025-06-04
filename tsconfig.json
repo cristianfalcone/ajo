@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "lib": ["ESNext", "DOM"],
-    "types": ["node", "vite/client", "vitest"],
+    "types": ["node", "vitest"],
     "module": "ESNext",
     "skipLibCheck": true,
 
