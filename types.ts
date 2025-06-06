@@ -10,6 +10,7 @@ declare module 'ajo' {
 
   type VNode<TTag extends Type, TProps extends Props = Props> = TProps & {
     nodeName: TTag,
+    children?: Children,
   }
 
   type Children = unknown
@@ -67,12 +68,17 @@ declare module 'ajo' {
   function Fragment({ children }: ElementChildrenAttribute): typeof children
   function h(tag: Type, props?: Props | null, ...children: Children[]): VNode<Type, Props>
   function render(h: Children, el: Element, child?: Node, ref?: Node): void
-  function context<T>(fallback?: T): (value?: T) => T
+  function collect(): void
+  function hydrate(patch: { id: string, done?: boolean, h?: Children, src?: string }): Promise<void>
 }
 
-declare module 'ajo/html' {
-  function render(h: import('ajo').Children): string
-  function html(h: import('ajo').Children): IterableIterator<string>
+declare module 'ajo/ssr' {
+  function render(h: import('ajo').Children): Promise<string>
+  function html(h: import('ajo').Children): AsyncIterableIterator<string>
+  function stream(h: import('ajo').Children): AsyncIterableIterator<string>
+}
+
+declare module 'ajo/context' {
   function context<T>(fallback?: T): (value?: T) => T
 }
 

@@ -1,6 +1,7 @@
 import type { Children, Stateful } from 'ajo'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, context } from 'ajo'
+import { render } from 'ajo'
+import { context } from 'ajo/context'
 
 describe('render', () => {
 
@@ -629,6 +630,7 @@ describe('context', () => {
 		}
 
 		const App: Stateful = function* () {
+
 			let count = 0
 
 			const increment = () => {
@@ -648,15 +650,11 @@ describe('context', () => {
 		}
 
 		render(<App />, document.body)
-		expect(document.body.innerHTML).toBe(
-			'<div><div><span>Count: 0</span></div><button>Increment</button></div>'
-		)
+		expect(document.body.innerHTML).toBe('<div><div><span>Count: 0</span></div><button>Increment</button></div>')
 
 		document.querySelector('button')!.click()
 
-		expect(document.body.innerHTML).toBe(
-			'<div><div><span>Count: 1</span></div><button>Increment</button></div>'
-		)
+		expect(document.body.innerHTML).toBe('<div><div><span>Count: 1</span></div><button>Increment</button></div>')
 	})
 
 	it('should handle multiple contexts', () => {

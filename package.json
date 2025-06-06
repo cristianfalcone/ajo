@@ -12,10 +12,15 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./html": {
+    "./ssr": {
       "types": "./types.ts",
-      "import": "./dist/html.js",
-      "require": "./dist/html.cjs"
+      "import": "./dist/ssr.js",
+      "require": "./dist/ssr.cjs"
+    },
+    "./context": {
+      "types": "./types.ts",
+      "import": "./dist/context.js",
+      "require": "./dist/context.cjs"
     }
   },
   "files": [

@@ -15,7 +15,8 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      { find: 'ajo/html', replacement: resolve(__dirname, 'html.js') },
+      { find: 'ajo/context', replacement: resolve(__dirname, 'context.js') },
+      { find: 'ajo/ssr', replacement: resolve(__dirname, 'ssr.js') },
       { find: 'ajo', replacement: resolve(__dirname, 'index.js') },
     ],
   },
@@ -27,8 +28,9 @@ export default defineConfig({
   build: {
     lib: {
       entry: [
+        resolve(__dirname, 'context.js'),
+        resolve(__dirname, 'ssr.js'),
         resolve(__dirname, 'index.js'),
-        resolve(__dirname, 'html.js'),
       ],
     },
   },

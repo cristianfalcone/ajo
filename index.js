@@ -1,3 +1,5 @@
+import { Context, current } from './context.js'
+
 const
 	Key = Symbol.for('ajo.key'),
 	Memo = Symbol.for('ajo.memo'),
@@ -153,7 +155,6 @@ const
 	Generator = Symbol.for('ajo.generator'),
 	Iterator = Symbol.for('ajo.iterator'),
 	Args = Symbol.for('ajo.args'),
-	Context = Symbol.for('ajo.context'),
 	Effects = Symbol.for('ajo.effects'),
 	Disposers = Symbol.for('ajo.disposers'),
 	Cleanups = Symbol.for('ajo.cleanups')
@@ -162,7 +163,7 @@ const next = (gen, h, el) => {
 
 	if (!el) return
 
-	el[Generator] ??= (Object.assign(el, methods), el[Context] = Object.create(current?.[Context] ?? null), gen)
+	el[Generator] ??= (Object.assign(el, methods), el[Context] = Object.create(current()?.[Context] ?? null), gen)
 
 	const { skip, ref, ...args } = h
 
@@ -255,8 +256,6 @@ const add = (el, set, fn) => {
 	return () => el[set].delete(fn)
 }
 
-let current = null
-
 const methods = {
 
 	*[Symbol.iterator]() {
@@ -264,7 +263,7 @@ const methods = {
 	},
 
 	render() {
-		if (!current?.contains(this)) this.next()
+		if (!current()?.contains(this)) this.next()
 	},
 
 	queueMicrotask() {
@@ -285,9 +284,9 @@ const methods = {
 
 	next() {
 
-		const parent = current
+		const parent = current()
 
-		current = this
+		current(this)
 
 		try {
 
@@ -309,7 +308,7 @@ const methods = {
 
 		} finally {
 
-			current = parent
+			current(parent)
 		}
 	},
 
@@ -348,9 +347,24 @@ const methods = {
 	}
 }
 
-export const context = (fallback, key = Symbol()) => function (...args) {
+const holes = new Map
 
-	const ctx = this ?? current
+export const collect = () => {
 
-	return ctx ? args.length == 0 ? key in ctx[Context] ? ctx[Context][key] : fallback : ctx[Context][key] = args[0] : fallback
+  holes.clear()
+
+  for (const el of document.querySelectorAll('[data-ssr-id]')) holes.set(el.dataset.ssrId, el)
+}
+
+export const hydrate = async ({ id, h, done, src }) => {
+
+  const el = holes.get(id)
+
+  if (!el) return
+
+  if (h != null) render(h, el)
+
+	if (done) holes.delete(id)
+
+	if (src) render((await import(src)).default(), el)
 }
