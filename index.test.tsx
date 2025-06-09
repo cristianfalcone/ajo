@@ -104,7 +104,7 @@ describe('render', () => {
 	})
 })
 
-describe('component', () => {
+describe('components', () => {
 
 	beforeEach(() => {
 		render(null, document.body)

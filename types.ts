@@ -50,10 +50,6 @@ declare module 'ajo' {
   type StatefulElement<TArguments extends Props = Props, TTag extends Tag = Tag> = ElementType<TTag> & {
     [Symbol.iterator]: () => Iterator<TArguments>,
     render: () => void,
-    queueMicrotask: () => void,
-    requestAnimationFrame: () => void,
-    effect: (fn: () => void | (() => void)) => () => void,
-    cleanup: (fn: () => void) => () => void,
     next: () => void,
     throw: (value?: unknown) => void,
     return: () => void,
@@ -68,14 +64,16 @@ declare module 'ajo' {
   function Fragment({ children }: ElementChildrenAttribute): typeof children
   function h(tag: Type, props?: Props | null, ...children: Children[]): VNode<Type, Props>
   function render(h: Children, el: Element, child?: Node, ref?: Node): void
-  function collect(): void
-  function hydrate(patch: { id: string, done?: boolean, h?: Children, src?: string }): Promise<void>
 }
 
-declare module 'ajo/ssr' {
-  function render(h: import('ajo').Children): Promise<string>
-  function html(h: import('ajo').Children): AsyncIterableIterator<string>
+declare module 'ajo/html' {
+  function render(h: import('ajo').Children): string
+  function html(h: import('ajo').Children, alloc?: (parentId: string) => string, push?: (patch: { id: string, h: import('ajo').Children, done: boolean }) => void): IterableIterator<string>
+}
+
+declare module 'ajo/stream' {
   function stream(h: import('ajo').Children): AsyncIterableIterator<string>
+  function hydrate(patch: { id: string, h?: import('ajo').Children, src?: string, done?: boolean }): Promise<void>
 }
 
 declare module 'ajo/context' {
