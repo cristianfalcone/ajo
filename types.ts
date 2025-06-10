@@ -8,14 +8,14 @@ declare module 'ajo' {
 
   type Props = Record<string, unknown>
 
-  type VNode<TTag extends Type, TProps extends Props = Props> = TProps & {
+  type VNode<TTag extends Type, TProps extends Props> = TProps & {
     nodeName: TTag,
     children?: Children,
   }
 
   type Children = unknown
 
-  type ElementType<TTag = Tag> = TTag extends keyof HTMLElementTagNameMap
+  type ElementType<TTag> = TTag extends keyof HTMLElementTagNameMap
     ? HTMLElementTagNameMap[TTag]
     : TTag extends keyof SVGElementTagNameMap
     ? SVGElementTagNameMap[TTag]
@@ -28,7 +28,7 @@ declare module 'ajo' {
     ref: (el: TElement | null) => void,
   } & ElementChildrenAttribute
 
-  type PropSetter<TTag = Tag> = {
+  type PropSetter<TTag> = {
     [K in keyof ElementType<TTag> as `set:${Exclude<K, symbol>}`]: ElementType<TTag>[K]
   }
 
@@ -36,19 +36,18 @@ declare module 'ajo' {
     [key: `attr:${string}`]: unknown
   }
 
-  type Stateless<TArguments extends Props = Props> = (args: TArguments) => Children
+  type Stateless<TArguments extends Props = {}> = (args: TArguments) => Children
 
-  type Stateful<TArguments extends Props = Props, TTag extends Tag = 'div'> = {
-    (this: StatefulElement<TArguments, TTag>, args: StatefulProps<TArguments, TTag>): Iterator<Children>
+  type Stateful<TArguments extends Props = {}, TTag extends Tag = 'div'> = {
+    (this: StatefulElement<TTag>, args: StatefulProps<TArguments, TTag>): Iterator<Children>
   } & (TTag extends 'div' ? { is?: TTag } : { is: TTag }) & { attrs?: Partial<PropSetter<TTag>> & Props, args?: Partial<TArguments> }
 
-  type StatefulProps<TArguments extends Props = Props, TTag extends Tag = 'div'> =
-    Partial<SpecialProps<StatefulElement<TArguments, TTag>> & PropSetter<TTag>> &
+  type StatefulProps<TArguments, TTag> =
+    Partial<SpecialProps<StatefulElement<TTag>> & PropSetter<TTag>> &
     AttrSetter &
     TArguments
 
-  type StatefulElement<TArguments extends Props = Props, TTag extends Tag = Tag> = ElementType<TTag> & {
-    [Symbol.iterator]: () => Iterator<TArguments>,
+  type StatefulElement<TTag> = ElementType<TTag> & {
     render: () => void,
     next: () => void,
     throw: (value?: unknown) => void,
@@ -67,13 +66,16 @@ declare module 'ajo' {
 }
 
 declare module 'ajo/html' {
+
+  type Patch = { id: string, h?: import('ajo').Children, src?: string, done?: boolean }
+
   function render(h: import('ajo').Children): string
-  function html(h: import('ajo').Children, alloc?: (parentId: string) => string, push?: (patch: { id: string, h: import('ajo').Children, done: boolean }) => void): IterableIterator<string>
+  function html(h: import('ajo').Children, alloc?: (parentId: string) => string, push?: (patch: Patch) => void): IterableIterator<string>
 }
 
 declare module 'ajo/stream' {
   function stream(h: import('ajo').Children): AsyncIterableIterator<string>
-  function hydrate(patch: { id: string, h?: import('ajo').Children, src?: string, done?: boolean }): Promise<void>
+  function hydrate(patch: import('ajo/html').Patch): Promise<void>
 }
 
 declare module 'ajo/context' {

@@ -50,13 +50,13 @@ const run = function* (h) {
 
 	else if (typeof h === 'object' && 'nodeName' in h) {
 
-		const { nodeName, ...rest } = h
+		const { nodeName, fallback = nodeName.fallback, ...rest } = h
 
-		if (typeof nodeName === 'function') yield* runFn(nodeName, rest)
+		if (typeof nodeName === 'function') yield* runFn(Object.assign(nodeName, { fallback }), rest)
 
 		else yield h
 	}
-	
+
 	else yield String(h)
 }
 
@@ -80,16 +80,7 @@ const runGeneratorFn = (fn, h) => {
 		else args[key] = value
 	}
 
-	return {
-
-		...attrs,
-
-		nodeName: fn.is ?? 'div',
-
-		skip: true,
-
-		ref: createComponentRef(fn, { ...args, skip: h.skip, ref: h.ref })
-	}
+	return { ...attrs, nodeName: fn.is ?? 'div', skip: true, ref: createComponentRef(fn, h.skip, h.ref, args) }
 }
 
 const reconcile = (h, el, child) => {
@@ -148,18 +139,11 @@ const reconcileElement = (h, el, child) => {
 
 			if (prev[name] === value) continue
 
-			if (name.startsWith('set:')) {
+			if (name.startsWith('set:')) node[name.slice(4)] = value
 
-				node[name.slice(4)] = value
+			else if (value == null || value === false) node.removeAttribute(name)
 
-			} else if (value == null || value === false) {
-
-				node.removeAttribute(name)
-
-			} else {
-
-				node.setAttribute(name, value === true ? '' : value)
-			}
+			else node.setAttribute(name, value === true ? '' : value)
 		}
 
 		node[Cache] = next
@@ -208,17 +192,15 @@ const unref = el => {
 	el[Ref]?.(null)
 }
 
-const createComponentRef = (fn, args) => el => {
+const createComponentRef = (fn, skip, ref, args) => el => {
 
 	if (!el) return
 
 	el[Generator] ??= attachComponent(el, fn)
 
-	const { skip, ref, ...props } = args
-
 	el[Ref] = disposeComponent.bind(null, ref, el)
 
-	Object.assign(el[Args] ??= {}, props)
+	Object.assign(el[Args] ??= {}, args)
 
 	if (!skip) el.next()
 }
@@ -241,11 +223,6 @@ const disposeComponent = (ref, component, el) => {
 
 const componentMethods = {
 
-	*[Symbol.iterator]() {
-
-		while (true) yield this[Args]
-	},
-
 	render() {
 
 		if (!current()?.contains(this)) this.next()
@@ -259,13 +236,13 @@ const componentMethods = {
 
 		try {
 
-			const iteration = (this[Iterator] ??= this[Generator].call(this, this[Args])).next()
+			const { value, done } = (this[Iterator] ??= this[Generator].call(this, this[Args])).next()
 
-			render(iteration.value, this)
+			render(value, this)
 
 			this[Ref]?.(this)
 
-			if (iteration.done) this.return()
+			if (done) this.return()
 
 		} catch (value) {
 

@@ -39,11 +39,11 @@
     "release": "pnpm test && pnpm build && pnpm bump && pnpm publish"
   },
   "devDependencies": {
-    "@types/node": "22.15.29",
-    "happy-dom": "17.6.1",
+    "@types/node": "24.0.0",
+    "happy-dom": "17.6.3",
     "vite": "6.3.5",
     "vite-tsconfig-paths": "5.1.4",
-    "vitest": "3.2.0"
+    "vitest": "3.2.3"
   },
   "keywords": [
     "ui",

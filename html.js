@@ -43,9 +43,9 @@ const run = (h, alloc, push) => {
 
 	if (typeof h === 'object' && 'nodeName' in h) {
 
-		const { nodeName, ...rest } = h
+		const { nodeName, fallback = nodeName.fallback, ...rest } = h
 
-		if (typeof nodeName === 'function') return runFn(nodeName, rest, alloc, push)
+		if (typeof nodeName === 'function') return runFn(Object.assign(nodeName, { fallback }), rest, alloc, push)
 
 		const node = { nodeName }
 
@@ -63,6 +63,15 @@ const runFn = (fn, h, alloc, push) => {
 
 	const type = fn.constructor.name
 
+	if (fn.src) {
+
+		const id = alloc()
+
+		push({ id, src: fn.src, h, done: true })
+
+		return placeholder(id, fn.fallback)
+	}
+
 	if (type === 'GeneratorFunction') return runGeneratorFn(fn, h, alloc, push)
 
 	if (type === 'AsyncGeneratorFunction') return runAsyncGeneratorFn(fn, h, alloc, push)
@@ -71,20 +80,11 @@ const runFn = (fn, h, alloc, push) => {
 
 	if (h instanceof Promise) {
 
-		if (push === noop) return run(h, alloc, push)
+		if (push === noop) return fn.fallback
 
 		const id = alloc()
 
 		h.then(h => push({ id, h: run(h, (parent = id) => alloc(parent), push), done: true }))
-
-		return placeholder(id, fn.fallback)
-	}
-
-	if (fn.client) {
-
-		const id = alloc()
-
-		push({ id, h: run(h, (parent = id) => alloc(parent), push), done: true })
 
 		return placeholder(id, fn.fallback)
 	}
@@ -109,13 +109,11 @@ const runGeneratorFn = (fn, h, alloc, push) => {
 
 		[Context]: Object.assign(Object.create(null), current()?.[Context]),
 
-		*[Symbol.iterator]() { while (true) yield args },
-
 		[Args]: args,
 
 		render: noop, next: noop, return: noop,
 
-		throw: (err) => { throw err }
+		throw: value => { throw value }
 	}
 
 	const iterator = fn.call(instance, args)
@@ -138,9 +136,9 @@ const runGeneratorFn = (fn, h, alloc, push) => {
 
 const runAsyncGeneratorFn = (fn, h, alloc, push) => {
 
-	const id = alloc()
+	if (push === noop) return fn.fallback
 
-	if (push === noop) return placeholder(id, null)
+	const id = alloc()
 
 	Promise.resolve().then(async () => {
 
@@ -161,9 +159,9 @@ const runAsyncGeneratorFn = (fn, h, alloc, push) => {
 
 			push({ id, h: run(h.value, alloc, push), done: true })
 
-		} catch (error) {
+		} catch (value) {
 
-			push({ id, h: run(null, alloc, push), done: true })
+			push({ id, h: run(value, alloc, push), done: true })
 
 		} finally {
 
@@ -171,7 +169,7 @@ const runAsyncGeneratorFn = (fn, h, alloc, push) => {
 		}
 	})
 
-	return placeholder(id, null)
+	return placeholder(id, fn.fallback)
 }
 
 const stringify = function* (h) {

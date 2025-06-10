@@ -1,4 +1,4 @@
-import { render } from 'ajo'
+import { h as hyperscript, render } from 'ajo'
 import { html } from 'ajo/html'
 
 export const stream = async function* (h) {
@@ -37,13 +37,13 @@ export const stream = async function* (h) {
 	while (patches.length) yield patches.shift()
 }
 
-export const hydrate = async ({ id, h, src }) => {
+export const hydrate = async ({ id, src, h }) => {
 
   const el = document.querySelector(`[data-ssr="${id}"]`)
 
   if (!el) return
 
-  render(h, el)
+	if (src) render(hyperscript((await import(src)).default, h), el)
 
-	if (src) render((await import(src)).default(), el)
+	else render(h, el)
 }

@@ -905,21 +905,20 @@ describe('key special attribute', () => {
 
 		render(<App />, document.body)
 
-		const getContent = () => document.querySelector('div > div')
+		const getContent = () => document.querySelector('div > div > div') // App wrapper > KeyedComponent wrapper > content div
+
 		const originalContent = getContent()
 
 		expect(originalContent).not.toBeNull()
+		expect(originalContent!.textContent).toBe('Content')
 
-		// Trigger update
 		document.querySelector('button')!.click()
 
 		const newContent = getContent()
 
 		expect(newContent).not.toBeNull()
-
-		// Content should be the same, but it should be a new DOM node due to different key
 		expect(newContent!.textContent).toBe('Content')
-		// expect(newContent).not.toBe(originalContent)
+		expect(newContent).not.toBe(originalContent) // Content should be the same, but it should be a new DOM node due to different key
 	})
 })
 
