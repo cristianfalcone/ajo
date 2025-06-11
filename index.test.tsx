@@ -1435,4 +1435,81 @@ describe('memo attribute', () => {
 		componentRef!.render()
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: updated</p></div></div></div>')
 	})
+
+	it('issue with example app re-rendering', () => {
+
+		const Layout = (args: { children: Children }) =>
+			<main>
+				{args.children}
+			</main>
+
+		const Page1 = function* (args: { children: Children }) {
+	
+			while (true) yield (
+				<>
+					<div>
+						Marketing Layout
+					</div>
+					{args.children}
+				</>
+			)
+		}
+
+		const Page2 = (args: { children: Children }) =>
+			<>
+				<div>
+					Shop Layout
+					<Counter />
+				</div>
+				{args.children}
+			</>
+
+		const Counter: Stateful = function* () {
+
+			let count = 0
+
+			const increment = () => {
+				count++
+				this.render()
+			}
+
+			while (true) {
+
+				yield (
+					<button set:onclick={increment}>
+						{count}
+					</button>
+				)
+			}
+		}
+
+		let Page = Page1
+
+		const App = () =>
+			<Layout>
+				<Page>
+					Page Content
+				</Page>
+			</Layout>
+
+		render(<App />, document.body)
+
+		expect(document.body.innerHTML).toBe('<main><div><div>Marketing Layout</div>Page Content</div></main>')
+
+		Page = Page2
+
+		render(<App />, document.body)
+
+		expect(document.body.innerHTML).toBe('<main><div>Shop Layout<div><button>0</button></div></div>Page Content</main>')
+
+		document.querySelector('button')!.click()
+
+		expect(document.body.innerHTML).toBe('<main><div>Shop Layout<div><button>1</button></div></div>Page Content</main>')
+
+		Page = Page1
+
+		render(<App />, document.body)
+
+		expect(document.body.innerHTML).toBe('<main><div><div>Marketing Layout</div>Page Content</div></main>')
+	})
 })

@@ -4,7 +4,7 @@ declare module 'ajo' {
 
   type Type = Tag | Stateless | Stateful
 
-  type Component = Stateless | Stateful
+  type Component<TProps extends Props = {}> = Stateless<TProps> | Stateful<TProps>
 
   type Props = Record<string, unknown>
 
