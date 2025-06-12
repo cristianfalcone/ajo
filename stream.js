@@ -3,15 +3,15 @@ import { html } from 'ajo/html'
 
 export const stream = async function* (h) {
 
-	const tasks = new Set(), patches = [], counters = new Map()
+	const tasks = new Set(), patches = [], ids = new Map()
 
 	const alloc = (parent = '') => {
 
-		if (!counters.has(parent)) counters.set(parent, 0)
+		if (!ids.has(parent)) ids.set(parent, 0)
 
-		const id = counters.get(parent)
+		const id = ids.get(parent)
 
-		counters.set(parent, id + 1)
+		ids.set(parent, id + 1)
 
 		return parent ? `${parent}:${id}` : String(id)
 	}

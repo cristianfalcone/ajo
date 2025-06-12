@@ -8,9 +8,6 @@ const Generator = Symbol.for('ajo.generator')
 const Iterator = Symbol.for('ajo.iterator')
 const Args = Symbol.for('ajo.args')
 
-const Special = new Set(['key', 'skip', 'memo', 'ref'])
-const Omit = new Set(['nodeName', 'children', ...Special])
-
 export const Fragment = props => props.children
 
 export const h = (type, props, ...children) => {
@@ -24,7 +21,12 @@ export const h = (type, props, ...children) => {
 
 export const render = (h, el, child = el.firstChild, ref) => {
 
-	for (h of run(h)) child = reconcile(h, el, child)
+	for (h of walk(h)) {
+
+		const node = reconcile(h, el, child)
+
+		node === child ? child = child.nextSibling : before(el, node, child)
+	}
 
 	while (child && child != ref) {
 
@@ -38,134 +40,101 @@ export const render = (h, el, child = el.firstChild, ref) => {
 	}
 }
 
-const some = (a, b) => Array.isArray(a) && Array.isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
+const walk = function* (h, buffer = { h: '' }, root = true) {
 
-const run = function* (h) {
+	if (h == null || typeof h == 'boolean') return
 
-	if (h == null || typeof h === 'boolean') return
+	if (Array.isArray(h)) for (h of h.flat(Infinity)) yield* walk(h, buffer, false)
 
-	if (typeof h === 'string' || typeof h === 'number') yield String(h)
+	else if (typeof h == 'object' && 'nodeName' in h) {
 
-	else if (Array.isArray(h)) for (h of h.flat(Infinity)) yield* run(h)
+		if (buffer.h) yield buffer.h, buffer.h = ''
 
-	else if (typeof h === 'object' && 'nodeName' in h) {
-
-		const { nodeName, fallback = nodeName.fallback, ...rest } = h
-
-		if (typeof nodeName === 'function') yield* runFn(Object.assign(nodeName, { fallback }), rest)
+		if (typeof h.nodeName == 'function') yield* run(h, buffer)
 
 		else yield h
-	}
 
-	else yield String(h)
+	} else buffer.h += h
+
+	if (root && buffer.h) yield buffer.h
 }
 
-const runFn = function* (fn, h) {
+const run = function* ({ nodeName, ...h }, buffer) {
 
-	if (fn.constructor.name === 'GeneratorFunction') yield runGeneratorFn(fn, h)
+	if (nodeName.constructor.name == 'GeneratorFunction') yield runGenerator(nodeName, h)
 
-	else yield* run(fn(h))
+	else yield* walk(nodeName(h), buffer, false)
 }
 
-const runGeneratorFn = (fn, h) => {
+const runGenerator = function (fn, h) {
 
 	const attrs = { ...fn.attrs }, args = { ...fn.args }
 
-	for (const [key, value] of Object.entries(h)) {
+	for (const key in h) {
 
-		if (key.startsWith('attr:')) attrs[key.slice(5)] = value
+		if (key.startsWith('attr:')) attrs[key.slice(5)] = h[key]
 
-		else if (Special.has(key) || key.startsWith('set:')) attrs[key] = value
+		else if (key == 'key' || key == 'memo' || key.startsWith('set:')) attrs[key] = h[key]
 
-		else args[key] = value
+		else args[key] = h[key]
 	}
 
-	return { ...attrs, nodeName: fn.is ?? 'div', skip: true, ref: createComponentRef(fn, h.skip, h.ref, args) }
+	return { ...attrs, nodeName: fn.is ?? 'div', skip: true, ref: next.bind(null, fn, args) }
 }
 
-const reconcile = (h, el, child) => {
+const reconcile = (h, el, node) => {
 
-	if (typeof h === 'string') return reconcileText(h, el, child)
+	if (typeof h === 'string') return text(h, node)
 
-	if (h instanceof Node) return insertNode(h, el, child)
-
-	return reconcileElement(h, el, child)
+	return element(h, el, node)
 }
 
-const reconcileText = (text, el, child) => {
+const text = (data, node) => {
 
-	while (child && child.nodeType != 3) child = child.nextSibling
+	while (node && node.nodeType != 3) node = node.nextSibling
 
-	if (child) {
+	node ? node.data != data && (node.data = data) : node = document.createTextNode(data)
 
-		if (child.data != text) child.data = text
-
-		return child.nextSibling
-
-	} else {
-
-		const node = document.createTextNode(text)
-
-		before(el, node, child)
-
-		return child
-	}
+	return node
 }
 
-const insertNode = (node, el, child) => {
+const element = ({ nodeName, children, key, skip, memo, ref, ...h }, el, node) => {
 
-	if (node !== child) before(el, node, child)
+	while (node && !(node.localName == nodeName && (node[Key] ??= key) == key)) node = node.nextSibling
 
-	return child
-}
+	node ??= Object.assign(document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName), { [Key]: key })
 
-const reconcileElement = (h, el, child) => {
+	if (memo == null || some(node[Memo], node[Memo] = memo)) {
 
-	let node = child
+		node[Cache] = attrs(node[Cache] ?? extract(node), h, node)
 
-	while (node && !(node.localName == h.nodeName && (node[Key] ??= h.key) == h.key)) node = node.nextSibling
+		if (!skip) render(children, node)
 
-	node ??= Object.assign(document.createElementNS(h.xmlns ?? el.namespaceURI, h.nodeName), { [Key]: h.key })
-
-	if (h.memo == null || some(node[Memo], node[Memo] = h.memo)) {
-
-		const next = {}, prev = node[Cache] ?? getAttributes(node)
-
-		for (const name of Object.keys({ ...prev, ...h })) {
-
-			if (Omit.has(name)) continue
-
-			const value = next[name] = h[name]
-
-			if (prev[name] === value) continue
-
-			if (name.startsWith('set:')) node[name.slice(4)] = value
-
-			else if (value == null || value === false) node.removeAttribute(name)
-
-			else node.setAttribute(name, value === true ? '' : value)
-		}
-
-		node[Cache] = next
-
-		if (!h.skip) render(h.children, node)
-
-		if (typeof h.ref === 'function') (node[Ref] = h.ref)(node)
+		if (typeof ref == 'function') (node[Ref] = ref)(node)
 	}
 
-	if (node === child) {
-
-		return child.nextSibling
-
-	} else {
-
-		before(el, node, child)
-
-		return child
-	}
+	return node
 }
 
-const getAttributes = node => Array.from(node.attributes).reduce((o, a) => (o[a.name] = a.value, o), {})
+const attrs = (cache, h, node) => {
+
+	for (const key in { ...cache, ...h }) {
+
+		if (cache[key] === h[key]) continue
+
+		if (key.startsWith('set:')) node[key.slice(4)] = h[key]
+
+		else if (h[key] == null || h[key] === false) node.removeAttribute(key)
+
+		else node.setAttribute(key, h[key] === true ? '' : h[key])
+	}
+
+	return h
+}
+
+const some = (a, b) => Array.isArray(a) && Array.isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
+
+const extract = el => Array.from(el.attributes).reduce((o, a) => (o[a.name] = a.value, o), {})
 
 const before = (el, node, child) => {
 
@@ -192,36 +161,36 @@ const unref = el => {
 	el[Ref]?.(null)
 }
 
-const createComponentRef = (fn, skip, ref, args) => el => {
+const next = (fn, { skip, ref, ...args }, el) => {
 
 	if (!el) return
 
-	el[Generator] ??= attachComponent(el, fn)
+	el[Generator] ??= attach(fn, el)
 
-	el[Ref] = disposeComponent.bind(null, ref, el)
+	el[Ref] = dispose.bind(null, ref, el)
 
 	Object.assign(el[Args] ??= {}, args)
 
 	if (!skip) el.next()
 }
 
-const attachComponent = (el, fn) => {
+const attach = (fn, el) => {
 
-	Object.assign(el, componentMethods)
+	Object.assign(el, methods)
 
 	el[Context] = Object.create(current()?.[Context] ?? null)
 
 	return fn
 }
 
-const disposeComponent = (ref, component, el) => {
+const dispose = (ref, el, node) => {
 
-	if (typeof ref === 'function') ref(el)
+	if (typeof ref == 'function') ref(node)
 
-	if (!el) component.return()
+	if (!node) el.return()
 }
 
-const componentMethods = {
+const methods = {
 
 	render() {
 
@@ -256,19 +225,13 @@ const componentMethods = {
 
 	throw(value) {
 
-		for (let el = this; el; el = el.parentNode) {
+		for (let el = this; el; el = el.parentNode) if (typeof el[Iterator]?.throw == 'function') try {
 
-			if (typeof el[Iterator]?.throw === 'function') {
+			return render(el[Iterator].throw(value).value, el)
 
-				try {
+		} catch (error) {
 
-					return render(el[Iterator].throw(value).value, el)
-
-				} catch (error) {
-
-					value = new Error(error instanceof Error ? error.message : error, { cause: value })
-				}
-			}
+			value = new Error(error instanceof Error ? error.message : error, { cause: value })
 		}
 
 		throw value

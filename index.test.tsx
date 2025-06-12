@@ -1436,7 +1436,7 @@ describe('memo attribute', () => {
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: updated</p></div></div></div>')
 	})
 
-	it('issue with example app re-rendering', () => {
+	it('should correctly handle full app re-rendering', () => {
 
 		const Layout = (args: { children: Children }) =>
 			<main>
@@ -1486,30 +1486,32 @@ describe('memo attribute', () => {
 		let Page = Page1
 
 		const App = () =>
-			<Layout>
-				<Page>
-					Page Content
-				</Page>
-			</Layout>
+			<div memo={Page}>
+				<Layout>
+					<Page>
+						Page Content
+					</Page>
+				</Layout>
+			</div>
 
 		render(<App />, document.body)
 
-		expect(document.body.innerHTML).toBe('<main><div><div>Marketing Layout</div>Page Content</div></main>')
+		expect(document.body.innerHTML).toBe('<div><main><div><div>Marketing Layout</div>Page Content</div></main></div>')
 
 		Page = Page2
 
 		render(<App />, document.body)
 
-		expect(document.body.innerHTML).toBe('<main><div>Shop Layout<div><button>0</button></div></div>Page Content</main>')
+		expect(document.body.innerHTML).toBe('<div><main><div>Shop Layout<div><button>0</button></div></div>Page Content</main></div>')
 
 		document.querySelector('button')!.click()
 
-		expect(document.body.innerHTML).toBe('<main><div>Shop Layout<div><button>1</button></div></div>Page Content</main>')
+		expect(document.body.innerHTML).toBe('<div><main><div>Shop Layout<div><button>1</button></div></div>Page Content</main></div>')
 
 		Page = Page1
 
 		render(<App />, document.body)
 
-		expect(document.body.innerHTML).toBe('<main><div><div>Marketing Layout</div>Page Content</div></main>')
+		expect(document.body.innerHTML).toBe('<div><main><div><div>Marketing Layout</div>Page Content</div></main></div>')
 	})
 })
