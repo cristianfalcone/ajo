@@ -89,11 +89,11 @@ const reconcile = (h, el, node) => {
 	return element(h, el, node)
 }
 
-const text = (data, node) => {
+const text = (h, node) => {
 
 	while (node && node.nodeType != 3) node = node.nextSibling
 
-	node ? node.data != data && (node.data = data) : node = document.createTextNode(data)
+	node ? node.data != h && (node.data = h) : node = document.createTextNode(h)
 
 	return node
 }
@@ -106,7 +106,7 @@ const element = ({ nodeName, children, key, skip, memo, ref, ...h }, el, node) =
 
 	if (memo == null || some(node[Memo], node[Memo] = memo)) {
 
-		node[Cache] = attrs(node[Cache] ?? extract(node), h, node)
+		attrs(node[Cache] ?? extract(node), node[Cache] = h, node)
 
 		if (!skip) render(children, node)
 
@@ -128,8 +128,6 @@ const attrs = (cache, h, node) => {
 
 		else node.setAttribute(key, h[key] === true ? '' : h[key])
 	}
-
-	return h
 }
 
 const some = (a, b) => Array.isArray(a) && Array.isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
@@ -138,20 +136,18 @@ const extract = el => Array.from(el.attributes).reduce((o, a) => (o[a.name] = a.
 
 const before = (el, node, child) => {
 
-	if (node.contains(document.activeElement)) {
+	if (!node.contains(document.activeElement)) return el.insertBefore(node, child)
 
-		const ref = node.nextSibling
+	const ref = node.nextSibling
 
-		while (child && child != node) {
+	while (child && child != node) {
 
-			const next = child.nextSibling
+		const next = child.nextSibling
 
-			el.insertBefore(child, ref)
+		el.insertBefore(child, ref)
 
-			child = next
-		}
-
-	} else el.insertBefore(node, child)
+		child = next
+	}
 }
 
 const unref = el => {
@@ -165,7 +161,7 @@ const next = (fn, { skip, ref, ...args }, el) => {
 
 	if (!el) return
 
-	el[Generator] ??= attach(fn, el)
+	el[Generator] ??= (attach(el), fn)
 
 	el[Ref] = dispose.bind(null, ref, el)
 
@@ -174,13 +170,11 @@ const next = (fn, { skip, ref, ...args }, el) => {
 	if (!skip) el.next()
 }
 
-const attach = (fn, el) => {
+const attach = el => {
 
 	Object.assign(el, methods)
 
 	el[Context] = Object.create(current()?.[Context] ?? null)
-
-	return fn
 }
 
 const dispose = (ref, el, node) => {

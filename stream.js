@@ -7,9 +7,7 @@ export const stream = async function* (h) {
 
 	const alloc = (parent = '') => {
 
-		if (!ids.has(parent)) ids.set(parent, 0)
-
-		const id = ids.get(parent)
+		const id = ids.get(parent) ?? (ids.set(parent, 0), 0)
 
 		ids.set(parent, id + 1)
 

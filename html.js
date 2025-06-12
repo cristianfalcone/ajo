@@ -202,7 +202,5 @@ const stringify = function* (h) {
 			yield `</${nodeName}>`
 		}
 
-		return
-
 	} else yield escape(String(h))
 }
