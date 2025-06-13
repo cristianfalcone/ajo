@@ -15,7 +15,7 @@ const drain = async (h: Children) => {
 
   for await (const chunk of stream(h)) chunk.includes('<script>') ? patches.push(JSON.parse(chunk.match(patchRE)![1])) : html += chunk
 
-  return [html, patches.sort((a, b) => a.id.localeCompare(b.id))] as const
+  return [html, patches] as const
 }
 
 describe('stream', () => {

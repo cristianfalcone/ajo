@@ -1,17 +1,17 @@
 import { h as hyperscript, render } from 'ajo'
 import { html } from 'ajo/html'
 
-export const stream = async function* (h) {
+export const stream = async function* (h, root = '') {
 
-	const tasks = new Set(), patches = [], ids = new Map()
+	const ids = new Map([[root, 0]])
+	const tasks = new Set
+	const patches = []
 
-	const alloc = (parent = '') => {
+	const alloc = (parent = root) => {
 
-		const id = ids.get(parent) ?? (ids.set(parent, 0), 0)
+		ids.set(parent, (ids.get(parent) ?? 0) + 1)
 
-		ids.set(parent, id + 1)
-
-		return parent ? `${parent}:${id}` : String(id)
+		return parent ? `${parent}:${ids.get(parent) - 1}` : String(ids.get(parent) - 1)
 	}
 
 	const push = patch => {
@@ -23,25 +23,34 @@ export const stream = async function* (h) {
 		task.then(script => patches.push(script)).finally(() => tasks.delete(task))
 	}
 
-	for (h of html(h, alloc, push)) yield h
+	for (const chunk of html(h, alloc, push)) yield chunk
 
-	while (tasks.size) {
-
-		await Promise.race(tasks)
+	while (tasks.size || patches.length) {
 
 		while (patches.length) yield patches.shift()
-	}
 
-	while (patches.length) yield patches.shift()
+		if (tasks.size) await Promise.race(tasks)
+	}
 }
 
-export const hydrate = async ({ id, src, h }) => {
+const pending = new Set
 
-  const el = document.querySelector(`[data-ssr="${id}"]`)
+export async function hydrate({ id, src, h }) {
 
-  if (!el) return
+	const el = document.querySelector(`[data-ssr="${id}"]`)
+
+	if (!el) return pending.add({ id, src, h })
 
 	if (src) render(hyperscript((await import(src)).default, h), el)
 
 	else render(h, el)
+
+	const prefix = id + ':'
+
+	for (const patch of pending) if (patch.id.startsWith(prefix)) {
+
+		pending.delete(patch)
+
+		hydrate(patch)
+	}
 }

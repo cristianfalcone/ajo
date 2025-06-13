@@ -9,20 +9,25 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./html": {
-      "types": "./types.ts",
-      "import": "./dist/html.js",
-      "require": "./dist/html.cjs"
-    },
     "./context": {
       "types": "./types.ts",
       "import": "./dist/context.js",
       "require": "./dist/context.cjs"
     },
+    "./html": {
+      "types": "./types.ts",
+      "import": "./dist/html.js",
+      "require": "./dist/html.cjs"
+    },
     "./stream": {
       "types": "./types.ts",
       "import": "./dist/stream.js",
       "require": "./dist/stream.cjs"
+    },
+    "./vite": {
+      "types": "./types.ts",
+      "import": "./dist/vite.js",
+      "require": "./dist/vite.cjs"
     }
   },
   "files": [
@@ -37,7 +42,13 @@
   },
   "devDependencies": {
     "@types/node": "24.0.0",
+    "acorn": "8.15.0",
+    "acorn-walk": "8.3.4",
+    "fast-glob": "3.3.3",
     "happy-dom": "18.0.1",
+    "magic-string": "0.30.17",
+    "polka": "1.0.0-next.28",
+    "trouter": "4.0.0",
     "vite": "6.3.5",
     "vite-tsconfig-paths": "5.1.4",
     "vitest": "3.2.3"

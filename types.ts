@@ -65,6 +65,10 @@ declare module 'ajo' {
   function render(h: Children, el: Element, child?: Node, ref?: Node): void
 }
 
+declare module 'ajo/context' {
+  function context<T>(fallback?: T): (value?: T) => T
+}
+
 declare module 'ajo/html' {
 
   type Patch = { id: string, h?: import('ajo').Children, src?: string, done?: boolean }
@@ -78,9 +82,34 @@ declare module 'ajo/stream' {
   function hydrate(patch: import('ajo/html').Patch): Promise<void>
 }
 
-declare module 'ajo/context' {
-  function context<T>(fallback?: T): (value?: T) => T
+declare module 'ajo/vite' {
+  export interface Options {
+    /** default: "src" */
+    pagesDir?: string
+    /** default: "/actions" */
+    actionsPrefix?: string
+  }
+
+  export default function ajo(options?: Options): import('vite').Plugin
 }
+
+declare module 'virtual:ajo-kit/islands' {
+  const paths: string[]
+  export default paths
+}
+
+declare module 'virtual:ajo-kit/router' {
+  export function mount(root?: HTMLElement | Document): void
+  export function createServer(): typeof import('trouter')
+}
+
+declare module 'virtual:ajo-kit/actions' {
+  const app: import('polka').Polka
+  export default app
+}
+
+declare module 'virtual:ajo-kit/stream' { /* side‑effect: installs $stream on window */ }
+declare module 'virtual:ajo-kit/client' { /* side effect: bootstraps stream + router on the client */}
 
 declare namespace JSX {
   type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
