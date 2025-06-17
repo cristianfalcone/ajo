@@ -1,18 +1,22 @@
 {
-  "compilerOptions": {
-    "target": "ESNext",
-    "lib": ["ESNext", "DOM"],
-    "types": ["node", "vitest"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-
-    "moduleResolution": "bundler",
-    "noEmit": true,
-    "jsx": "preserve",
-
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-  }
+	"compilerOptions": {
+		"target": "ESNext",
+		"lib": [
+			"ESNext",
+			"DOM"
+		],
+		"types": [
+			"node",
+			"vitest"
+		],
+		"module": "ESNext",
+		"skipLibCheck": true,
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"jsx": "preserve",
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noFallthroughCasesInSwitch": true,
+	}
 }

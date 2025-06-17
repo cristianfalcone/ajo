@@ -1,5 +1,6 @@
 import { Context, current } from 'ajo/context'
 
+const Keyed = Symbol.for('ajo.keyed')
 const Key = Symbol.for('ajo.key')
 const Memo = Symbol.for('ajo.memo')
 const Ref = Symbol.for('ajo.ref')
@@ -19,51 +20,65 @@ export const h = (type, props, ...children) => {
 	return props
 }
 
-export const render = (h, el, child = el.firstChild, ref) => {
+export const render = (h, el) => {
+
+	let child = el.firstChild
 
 	for (h of walk(h)) {
 
 		const node = reconcile(h, el, child)
 
-		node === child ? child = child.nextSibling : before(el, node, child)
+		if (child == null) before(el, node)
+
+		else if (node == child) child = child.nextSibling
+
+		else before(el, node, node == child.nextSibling ? child = move(el, child) : child)
 	}
 
-	while (child && child != ref) {
+	while (child) {
 
-		const next = child.nextSibling
-
-		if (child.nodeType == 1) unref(child)
+		const node = child.nextSibling
 
 		el.removeChild(child)
 
-		child = next
+		child = node
 	}
 }
 
-const walk = function* (h, buffer = { h: '' }, root = true) {
+const move = (el, child) => {
 
-	if (h == null || typeof h == 'boolean') return
+	const node = child.nextSibling
 
-	if (Array.isArray(h)) for (h of h.flat(Infinity)) yield* walk(h, buffer, false)
+	before(el, child)
 
-	else if (typeof h == 'object' && 'nodeName' in h) {
-
-		if (buffer.h) yield buffer.h, buffer.h = ''
-
-		if (typeof h.nodeName == 'function') yield* run(h, buffer)
-
-		else yield h
-
-	} else buffer.h += h
-
-	if (root && buffer.h) yield buffer.h
+	return node.nextSibling
 }
 
-const run = function* ({ nodeName, ...h }, buffer) {
+const walk = function* (h) {
+
+	const type = typeof h
+
+	if (h == null || type == 'boolean') return
+
+	if (type === 'string' || type === 'number') yield String(h)
+
+	else if (Array.isArray(h)) for (h of h.flat(Infinity)) yield* walk(h)
+
+	else if ('nodeName' in h) {
+
+		if (typeof h.nodeName == 'function') yield* run(h)
+
+		else yield h
+	}
+
+	else yield String(h)
+}
+
+const run = function* ({ nodeName, ...h }) {
 
 	if (nodeName.constructor.name == 'GeneratorFunction') yield runGenerator(nodeName, h)
 
-	else yield* walk(nodeName(h), buffer, false)
+	else yield* walk(nodeName(h))
 }
 
 const runGenerator = function (fn, h) {
@@ -84,7 +99,7 @@ const runGenerator = function (fn, h) {
 
 const reconcile = (h, el, node) => {
 
-	if (typeof h === 'string') return text(h, node)
+	if (typeof h == 'string') return text(h, node)
 
 	return element(h, el, node)
 }
@@ -100,9 +115,13 @@ const text = (h, node) => {
 
 const element = ({ nodeName, children, key, skip, memo, ref, ...h }, el, node) => {
 
-	while (node && !(node.localName == nodeName && (node[Key] ??= key) == key)) node = node.nextSibling
+	if (key != null) node = (el[Keyed] ??= new Map).get(key) ?? (node?.[Key] == null ? node : null)
 
-	node ??= Object.assign(document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName), { [Key]: key })
+	else while (node && node.localName != nodeName) node = node.nextSibling
+
+	node ??= document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName)
+
+	if (key != null && node[Key] == null) el[Keyed].set(node[Key] = key, node)
 
 	if (memo == null || some(node[Memo], node[Memo] = memo)) {
 
@@ -152,9 +171,9 @@ const before = (el, node, child) => {
 
 const unref = el => {
 
-	for (const child of el.children) unref(child)
+	if (Keyed in el) el[Keyed].clear()
 
-	el[Ref]?.(null)
+	if (Ref in el) el[Ref](null)
 }
 
 const next = (fn, { skip, ref, ...args }, el) => {
@@ -247,3 +266,9 @@ const methods = {
 		}
 	}
 }
+
+new MutationObserver(records =>
+
+	records.forEach(record => record.removedNodes.forEach(node => node.isConnected || node.nodeType == 1 && unref(node)))
+
+).observe(document, { childList: true, subtree: true })

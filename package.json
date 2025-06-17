@@ -1,68 +1,60 @@
 {
-  "name": "ajo",
-  "version": "0.1.23",
-  "description": "ajo is a JavaScript view library for building user interfaces",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./types.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    },
-    "./context": {
-      "types": "./types.ts",
-      "import": "./dist/context.js",
-      "require": "./dist/context.cjs"
-    },
-    "./html": {
-      "types": "./types.ts",
-      "import": "./dist/html.js",
-      "require": "./dist/html.cjs"
-    },
-    "./stream": {
-      "types": "./types.ts",
-      "import": "./dist/stream.js",
-      "require": "./dist/stream.cjs"
-    },
-    "./vite": {
-      "types": "./types.ts",
-      "import": "./dist/vite.js",
-      "require": "./dist/vite.cjs"
-    }
-  },
-  "files": [
-    "dist",
-    "types.ts"
-  ],
-  "scripts": {
-    "test": "vitest --run",
-    "build": "vite build",
-    "bump": "pnpm version patch && git push && git push --tags",
-    "release": "pnpm test && pnpm build && pnpm bump && pnpm publish"
-  },
-  "devDependencies": {
-    "@types/node": "24.0.0",
-    "acorn": "8.15.0",
-    "acorn-walk": "8.3.4",
-    "fast-glob": "3.3.3",
-    "happy-dom": "18.0.1",
-    "magic-string": "0.30.17",
-    "polka": "1.0.0-next.28",
-    "trouter": "4.0.0",
-    "vite": "6.3.5",
-    "vite-tsconfig-paths": "5.1.4",
-    "vitest": "3.2.3"
-  },
-  "keywords": [
-    "ui",
-    "frontend",
-    "web",
-    "dom",
-    "jsx"
-  ],
-  "repository": "cristianfalcone/ajo",
-  "author": "Cristian Falcone",
-  "license": "ISC",
-  "bugs": "https://github.com/cristianfalcone/ajo/issues",
-  "homepage": "https://github.com/cristianfalcone/ajo#readme"
+	"name": "ajo",
+	"version": "0.1.23",
+	"description": "ajo is a JavaScript view library for building user interfaces",
+	"type": "module",
+	"types": "./types.ts",
+	"module": "./dist/index.js",
+	"main": "./dist/index.cjs",
+	"exports": {
+		".": {
+			"types": "./types.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		},
+		"./context": {
+			"types": "./types.ts",
+			"import": "./dist/context.js",
+			"require": "./dist/context.cjs"
+		},
+		"./html": {
+			"types": "./types.ts",
+			"import": "./dist/html.js",
+			"require": "./dist/html.cjs"
+		},
+		"./stream": {
+			"types": "./types.ts",
+			"import": "./dist/stream.js",
+			"require": "./dist/stream.cjs"
+		}
+	},
+	"files": [
+		"dist",
+		"types.ts"
+	],
+	"scripts": {
+		"test": "vitest --run",
+		"build": "vite build",
+		"bump": "pnpm version patch && git push && git push --tags",
+		"release": "pnpm test && pnpm build && pnpm bump && pnpm publish"
+	},
+	"devDependencies": {
+		"@types/node": "24.0.0",
+		"happy-dom": "18.0.1",
+		"vite": "6.3.5",
+		"vite-tsconfig-paths": "5.1.4",
+		"vitest": "3.2.3"
+	},
+	"keywords": [
+		"ui",
+		"frontend",
+		"web",
+		"dom",
+		"jsx"
+	],
+	"repository": "cristianfalcone/ajo",
+	"author": "Cristian Falcone",
+	"license": "ISC",
+	"bugs": "https://github.com/cristianfalcone/ajo/issues",
+	"homepage": "https://github.com/cristianfalcone/ajo#readme"
 }

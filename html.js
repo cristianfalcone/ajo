@@ -23,9 +23,11 @@ export const html = function* (h, alloc = () => '', push = noop) {
 
 const walk = (h, alloc, push) => {
 
-	if (h == null || typeof h === 'boolean') return
+	const type = typeof h
 
-	if (typeof h === 'string' || typeof h === 'number') return String(h)
+	if (h == null || type === 'boolean') return
+
+	if (type === 'string' || type === 'number') return String(h)
 
 	if (Array.isArray(h)) {
 
@@ -41,7 +43,7 @@ const walk = (h, alloc, push) => {
 		return children.length === 1 ? children[0] : children
 	}
 
-	if (typeof h === 'object' && 'nodeName' in h) {
+	if ('nodeName' in h) {
 
 		if (typeof h.nodeName === 'function') return run(h, alloc, push)
 
@@ -57,7 +59,7 @@ const walk = (h, alloc, push) => {
 	return String(h)
 }
 
-const run = ({ nodeName, fallback = nodeName.fallback, ...h } , alloc, push) => {
+const run = ({ nodeName, fallback = nodeName.fallback, ...h }, alloc, push) => {
 
 	if (nodeName.src) {
 
@@ -176,7 +178,7 @@ const stringify = function* (h) {
 
 	else if (Array.isArray(h)) for (h of h) yield* stringify(h)
 
-	else if (typeof h === 'object' && 'nodeName' in h) {
+	else if ('nodeName' in h) {
 
 		const { nodeName, children } = h
 
@@ -201,6 +203,7 @@ const stringify = function* (h) {
 
 			yield `</${nodeName}>`
 		}
+	}
 
-	} else yield escape(String(h))
+	else yield escape(String(h))
 }

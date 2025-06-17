@@ -1,117 +1,88 @@
 declare module 'ajo' {
 
-  type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
+	type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
 
-  type Type = Tag | Stateless | Stateful
+	type Type = Tag | Stateless | Stateful
 
-  type Component<TProps extends Props = {}> = Stateless<TProps> | Stateful<TProps>
+	type Component<TProps extends Props = {}> = Stateless<TProps> | Stateful<TProps>
 
-  type Props = Record<string, unknown>
+	type Props = Record<string, unknown>
 
-  type VNode<TTag extends Type, TProps extends Props> = TProps & {
-    nodeName: TTag,
-    children?: Children,
-  }
+	type VNode<TTag extends Type, TProps extends Props> = TProps & {
+		nodeName: TTag,
+		children?: Children,
+	}
 
-  type Children = unknown
+	type Children = unknown
 
-  type ElementType<TTag> = TTag extends keyof HTMLElementTagNameMap
-    ? HTMLElementTagNameMap[TTag]
-    : TTag extends keyof SVGElementTagNameMap
-    ? SVGElementTagNameMap[TTag]
-    : never
+	type ElementType<TTag> = TTag extends keyof HTMLElementTagNameMap
+		? HTMLElementTagNameMap[TTag]
+		: TTag extends keyof SVGElementTagNameMap
+		? SVGElementTagNameMap[TTag]
+		: never
 
-  type SpecialProps<TElement> = {
-    key: unknown,
-    skip: boolean,
-    memo: unknown,
-    ref: (el: TElement | null) => void,
-  } & ElementChildrenAttribute
+	type SpecialProps<TElement> = {
+		key: unknown,
+		skip: boolean,
+		memo: unknown,
+		ref: (el: TElement | null) => void,
+	} & ElementChildrenAttribute
 
-  type PropSetter<TTag> = {
-    [K in keyof ElementType<TTag> as `set:${Exclude<K, symbol>}`]: ElementType<TTag>[K]
-  }
+	type PropSetter<TTag> = {
+		[K in keyof ElementType<TTag> as `set:${Exclude<K, symbol>}`]: ElementType<TTag>[K]
+	}
 
-  type AttrSetter = {
-    [key: `attr:${string}`]: unknown
-  }
+	type AttrSetter = {
+		[key: `attr:${string}`]: unknown
+	}
 
-  type Stateless<TArguments extends Props = {}> = (args: TArguments) => Children
+	type Stateless<TArguments extends Props = {}> = (args: TArguments) => Children
 
-  type Stateful<TArguments extends Props = {}, TTag extends Tag = 'div'> = {
-    (this: StatefulElement<TTag>, args: StatefulProps<TArguments, TTag>): Iterator<Children>
-  } & (TTag extends 'div' ? { is?: TTag } : { is: TTag }) & { attrs?: Partial<PropSetter<TTag>> & Props, args?: Partial<TArguments> }
+	type Stateful<TArguments extends Props = {}, TTag extends Tag = 'div'> = {
+		(this: StatefulElement<TTag>, args: StatefulProps<TArguments, TTag>): Iterator<Children>
+	} & (TTag extends 'div' ? { is?: TTag } : { is: TTag }) & { attrs?: Partial<PropSetter<TTag>> & Props, args?: Partial<TArguments> }
 
-  type StatefulProps<TArguments, TTag> =
-    Partial<SpecialProps<StatefulElement<TTag>> & PropSetter<TTag>> &
-    AttrSetter &
-    TArguments
+	type StatefulProps<TArguments, TTag> =
+		Partial<SpecialProps<StatefulElement<TTag>> & PropSetter<TTag>> &
+		AttrSetter &
+		TArguments
 
-  type StatefulElement<TTag> = ElementType<TTag> & {
-    render: () => void,
-    next: () => void,
-    throw: (value?: unknown) => void,
-    return: () => void,
-  }
+	type StatefulElement<TTag> = ElementType<TTag> & {
+		render: () => void,
+		next: () => void,
+		throw: (value?: unknown) => void,
+		return: () => void,
+	}
 
-  type IntrinsicElements = {
-    [TTag in Tag]: Partial<PropSetter<TTag> & SpecialProps<ElementType<TTag>>> & Props
-  }
+	type IntrinsicElements = {
+		[TTag in Tag]: Partial<PropSetter<TTag> & SpecialProps<ElementType<TTag>>> & Props
+	}
 
-  type ElementChildrenAttribute = { children: Children }
+	type ElementChildrenAttribute = { children: Children }
 
-  function Fragment({ children }: ElementChildrenAttribute): typeof children
-  function h(tag: Type, props?: Props | null, ...children: Children[]): VNode<Type, Props>
-  function render(h: Children, el: Element, child?: Node, ref?: Node): void
+	function Fragment({ children }: ElementChildrenAttribute): typeof children
+	function h(tag: Type, props?: Props | null, ...children: Children[]): VNode<Type, Props>
+	function render(h: Children, el: Element, child?: Node, ref?: Node): void
 }
 
 declare module 'ajo/context' {
-  function context<T>(fallback?: T): (value?: T) => T
+	function context<T>(fallback?: T): (value?: T) => T
 }
 
 declare module 'ajo/html' {
 
-  type Patch = { id: string, h?: import('ajo').Children, src?: string, done?: boolean }
+	type Patch = { id: string, h?: import('ajo').Children, src?: string, done?: boolean }
 
-  function render(h: import('ajo').Children): string
-  function html(h: import('ajo').Children, alloc?: (parentId: string) => string, push?: (patch: Patch) => void): IterableIterator<string>
+	function render(h: import('ajo').Children): string
+	function html(h: import('ajo').Children, alloc?: (parentId: string) => string, push?: (patch: Patch) => void): IterableIterator<string>
 }
 
 declare module 'ajo/stream' {
-  function stream(h: import('ajo').Children): AsyncIterableIterator<string>
-  function hydrate(patch: import('ajo/html').Patch): Promise<void>
+	function stream(h: import('ajo').Children): AsyncIterableIterator<string>
+	function hydrate(patch: import('ajo/html').Patch): Promise<void>
 }
-
-declare module 'ajo/vite' {
-  export interface Options {
-    /** default: "src" */
-    pagesDir?: string
-    /** default: "/actions" */
-    actionsPrefix?: string
-  }
-
-  export default function ajo(options?: Options): import('vite').Plugin
-}
-
-declare module 'virtual:ajo-kit/islands' {
-  const paths: string[]
-  export default paths
-}
-
-declare module 'virtual:ajo-kit/router' {
-  export function mount(root?: HTMLElement | Document): void
-  export function createServer(): typeof import('trouter')
-}
-
-declare module 'virtual:ajo-kit/actions' {
-  const app: import('polka').Polka
-  export default app
-}
-
-declare module 'virtual:ajo-kit/stream' { /* side‑effect: installs $stream on window */ }
-declare module 'virtual:ajo-kit/client' { /* side effect: bootstraps stream + router on the client */}
 
 declare namespace JSX {
-  type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
-  type IntrinsicElements = import('ajo').IntrinsicElements
+	type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
+	type IntrinsicElements = import('ajo').IntrinsicElements
 }
