@@ -14,6 +14,8 @@ export const stream = async function* (h, root = '') {
 		return parent ? `${parent}:${ids.get(parent) - 1}` : String(ids.get(parent) - 1)
 	}
 
+	const placeholder = (id, children) => ({ nodeName: 'div', 'data-ssr': id, children })
+
 	const push = patch => {
 
 		const task = Promise.resolve(`<script>window.$stream?.push(${JSON.stringify(patch)})</script>`)
@@ -23,7 +25,7 @@ export const stream = async function* (h, root = '') {
 		task.then(script => patches.push(script)).finally(() => tasks.delete(task))
 	}
 
-	for (const chunk of html(h, alloc, push)) yield chunk
+	for (const chunk of html(h, { alloc, placeholder, push })) yield chunk
 
 	while (tasks.size || patches.length) {
 

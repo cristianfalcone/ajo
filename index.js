@@ -62,7 +62,7 @@ const walk = function* (h) {
 
 	if (type === 'string' || type === 'number') yield String(h)
 
-	else if (Array.isArray(h)) for (h of h.flat(Infinity)) yield* walk(h)
+	else if (Array.isArray(h)) for (h of h) yield* walk(h)
 
 	else if ('nodeName' in h) {
 
@@ -115,13 +115,18 @@ const text = (h, node) => {
 
 const element = ({ nodeName, children, key, skip, memo, ref, ...h }, el, node) => {
 
-	if (key != null) node = (el[Keyed] ??= new Map).get(key) ?? (node?.[Key] == null ? node : null)
+	if (key != null) node = (el[Keyed] ??= new Map).get(key) ?? node
 
 	else while (node && node.localName != nodeName) node = node.nextSibling
 
 	node ??= document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName)
 
-	if (key != null && node[Key] == null) el[Keyed].set(node[Key] = key, node)
+	if (key != null && node[Key] != key) {
+
+		if (node[Key] != null) unref(node)
+
+		el[Keyed].set(node[Key] = key, node)
+	}
 
 	if (memo == null || some(node[Memo], node[Memo] = memo)) {
 
@@ -151,7 +156,7 @@ const attrs = (cache, h, node) => {
 
 const some = (a, b) => Array.isArray(a) && Array.isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
 
-const extract = el => Array.from(el.attributes).reduce((o, a) => (o[a.name] = a.value, o), {})
+const extract = el => Array.from(el.attributes).reduce((out, attr) => (out[attr.name] = attr.value, out), {})
 
 const before = (el, node, child) => {
 
@@ -171,9 +176,11 @@ const before = (el, node, child) => {
 
 const unref = el => {
 
-	if (Keyed in el) el[Keyed].clear()
+	for (const child of el.children) unref(child)
 
-	if (Ref in el) el[Ref](null)
+	el[Keyed]?.clear()
+
+	el[Ref]?.(null)
 }
 
 const next = (fn, { skip, ref, ...args }, el) => {

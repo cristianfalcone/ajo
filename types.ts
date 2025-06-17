@@ -71,10 +71,21 @@ declare module 'ajo/context' {
 
 declare module 'ajo/html' {
 
-	type Patch = { id: string, h?: import('ajo').Children, src?: string, done?: boolean }
+	type Patch = {
+		id: string,
+		h?: import('ajo').Children,
+		src?: string,
+		done?: boolean,
+	}
+
+	type Hooks = {
+		alloc?: (parentId: string) => string,
+		placeholder?: (id: string, children: import('ajo').Children) => unknown,
+		push?: (patch: Patch) => void,
+	}
 
 	function render(h: import('ajo').Children): string
-	function html(h: import('ajo').Children, alloc?: (parentId: string) => string, push?: (patch: Patch) => void): IterableIterator<string>
+	function html(h: import('ajo').Children, hooks?: Hooks): IterableIterator<string>
 }
 
 declare module 'ajo/stream' {

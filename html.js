@@ -10,18 +10,16 @@ const Args = Symbol.for('ajo.args')
 
 const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 
-const placeholder = (id, children) => ({ nodeName: 'div', 'data-ssr': id, children })
-
 const noop = () => { }
 
 export const render = h => [...html(h)].join('')
 
-export const html = function* (h, alloc = () => '', push = noop) {
+export const html = function* (h, { alloc = () => '', placeholder = noop, push = noop } = {}) {
 
-	yield* stringify(walk(h, alloc, push))
+	yield* stringify(walk(h, { alloc, placeholder, push }))
 }
 
-const walk = (h, alloc, push) => {
+const walk = (h, hooks) => {
 
 	const type = typeof h
 
@@ -35,7 +33,7 @@ const walk = (h, alloc, push) => {
 
 		for (h of h.flat(Infinity)) {
 
-			const out = walk(h, alloc, push)
+			const out = walk(h, hooks)
 
 			if (out != null) children.push(out)
 		}
@@ -45,13 +43,13 @@ const walk = (h, alloc, push) => {
 
 	if ('nodeName' in h) {
 
-		if (typeof h.nodeName === 'function') return run(h, alloc, push)
+		if (typeof h.nodeName === 'function') return run(h, hooks)
 
 		const node = { nodeName: h.nodeName }
 
 		for (const key in h) if (!Omit.has(key) && !key.startsWith('set:')) node[key] = h[key]
 
-		if ('children' in h) node.children = walk(h.children, alloc, push)
+		if ('children' in h) node.children = walk(h.children, hooks)
 
 		return node
 	}
@@ -59,40 +57,40 @@ const walk = (h, alloc, push) => {
 	return String(h)
 }
 
-const run = ({ nodeName, fallback = nodeName.fallback, ...h }, alloc, push) => {
+const run = ({ nodeName, fallback = nodeName.fallback, ...h }, hooks) => {
 
 	if (nodeName.src) {
 
-		const id = alloc()
+		const id = hooks.alloc()
 
-		push({ id, src: nodeName.src, h, done: true })
+		hooks.push({ id, src: nodeName.src, h, done: true })
 
-		return placeholder(id, fallback)
+		return hooks.placeholder(id, fallback)
 	}
 
 	const type = nodeName.constructor.name
 
-	if (type === 'GeneratorFunction') return runGenerator(nodeName, h, alloc, push)
+	if (type === 'GeneratorFunction') return runGenerator(nodeName, h, hooks)
 
-	if (type === 'AsyncGeneratorFunction') return runAsyncGenerator(nodeName, fallback, h, alloc, push)
+	if (type === 'AsyncGeneratorFunction') return runAsyncGenerator(nodeName, fallback, h, hooks)
 
 	h = nodeName(h)
 
 	if (h instanceof Promise) {
 
-		if (push === noop) return fallback
+		if (hooks.push === noop) return fallback
 
-		const id = alloc()
+		const id = hooks.alloc()
 
-		h.then(h => push({ id, h: walk(h, (parent = id) => alloc(parent), push), done: true }))
+		h.then(h => hooks.push({ id, h: walk(h, { ...hooks, alloc: (parent = id) => hooks.alloc(parent) }), done: true }))
 
-		return placeholder(id, fallback)
+		return hooks.placeholder(id, fallback)
 	}
 
-	return walk(h, alloc, push)
+	return walk(h, hooks)
 }
 
-const runGenerator = (fn, h, alloc, push) => {
+const runGenerator = (fn, h, hooks) => {
 
 	const attrs = { ...fn.attrs }, args = { ...fn.args }
 
@@ -124,7 +122,7 @@ const runGenerator = (fn, h, alloc, push) => {
 
 	try {
 
-		return { ...attrs, nodeName: fn.is ?? 'div', children: walk((iterator.next()).value, alloc, push) }
+		return { ...attrs, nodeName: fn.is ?? 'div', children: walk((iterator.next()).value, hooks) }
 
 	} finally {
 
@@ -134,17 +132,17 @@ const runGenerator = (fn, h, alloc, push) => {
 	}
 }
 
-const runAsyncGenerator = (fn, fallback, h, alloc, push) => {
+const runAsyncGenerator = (fn, fallback, h, hooks) => {
 
-	if (push === noop) return fallback
+	if (hooks.push === noop) return fallback
 
-	const id = alloc()
+	const id = hooks.alloc()
 
 	Promise.resolve().then(async () => {
-
-		alloc = (parent = id) => alloc(parent)
-
+	
 		const iterator = fn(h)
+		
+		hooks = { ...hooks, alloc: (parent = id) => hooks.alloc(parent) }
 
 		try {
 
@@ -152,16 +150,16 @@ const runAsyncGenerator = (fn, fallback, h, alloc, push) => {
 
 			while (!h.done) {
 
-				push({ id, h: walk(h.value, alloc, push), done: false })
+				hooks.push({ id, h: walk(h.value, hooks), done: false })
 
 				h = await iterator.next()
 			}
 
-			push({ id, h: walk(h.value, alloc, push), done: true })
+			hooks.push({ id, h: walk(h.value, hooks), done: true })
 
 		} catch (value) {
 
-			push({ id, h: walk(value, alloc, push), done: true })
+			hooks.push({ id, h: walk(value, hooks), done: true })
 
 		} finally {
 
@@ -169,7 +167,7 @@ const runAsyncGenerator = (fn, fallback, h, alloc, push) => {
 		}
 	})
 
-	return placeholder(id, fallback)
+	return hooks.placeholder(id, fallback)
 }
 
 const stringify = function* (h) {
