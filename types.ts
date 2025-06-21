@@ -73,9 +73,9 @@ declare module 'ajo/html' {
 
 	type Patch = {
 		id: string,
-		h?: import('ajo').Children,
+		h: import('ajo').Children,
 		src?: string,
-		done?: boolean,
+		done: boolean,
 	}
 
 	type Hooks = {

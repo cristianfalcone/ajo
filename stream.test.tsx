@@ -39,7 +39,7 @@ describe('stream', () => {
 
 		document.body.innerHTML = '<div data-ssr="1"></div>'
 
-		hydrate({ id: '1', h: { nodeName: 'b', children: 'ok' } })
+		hydrate({ id: '1', h: { nodeName: 'b', children: 'ok' }, done: true })
 
 		expect(document.body.innerHTML).toBe('<div data-ssr="1"><b>ok</b></div>')
 	})
@@ -48,11 +48,11 @@ describe('stream', () => {
 
 		document.body.innerHTML = '<div data-ssr="2"></div>'
 
-		hydrate({ id: '2', h: { nodeName: 'i', children: 'foo' } })
+		hydrate({ id: '2', h: { nodeName: 'i', children: 'foo' }, done: false })
 
 		expect(document.body.innerHTML).toBe('<div data-ssr="2"><i>foo</i></div>')
 
-		hydrate({ id: '2', h: { nodeName: 'i', children: 'bar' } })
+		hydrate({ id: '2', h: { nodeName: 'i', children: 'bar' }, done: true })
 
 		expect(document.body.innerHTML).toBe('<div data-ssr="2"><i>bar</i></div>')
 	})
@@ -73,14 +73,14 @@ describe('stream', () => {
 
 		expect(document.body.innerHTML).toBe('<div><div data-ssr="3"></div><p>test</p></div>')
 
-		hydrate({ id: '3', h: { nodeName: 'u', children: 'u' } })
+		hydrate({ id: '3', h: { nodeName: 'u', children: 'u' }, done: true })
 
 		expect(document.body.innerHTML).toBe('<div><div data-ssr="3"><u>u</u></div><p>test</p></div>')
 	})
 
 	it('should buffer patches', () => {
 
-		(window as any).$stream = [{ id: '4', h: { nodeName: 'em', children: 'a' } }]
+		(window as any).$stream = [{ id: '4', h: { nodeName: 'em', children: 'a' }, done: true }]
 
 		document.body.innerHTML = '<div data-ssr="4"></div>';
 
@@ -156,7 +156,7 @@ describe('stream', () => {
 
 		document.body.innerHTML = ''
 
-		hydrate({ id: '6', h: { nodeName: 'b', children: 'x' } })
+		hydrate({ id: '6', h: { nodeName: 'b', children: 'x' }, done: true })
 
 		expect(document.body.innerHTML).toBe('')
 	})

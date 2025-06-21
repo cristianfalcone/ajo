@@ -14,36 +14,36 @@ const noop = () => { }
 
 export const render = h => [...html(h)].join('')
 
-export const html = function* (h, { alloc = () => '', placeholder = noop, push = noop } = {}) {
+export const html = function* (h, { alloc = noop, push = noop, placeholder = noop } = {}) {
 
-	yield* stringify(walk(h, { alloc, placeholder, push }))
+	yield* stringify(walk(h, { alloc, push, placeholder }))
 }
 
 const walk = (h, hooks) => {
 
 	const type = typeof h
 
-	if (h == null || type === 'boolean') return
+	if (h == null || type == 'boolean') return
 
-	if (type === 'string' || type === 'number') return String(h)
+	if (type == 'string' || type == 'number') return String(h)
 
 	if (Array.isArray(h)) {
 
 		const children = []
 
-		for (h of h.flat(Infinity)) {
+		for (h of h) {
 
 			const out = walk(h, hooks)
 
 			if (out != null) children.push(out)
 		}
 
-		return children.length === 1 ? children[0] : children
+		return children.length == 1 ? children[0] : children
 	}
 
 	if ('nodeName' in h) {
 
-		if (typeof h.nodeName === 'function') return run(h, hooks)
+		if (typeof h.nodeName == 'function') return run(h, hooks)
 
 		const node = { nodeName: h.nodeName }
 
@@ -59,35 +59,28 @@ const walk = (h, hooks) => {
 
 const run = ({ nodeName, fallback = nodeName.fallback, ...h }, hooks) => {
 
-	if (nodeName.src) {
-
-		const id = hooks.alloc()
-
-		hooks.push({ id, src: nodeName.src, h, done: true })
-
-		return hooks.placeholder(id, fallback)
-	}
+	if (nodeName.src) return runIsland(nodeName.src, fallback, h, hooks)
 
 	const type = nodeName.constructor.name
 
-	if (type === 'GeneratorFunction') return runGenerator(nodeName, h, hooks)
+	if (type == 'GeneratorFunction') return runGenerator(nodeName, h, hooks)
 
-	if (type === 'AsyncGeneratorFunction') return runAsyncGenerator(nodeName, fallback, h, hooks)
+	if (type == 'AsyncGeneratorFunction') return runAsyncGenerator(nodeName, fallback, h, hooks)
 
 	h = nodeName(h)
 
-	if (h instanceof Promise) {
-
-		if (hooks.push === noop) return fallback
-
-		const id = hooks.alloc()
-
-		h.then(h => hooks.push({ id, h: walk(h, { ...hooks, alloc: (parent = id) => hooks.alloc(parent) }), done: true }))
-
-		return hooks.placeholder(id, fallback)
-	}
+	if (typeof h?.then == 'function') return runAsync(fallback, h, hooks)
 
 	return walk(h, hooks)
+}
+
+const runIsland = (src, fallback, h, hooks) => {
+
+	const id = hooks.alloc()
+
+	hooks.push({ id, src, h, done: true })
+
+	return hooks.placeholder(id, fallback)
 }
 
 const runGenerator = (fn, h, hooks) => {
@@ -105,7 +98,7 @@ const runGenerator = (fn, h, hooks) => {
 
 	const instance = {
 
-		[Context]: Object.assign(Object.create(null), current()?.[Context]),
+		[Context]: Object.create(current()?.[Context] ?? null),
 
 		[Args]: args,
 
@@ -134,14 +127,12 @@ const runGenerator = (fn, h, hooks) => {
 
 const runAsyncGenerator = (fn, fallback, h, hooks) => {
 
-	if (hooks.push === noop) return fallback
-
 	const id = hooks.alloc()
 
 	Promise.resolve().then(async () => {
-	
+
 		const iterator = fn(h)
-		
+
 		hooks = { ...hooks, alloc: (parent = id) => hooks.alloc(parent) }
 
 		try {
@@ -170,9 +161,18 @@ const runAsyncGenerator = (fn, fallback, h, hooks) => {
 	return hooks.placeholder(id, fallback)
 }
 
+const runAsync = (fallback, h, hooks) => {
+
+	const id = hooks.alloc()
+
+	h.then(h => hooks.push({ id, h: walk(h, { ...hooks, alloc: (parent = id) => hooks.alloc(parent) }), done: true }))
+
+	return hooks.placeholder(id, fallback)
+}
+
 const stringify = function* (h) {
 
-	if (typeof h === 'string') yield escape(h)
+	if (typeof h == 'string') yield escape(h)
 
 	else if (Array.isArray(h)) for (h of h) yield* stringify(h)
 
