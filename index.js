@@ -56,20 +56,19 @@ const move = (el, child) => {
 
 const walk = function* (h) {
 
+	if (h == null) return
+
 	const type = typeof h
 
-	if (h == null || type == 'boolean') return
+	if (type == 'boolean') return
 
-	if (type === 'string' || type === 'number') yield String(h)
+	if (type == 'string') yield h
 
-	else if (Array.isArray(h)) for (h of h) yield* walk(h)
+	else if (type == 'number' || type == 'bigint') yield String(h)
 
-	else if ('nodeName' in h) {
+	else if (Symbol.iterator in h) for (h of h) yield* walk(h)
 
-		if (typeof h.nodeName == 'function') yield* run(h)
-
-		else yield h
-	}
+	else if ('nodeName' in h) typeof h.nodeName == 'function' ? yield* run(h) : yield h
 
 	else yield String(h)
 }
@@ -117,11 +116,11 @@ const element = ({ nodeName, children, key, skip, memo, ref, ...h }, el, node) =
 
 	if (key != null) node = (el[Keyed] ??= new Map).get(key) ?? node
 
-	else while (node && node.localName != nodeName) node = node.nextSibling
+	while (node && node.localName != nodeName) node = node.nextSibling
 
 	node ??= document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName)
 
-	if (key != null && node[Key] != key) {
+	if (key != node[Key]) {
 
 		if (node[Key] != null) unref(node)
 
@@ -180,6 +179,8 @@ const unref = el => {
 
 	el[Keyed]?.clear()
 
+	el[Generator] &&= null
+
 	el[Ref]?.(null)
 }
 
@@ -214,7 +215,9 @@ const methods = {
 
 	render() {
 
-		if (!current()?.contains(this)) this.next()
+		if (current()?.contains(this)) return
+
+		this.next()
 	},
 
 	next() {
@@ -274,7 +277,7 @@ const methods = {
 	}
 }
 
-new MutationObserver(records =>
+if ('MutationObserver' in globalThis) new MutationObserver(records =>
 
 	records.forEach(record => record.removedNodes.forEach(node => node.isConnected || node.nodeType == 1 && unref(node)))
 
