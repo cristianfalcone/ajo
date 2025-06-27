@@ -28,30 +28,36 @@ export const render = (h, el) => {
 
 		const node = reconcile(h, el, child)
 
-		if (child == null) before(el, node)
+		if (child == null) {
 
-		else if (node == child) child = child.nextSibling
+			before(el, node)
 
-		else before(el, node, node == child.nextSibling ? child = move(el, child) : child)
+		} else if (node == child) {
+
+			child = node.nextSibling
+
+		} else if (node == child.nextSibling) {
+
+			before(el, child)
+
+			child = node.nextSibling
+
+		} else {
+
+			before(el, node, child)
+		}
 	}
 
 	while (child) {
 
 		const node = child.nextSibling
 
+		if (child.nodeType == 1) unref(child)
+
 		el.removeChild(child)
 
 		child = node
 	}
-}
-
-const move = (el, child) => {
-
-	const node = child.nextSibling
-
-	before(el, child)
-
-	return node.nextSibling
 }
 
 const walk = function* (h) {
@@ -179,9 +185,9 @@ const unref = el => {
 
 	el[Keyed]?.clear()
 
-	el[Generator] &&= null
-
 	el[Ref]?.(null)
+
+	el[Generator] &&= null
 }
 
 const next = (fn, { skip, ref, ...args }, el) => {
@@ -276,9 +282,3 @@ const methods = {
 		}
 	}
 }
-
-if ('MutationObserver' in globalThis) new MutationObserver(records =>
-
-	records.forEach(record => record.removedNodes.forEach(node => node.isConnected || node.nodeType == 1 && unref(node)))
-
-).observe(document, { childList: true, subtree: true })

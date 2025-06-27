@@ -3,8 +3,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render } from 'ajo'
 import { context } from 'ajo/context'
 
-const nextTick = () => new Promise(resolve => setTimeout(resolve, 0))
-
 describe('render', () => {
 
 	beforeEach(() => {
@@ -14,6 +12,7 @@ describe('render', () => {
 	it('should render a simple element', () => {
 
 		render(<div>Hello, World!</div>, document.body)
+
 		expect(document.body.innerHTML).toBe('<div>Hello, World!</div>')
 	})
 
@@ -46,6 +45,7 @@ describe('render', () => {
 	it('should render with attributes', () => {
 
 		render(<div id="test" class="sample">Attributes</div>, document.body)
+
 		expect(document.body.innerHTML).toBe('<div id="test" class="sample">Attributes</div>')
 	})
 
@@ -63,8 +63,11 @@ describe('render', () => {
 	it('should render numbers and booleans correctly', () => {
 
 		render(<div>{42}</div>, document.body)
+
 		expect(document.body.innerHTML).toBe('<div>42</div>')
+
 		render(<div>{true}</div>, document.body)
+
 		expect(document.body.innerHTML).toBe('<div></div>')
 	})
 
@@ -117,11 +120,13 @@ describe('components', () => {
 		const NullComponent = () => null
 
 		render(<NullComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('')
 
 		const UndefinedComponent = () => undefined
 
 		render(<UndefinedComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('')
 	})
 
@@ -140,9 +145,8 @@ describe('components', () => {
 		)
 
 		render(<Simple name="world">you</Simple>, document.body)
-		expect(document.body.innerHTML).toBe(
-			'<div class="container">Hello world,<br> and you!</div>'
-		)
+
+		expect(document.body.innerHTML).toBe('<div class="container">Hello world,<br> and you!</div>')
 	})
 
 	it('should hydrate a stateless component', () => {
@@ -188,9 +192,7 @@ describe('components', () => {
 			document.body
 		)
 
-		expect(document.body.innerHTML).toBe(
-			'<div class="container"><div>Hello world,<br> and you!</div></div>'
-		)
+		expect(document.body.innerHTML).toBe('<div class="container"><div>Hello world,<br> and you!</div></div>')
 	})
 
 	it('should reuse the same stateful component instance', () => {
@@ -211,9 +213,8 @@ describe('components', () => {
 		let ref: HTMLDivElement | null = null, count = 0
 
 		render(<Self name="world" attr:class="container" />, document.body)
-		expect(document.body.innerHTML).toBe(
-			'<div class="container"><div>Hello world!</div></div>'
-		)
+
+		expect(document.body.innerHTML).toBe('<div class="container"><div>Hello world!</div></div>')
 
 		const firstDiv = ref
 
@@ -236,12 +237,10 @@ describe('components', () => {
 
 		render(<Self name="world" attr:class="container" />, document.body)
 
-		expect(document.body.innerHTML).toBe(
-			'<section class="container"><div>Hello world!</div></section>'
-		)
+		expect(document.body.innerHTML).toBe('<section class="container"><div>Hello world!</div></section>')
 	})
 
-	it('should properly use generator function', async () => {
+	it('should properly use generator function', () => {
 
 		const html = '<section class="container"><span>Hello world!</span></section>'
 
@@ -303,8 +302,6 @@ describe('components', () => {
 		expect(loop).toHaveBeenCalledTimes(2)
 
 		render(null, document.body)
-		
-		await nextTick()
 
 		expect(end).toHaveBeenCalledTimes(1)
 		expect(ref).toBe(null)
@@ -332,6 +329,7 @@ describe('components', () => {
 		}
 
 		render(<Parent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div>test</div></div>')
 	})
 
@@ -350,6 +348,7 @@ describe('components', () => {
 		}
 
 		render(<App />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><button>Count: 0</button></div>')
 
 		document.querySelector('button')!.click()
@@ -377,6 +376,7 @@ describe('components', () => {
 		}
 
 		render(<App />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><button>Toggle</button></div></div>')
 
 		document.querySelector('button')!.click()
@@ -406,6 +406,7 @@ describe('components', () => {
 		}
 
 		render(<App />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><ul><li>Apple</li><li>Banana</li></ul><button>Add Item</button></div>')
 
 		document.querySelector('button')!.click()
@@ -474,7 +475,7 @@ describe('components', () => {
 		expect(document.body.innerHTML).toBe('<div><div><button>Custom Button</button></div><p>Clicks: 1</p></div>')
 	})
 
-	it('should handle component lifecycle', async () => {
+	it('should handle component lifecycle', () => {
 
 		const lifecycleEvents: string[] = []
 
@@ -518,19 +519,13 @@ describe('components', () => {
 
 		document.querySelector('button')!.click()
 
-		await nextTick()
-
 		expect(lifecycleEvents).toEqual(['Parent mounted', 'Child mounted', 'Child unmounted'])
 
 		document.querySelector('button')!.click()
 
-		await nextTick()
-
 		expect(lifecycleEvents).toEqual(['Parent mounted', 'Child mounted', 'Child unmounted', 'Child mounted'])
 
 		render(null, document.body)
-
-		await nextTick()
 
 		expect(lifecycleEvents).toEqual(['Parent mounted', 'Child mounted', 'Child unmounted', 'Child mounted', 'Child unmounted', 'Parent unmounted'])
 	})
@@ -558,6 +553,7 @@ describe('components', () => {
 		}
 
 		render(<AsyncComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div>Loading...</div></div>')
 
 		await vi.runAllTimersAsync()
@@ -586,9 +582,8 @@ describe('context', () => {
 		}
 
 		render(<ThemedButton />, document.body)
-		expect(document.body.innerHTML).toBe(
-			'<div><button class="theme-light">Click me</button></div>'
-		)
+
+		expect(document.body.innerHTML).toBe('<div><button class="theme-light">Click me</button></div>')
 	})
 
 	it('should set and retrieve context value', () => {
@@ -608,9 +603,8 @@ describe('context', () => {
 		}
 
 		render(<App />, document.body)
-		expect(document.body.innerHTML).toBe(
-			'<div><div><div>Welcome, John!</div></div></div>'
-		)
+
+		expect(document.body.innerHTML).toBe('<div><div><div>Welcome, John!</div></div></div>')
 	})
 
 	it('should update context and re-render', () => {
@@ -643,6 +637,7 @@ describe('context', () => {
 		}
 
 		render(<App />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><span>Count: 0</span></div><button>Increment</button></div>')
 
 		document.querySelector('button')!.click()
@@ -670,9 +665,8 @@ describe('context', () => {
 		}
 
 		render(<App />, document.body)
-		expect(document.body.innerHTML).toBe(
-			'<div><div><span class="theme-dark">Hola</span></div></div>'
-		)
+
+		expect(document.body.innerHTML).toBe('<div><div><span class="theme-dark">Hola</span></div></div>')
 	})
 
 	it('should propagate context through nested components', () => {
@@ -694,9 +688,8 @@ describe('context', () => {
 		}
 
 		render(<Parent />, document.body)
-		expect(document.body.innerHTML).toBe(
-			'<div><div><div><span style="color: red">Text</span></div></div></div>'
-		)
+
+		expect(document.body.innerHTML).toBe('<div><div><div><span style="color: red">Text</span></div></div></div>')
 	})
 
 	it('should access context in a stateless component', () => {
@@ -715,6 +708,7 @@ describe('context', () => {
 		)
 
 		render(<App />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><button class="theme-light">Click me</button></div>')
 	})
 
@@ -745,9 +739,11 @@ describe('context', () => {
 		}
 
 		render(<App />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><span>Count: 0</span><button>Increment</button></div>')
 
 		document.querySelector('button')!.click()
+
 		expect(document.body.innerHTML).toBe('<div><span>Count: 1</span><button>Increment</button></div>')
 	})
 
@@ -769,6 +765,7 @@ describe('context', () => {
 		}
 
 		render(<App />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><button class="theme-dark">Cliquez-moi</button></div>')
 	})
 
@@ -789,6 +786,7 @@ describe('context', () => {
 		}
 
 		render(<Parent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><span style="color: red">Text</span></div></div>')
 	})
 })
@@ -953,6 +951,7 @@ describe('skip special attribute', () => {
 		)
 
 		render(<Skip />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div></div>')
 	})
 
@@ -965,6 +964,7 @@ describe('skip special attribute', () => {
 		)
 
 		render(<NoSkip />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>This should be rendered</p></div>')
 	})
 
@@ -982,10 +982,13 @@ describe('skip special attribute', () => {
 		}
 
 		render(<SkipUpdate />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div></div></div>')
 
 		count = 1
+
 		render(<SkipUpdate />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div></div></div>')
 	})
 
@@ -1002,10 +1005,13 @@ describe('skip special attribute', () => {
 		}
 
 		render(<DynamicSkip />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div></div></div>')
 
 		shouldSkip = false
+
 		render(<DynamicSkip />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><p>Content</p></div></div>')
 	})
 
@@ -1020,8 +1026,11 @@ describe('skip special attribute', () => {
 		)
 
 		render(<Parent skip={true} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div></div>')
+
 		render(<Parent skip={false} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Child content</p></div>')
 	})
 
@@ -1037,6 +1046,7 @@ describe('skip special attribute', () => {
 		)
 
 		render(<Sibling />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p></p><p>Visible content</p></div>')
 	})
 
@@ -1047,8 +1057,11 @@ describe('skip special attribute', () => {
 		}
 
 		render(<SkipWrapper skip={true} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div></div>')
+
 		render(<SkipWrapper skip={false} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>This content may or may not be skipped</p></div>')
 	})
 })
@@ -1070,6 +1083,7 @@ describe('ref special attribute', () => {
 		)
 
 		render(<RefComponent />, document.body)
+
 		expect(divRef).not.toBeNull()
 		expect(divRef!.textContent).toBe('Test content')
 	})
@@ -1088,24 +1102,26 @@ describe('ref special attribute', () => {
 		}
 
 		render(<CounterComponent />, document.body)
+
 		expect(buttonRef).not.toBeNull()
 		expect(buttonRef!.textContent).toBe('Count: 0')
 
 		buttonRef!.click()
+
 		expect(buttonRef).not.toBeNull()
 		expect(buttonRef!.textContent).toBe('Count: 1')
 	})
 
-	it('should call ref with null when unmounting', async () => {
+	it('should call ref with null when unmounting', () => {
 
 		const refCallback = vi.fn()
 		const UnmountTestComponent = () => <div ref={refCallback}>Test</div>
 
 		render(<UnmountTestComponent />, document.body)
-		expect(refCallback).toHaveBeenCalledWith(expect.any(HTMLDivElement))
-		render(null, document.body)
 
-		await nextTick()
+		expect(refCallback).toHaveBeenCalledWith(expect.any(HTMLDivElement))
+
+		render(null, document.body)
 
 		expect(refCallback).toHaveBeenLastCalledWith(null)
 	})
@@ -1127,14 +1143,16 @@ describe('ref special attribute', () => {
 		}
 
 		render(<StatefulComponent ref={el => componentRef = el} />, document.body)
+
 		expect(componentRef).not.toBeNull()
 		expect(document.body.innerHTML).toBe('<div><div>0</div></div>')
 
 		componentRef!.render()
+
 		expect(document.body.innerHTML).toBe('<div><div>1</div></div>')
 	})
 
-	it('should call ref with null when unmounting a stateful component', async () => {
+	it('should call ref with null when unmounting a stateful component', () => {
 
 		let ref: ThisParameterType<typeof Self> | null = null
 
@@ -1154,9 +1172,8 @@ describe('ref special attribute', () => {
 		)
 
 		expect(ref).not.toBe(null)
-		render(null, document.body)
 
-		await nextTick()
+		render(null, document.body)
 
 		expect(ref).toBe(null)
 	})
@@ -1173,6 +1190,7 @@ describe('ref special attribute', () => {
 		)
 
 		render(<MultiRefComponent />, document.body)
+
 		expect(ref1).not.toBeNull()
 		expect(ref2).not.toBeNull()
 		expect(ref1!.contains(ref2)).toBe(true)
@@ -1185,6 +1203,7 @@ describe('ref special attribute', () => {
 		const NullComponent = (args: { ref: typeof refCallback }) => null
 
 		render(<NullComponent ref={refCallback} />, document.body)
+
 		expect(refCallback).not.toHaveBeenCalled()
 		expect(document.body.innerHTML).toBe('')
 	})
@@ -1212,10 +1231,13 @@ describe('memo attribute', () => {
 		)
 
 		render(<MemoComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>This will always update: initial</p><div><p>Memoized count: 0</p><p>This won\'t update: initial</p></div></div>')
 
 		otherProp = 'changed'
+
 		render(<MemoComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>This will always update: changed</p><div><p>Memoized count: 0</p><p>This won\'t update: initial</p></div></div>')
 	})
 
@@ -1235,11 +1257,14 @@ describe('memo attribute', () => {
 		)
 
 		render(<MemoComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>This will always update: initial</p><div><p>Memoized count: 0</p><p>This will update with count: initial</p></div></div>')
 
 		count = 1
 		otherProp = 'changed'
+
 		render(<MemoComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>This will always update: changed</p><div><p>Memoized count: 1</p><p>This will update with count: changed</p></div></div>')
 	})
 
@@ -1259,14 +1284,19 @@ describe('memo attribute', () => {
 		)
 
 		render(<MemoComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Memoized count: 0<span>Hello</span></p><p>Hello</p></div>')
 
 		text = 'World'
+
 		render(<MemoComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Memoized count: 0<span>Hello</span></p><p>World</p></div>')
 
 		count = 1
+
 		render(<MemoComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Memoized count: 1<span>World</span></p><p>World</p></div>')
 	})
 
@@ -1293,12 +1323,15 @@ describe('memo attribute', () => {
 		}
 
 		render(<StatefulMemoComponent count={0} text="initial" ref={(el) => { ref = el }} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><p>Always updates: initial</p><div><p>Memoized count: 0</p><p>Won\'t update unless count changes: initial</p></div></div></div>')
 
 		render(<StatefulMemoComponent count={0} text="changed" ref={(el) => { ref = el }} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><p>Always updates: changed</p><div><p>Memoized count: 0</p><p>Won\'t update unless count changes: initial</p></div></div></div>')
 
 		render(<StatefulMemoComponent count={1} text="changed again" ref={(el) => { ref = el }} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><p>Always updates: changed again</p><div><p>Memoized count: 1</p><p>Won\'t update unless count changes: changed again</p></div></div></div>')
 	})
 
@@ -1336,17 +1369,23 @@ describe('memo attribute', () => {
 		)
 
 		render(<ParentComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent count: 0</p><div><div><p>Child internal count: 0</p><p>Child prop: initial</p></div></div></div>')
 
 		childText = 'updated'
+
 		render(<ParentComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent count: 0</p><div><div><p>Child internal count: 0</p><p>Child prop: initial</p></div></div></div>')
 
 		parentCount = 1
+
 		render(<ParentComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent count: 1</p><div><div><p>Child internal count: 1</p><p>Child prop: updated</p></div></div></div>')
 
 		childRef!.render()
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent count: 1</p><div><div><p>Child internal count: 2</p><p>Child prop: updated</p></div></div></div>')
 	})
 
@@ -1376,17 +1415,23 @@ describe('memo attribute', () => {
 		}
 
 		render(<MemoStatefulComponent count={0} text="initial" ref={el => componentRef = el} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 0</p><p>Internal count: 0</p><p>Text: initial</p></div></div>')
 
 		componentRef!.render()
+
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 0</p><p>Internal count: 0</p><p>Text: initial</p></div></div>')
+
 		render(<MemoStatefulComponent count={0} text="updated" ref={(el) => { componentRef = el }} />, document.body)
 
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 0</p><p>Internal count: 0</p><p>Text: initial</p></div></div>')
+
 		render(<MemoStatefulComponent count={1} text="final" ref={(el) => { componentRef = el }} />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: final</p></div></div>')
 
 		componentRef!.render()
+
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: final</p></div></div>')
 	})
 
@@ -1431,20 +1476,27 @@ describe('memo attribute', () => {
 		)
 
 		render(<ParentComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: initial</p><div><div><p>Args count: 0</p><p>Internal count: 0</p><p>Text: initial</p></div></div></div>')
 
 		text = 'updated'
+
 		render(<ParentComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 0</p><p>Internal count: 0</p><p>Text: initial</p></div></div></div>')
 
 		componentRef!.render()
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 0</p><p>Internal count: 1</p><p>Text: initial</p></div></div></div>')
 
 		count = 1
+
 		render(<ParentComponent />, document.body)
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 1</p><p>Internal count: 2</p><p>Text: updated</p></div></div></div>')
 
 		componentRef!.render()
+
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: updated</p></div></div></div>')
 	})
 
