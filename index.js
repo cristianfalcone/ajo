@@ -30,7 +30,7 @@ export const render = (h, el) => {
 
 		if (child == null) {
 
-			before(el, node)
+			el.appendChild(node)
 
 		} else if (node == child) {
 
@@ -38,7 +38,7 @@ export const render = (h, el) => {
 
 		} else if (node == child.nextSibling) {
 
-			before(el, child)
+			el.appendChild(child)
 
 			child = node.nextSibling
 
@@ -52,7 +52,7 @@ export const render = (h, el) => {
 
 		const node = child.nextSibling
 
-		if (child.nodeType == 1) unref(child)
+		if (child.nodeType == 1) unref(el, child)
 
 		el.removeChild(child)
 
@@ -120,18 +120,13 @@ const text = (h, node) => {
 
 const element = ({ nodeName, children, key, skip, memo, ref, ...h }, el, node) => {
 
-	if (key != null) node = (el[Keyed] ??= new Map).get(key) ?? node
+	if (key != null) node = (el[Keyed] ??= new Map).get(key) ?? (node?.[Key] == null ? node : null)
 
 	while (node && node.localName != nodeName) node = node.nextSibling
 
 	node ??= document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName)
 
-	if (key != node[Key]) {
-
-		if (node[Key] != null) unref(node)
-
-		el[Keyed].set(node[Key] = key, node)
-	}
+	if (key != node[Key]) el[Keyed].set(node[Key] = key, node)
 
 	if (memo == null || some(node[Memo], node[Memo] = memo)) {
 
@@ -165,29 +160,33 @@ const extract = el => Array.from(el.attributes).reduce((out, attr) => (out[attr.
 
 const before = (el, node, child) => {
 
-	if (!node.contains(document.activeElement)) return el.insertBefore(node, child)
+	if (node.contains(document.activeElement)) {
 
-	const ref = node.nextSibling
+		const ref = node.nextSibling
 
-	while (child && child != node) {
+		while (child && child != node) {
 
-		const next = child.nextSibling
+			const next = child.nextSibling
 
-		el.insertBefore(child, ref)
+			el.insertBefore(child, ref)
 
-		child = next
-	}
+			child = next
+		}
+
+	} else el.insertBefore(node, child)
 }
 
-const unref = el => {
+const unref = (el, node) => {
 
-	for (const child of el.children) unref(child)
+	for (const child of node.children) unref(node, child)
 
-	el[Keyed]?.clear()
+	el[Keyed]?.delete(node[Key])
 
-	el[Ref]?.(null)
+	node[Keyed]?.clear()
 
-	el[Generator] &&= null
+	node[Ref]?.(null)
+
+	node[Generator] &&= null
 }
 
 const next = (fn, { skip, ref, ...args }, el) => {

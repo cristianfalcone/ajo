@@ -860,7 +860,7 @@ describe('key special attribute', () => {
 		expect(listItems[1]).toBe(originalNodes[2])
 
 		// 'Date' should be a new node
-		// expect(listItems[2]).not.toBe(originalNodes[1]) // false with node reuse :(
+		expect(listItems[2]).not.toBe(originalNodes[1])
 	})
 
 	it('should handle keyed elements with the same content but different keys', () => {
@@ -905,7 +905,7 @@ describe('key special attribute', () => {
 		// Content should be the same, but it should be a new DOM node due to different key
 		expect(newContent).not.toBeNull()
 		expect(newContent!.textContent).toBe('Content')
-		// expect(newContent).not.toBe(originalContent) // false with node reuse :(
+		expect(newContent).not.toBe(originalContent)
 	})
 })
 
