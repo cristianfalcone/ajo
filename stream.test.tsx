@@ -124,12 +124,7 @@ describe('stream', () => {
 
           let count = 0
 
-          const increment = () => {
-
-            count++
-
-            this.render()
-          }
+          const increment = () => this.next(() => count++)
 
           while (true) yield (
 

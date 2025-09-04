@@ -297,7 +297,7 @@ describe('components', () => {
 		expect(el).toBe(ref)
 		expect(child!.innerHTML).toBe('Hello world!')
 
-		el!.render()
+		el!.next()
 
 		expect(loop).toHaveBeenCalledTimes(2)
 
@@ -339,10 +339,7 @@ describe('components', () => {
 
 			let count = 0
 
-			const increment = () => {
-				count++
-				this.render()
-			}
+			const increment = () => this.next(() => count++)
 
 			while (true) yield <button set:onclick={increment}>Count: {count}</button>
 		}
@@ -362,10 +359,7 @@ describe('components', () => {
 
 			let showExtra = false
 
-			const toggle = () => {
-				showExtra = !showExtra
-				this.render()
-			}
+			const toggle = () => this.next(() => showExtra = !showExtra)
 
 			while (true) yield (
 				<div>
@@ -390,10 +384,7 @@ describe('components', () => {
 
 			let items = ['Apple', 'Banana']
 
-			const addItem = () => {
-				items.push('Cherry')
-				this.render()
-			}
+			const addItem = () => this.next(() => items.push('Cherry'))
 
 			while (true) yield (
 				<>
@@ -420,10 +411,7 @@ describe('components', () => {
 
 			let inputValue = ''
 
-			const handleInput = (e: Event) => {
-				inputValue = (e.target as HTMLInputElement).value
-				this.render()
-			}
+			const handleInput = (e: Event) => this.next(() => inputValue = (e.target as HTMLInputElement).value)
 
 			while (true) yield (
 				<>
@@ -455,10 +443,7 @@ describe('components', () => {
 
 			let clickCount = 0
 
-			const handleCustomClick = () => {
-				clickCount++
-				this.render()
-			}
+			const handleCustomClick = () => this.next(() => clickCount++)
 
 			while (true) yield (
 				<>
@@ -494,10 +479,7 @@ describe('components', () => {
 
 			let showChild = true
 
-			const toggleChild = () => {
-				showChild = !showChild
-				this.render()
-			}
+			const toggleChild = () => this.next(() => showChild = !showChild)
 
 			lifecycleEvents.push('Parent mounted')
 
@@ -542,9 +524,7 @@ describe('components', () => {
 
 				await new Promise(resolve => setTimeout(resolve, 1000))
 
-				data = 'Data loaded'
-
-				this.render()
+				this.next(() => data = 'Data loaded')
 			}
 
 			fetchData()
@@ -622,11 +602,7 @@ describe('context', () => {
 
 			let count = 0
 
-			const increment = () => {
-				count++
-				CountContext.call(this, count)
-				this.render()
-			}
+			const increment = () => this.next(() => CountContext.call(this, ++count))
 
 			while (true) yield (
 				<>
@@ -724,11 +700,7 @@ describe('context', () => {
 		const App: Stateful = function* () {
 			let count = 0
 
-			const increment = () => {
-				count++
-				CountContext.call(this, count)
-				this.render()
-			}
+			const increment = () => this.next(() => CountContext.call(this, ++count))
 
 			while (true) yield (
 				<>
@@ -875,10 +847,7 @@ describe('key special attribute', () => {
 
 			let id = 'a'
 
-			const toggle = () => {
-				id = id === 'a' ? 'b' : 'a'
-				this.render()
-			}
+			const toggle = () => this.next(() => id = id === 'a' ? 'b' : 'a')
 
 			while (true) yield (
 				<>
@@ -1095,7 +1064,7 @@ describe('ref special attribute', () => {
 
 		const CounterComponent: Stateful = function* () {
 			while (true) yield (
-				<button ref={el => buttonRef = el} set:onclick={() => { count++; this.render() }}>
+				<button ref={el => buttonRef = el} set:onclick={() => this.next(() => count++)}>
 					Count: {count}
 				</button>
 			)
@@ -1147,7 +1116,7 @@ describe('ref special attribute', () => {
 		expect(componentRef).not.toBeNull()
 		expect(document.body.innerHTML).toBe('<div><div>0</div></div>')
 
-		componentRef!.render()
+		componentRef!.next()
 
 		expect(document.body.innerHTML).toBe('<div><div>1</div></div>')
 	})
@@ -1384,7 +1353,7 @@ describe('memo attribute', () => {
 
 		expect(document.body.innerHTML).toBe('<div><p>Parent count: 1</p><div><div><p>Child internal count: 1</p><p>Child prop: updated</p></div></div></div>')
 
-		childRef!.render()
+		childRef!.next()
 
 		expect(document.body.innerHTML).toBe('<div><p>Parent count: 1</p><div><div><p>Child internal count: 2</p><p>Child prop: updated</p></div></div></div>')
 	})
@@ -1418,7 +1387,7 @@ describe('memo attribute', () => {
 
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 0</p><p>Internal count: 0</p><p>Text: initial</p></div></div>')
 
-		componentRef!.render()
+		componentRef!.next()
 
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 0</p><p>Internal count: 0</p><p>Text: initial</p></div></div>')
 
@@ -1430,7 +1399,7 @@ describe('memo attribute', () => {
 
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: final</p></div></div>')
 
-		componentRef!.render()
+		componentRef!.next()
 
 		expect(document.body.innerHTML).toBe('<div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: final</p></div></div>')
 	})
@@ -1485,7 +1454,7 @@ describe('memo attribute', () => {
 
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 0</p><p>Internal count: 0</p><p>Text: initial</p></div></div></div>')
 
-		componentRef!.render()
+		componentRef!.next()
 
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 0</p><p>Internal count: 1</p><p>Text: initial</p></div></div></div>')
 
@@ -1495,7 +1464,7 @@ describe('memo attribute', () => {
 
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 1</p><p>Internal count: 2</p><p>Text: updated</p></div></div></div>')
 
-		componentRef!.render()
+		componentRef!.next()
 
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: updated</p></div></div></div>')
 	})
@@ -1532,10 +1501,7 @@ describe('memo attribute', () => {
 
 			let count = 0
 
-			const increment = () => {
-				count++
-				this.render()
-			}
+			const increment = () => this.next(() => count++)
 
 			while (true) yield (
 				<button set:onclick={increment}>
@@ -1574,5 +1540,56 @@ describe('memo attribute', () => {
 		render(<App />, document.body)
 
 		expect(document.body.innerHTML).toBe('<div><main><div><div>Marketing Layout</div>Page Content</div></main></div>')
+	})
+})
+
+describe('render callback', () => {
+
+	beforeEach(() => {
+		render(null, document.body)
+	})
+
+	it('should update state via render(fn) callback', () => {
+
+		const App: Stateful = function* () {
+
+			let count = 0
+
+			const onclick = () => this.next(() => count++)
+
+			while (true) yield (
+				<button set:onclick={onclick}>Count: {count}</button>
+			)
+		}
+
+		render(<App />, document.body)
+
+		expect(document.body.innerHTML).toBe('<div><button>Count: 0</button></div>')
+
+		document.querySelector('button')!.click()
+
+		expect(document.body.innerHTML).toBe('<div><button>Count: 1</button></div>')
+	})
+
+	it('should receive args in render(fn) and use them', () => {
+
+		const App: Stateful<{ step: number }> = function* () {
+
+			let count = 0
+
+			const increment = () => this.next(({ step }) => count += Number(step))
+
+			while (true) yield (
+				<button set:onclick={increment}>Count: {count}</button>
+			)
+		}
+
+		render(<App step={2} />, document.body)
+
+		expect(document.body.innerHTML).toBe('<div><button>Count: 0</button></div>')
+
+		document.querySelector('button')!.click()
+
+		expect(document.body.innerHTML).toBe('<div><button>Count: 2</button></div>')
 	})
 })

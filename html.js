@@ -118,7 +118,9 @@ const runGenerator = (fn, h, hooks) => {
 
 		[Args]: args,
 
-		render: noop, next: noop, return: noop,
+		next: noop,
+
+		return: noop,
 
 		throw: value => { throw value }
 	}

@@ -39,17 +39,16 @@ declare module 'ajo' {
 	type Stateless<TArguments extends Props = {}> = (args: TArguments) => Children
 
 	type Stateful<TArguments extends Props = {}, TTag extends Tag = 'div'> = {
-		(this: StatefulElement<TTag>, args: StatefulProps<TArguments, TTag>): Iterator<Children>
+		(this: StatefulElement<TArguments, TTag>, args: StatefulProps<TArguments, TTag>): Iterator<Children>
 	} & (TTag extends 'div' ? { is?: TTag } : { is: TTag }) & { attrs?: Partial<PropSetter<TTag>> & Props, args?: Partial<TArguments> }
 
 	type StatefulProps<TArguments, TTag> =
-		Partial<SpecialProps<StatefulElement<TTag>> & PropSetter<TTag>> &
+		Partial<SpecialProps<StatefulElement<TArguments, TTag>> & PropSetter<TTag>> &
 		AttrSetter &
 		TArguments
 
-	type StatefulElement<TTag> = ElementType<TTag> & {
-		render: () => void,
-		next: () => void,
+	type StatefulElement<TArguments, TTag> = ElementType<TTag> & {
+		next: (fn?: (this: StatefulElement<TArguments, TTag>, args: StatefulProps<TArguments, TTag>) => void) => void,
 		throw: (value?: unknown) => void,
 		return: () => void,
 	}

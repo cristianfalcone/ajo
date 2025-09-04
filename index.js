@@ -7,6 +7,7 @@ const Ref = Symbol.for('ajo.ref')
 const Cache = Symbol.for('ajo.cache')
 const Generator = Symbol.for('ajo.generator')
 const Iterator = Symbol.for('ajo.iterator')
+const Render = Symbol.for('ajo.render')
 const Args = Symbol.for('ajo.args')
 
 export const Fragment = props => props.children
@@ -199,7 +200,7 @@ const next = (fn, { skip, ref, ...args }, el) => {
 
 	Object.assign(el[Args] ??= {}, args)
 
-	if (!skip) el.next()
+	if (!skip) el[Render]()
 }
 
 const attach = el => {
@@ -218,14 +219,7 @@ const dispose = (ref, el, node) => {
 
 const methods = {
 
-	render() {
-
-		if (current()?.contains(this)) return
-
-		this.next()
-	},
-
-	next() {
+	[Render]() {
 
 		const parent = current()
 
@@ -249,6 +243,22 @@ const methods = {
 
 			current(parent)
 		}
+	},
+
+	next(fn) {
+
+		if (typeof fn == 'function') try {
+
+			fn.call(this, this[Args])
+
+		} catch (error) {
+
+			this.throw(error)
+		}
+
+		if (current()?.contains(this)) return
+
+		this[Render]()
 	},
 
 	throw(value) {
