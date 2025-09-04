@@ -36,24 +36,23 @@ npm install ajo
 Create your first component:
 
 ```javascript
-import { render } from 'ajo';
+import { render } from 'ajo'
 
 // Stateless component
 const Greeting = ({ name }) => <p>Hello, {name}!</p>
 
 // Stateful component
 function* Counter() {
+
   let count = 0
 
   const increment = () => this.next(() => count++)
 
-  while (true) {
-    yield (
-      <button set:onclick={increment}>
-        Count: {count}
-      </button>
-    );
-  }
+  while (true) yield (
+    <button set:onclick={increment}>
+      Count: {count}
+    </button>
+  )
 }
 
 // Render to DOM
@@ -77,26 +76,19 @@ const UserCard = ({ user }) => (
 **Stateful Components** use generator functions with automatic wrapper elements:
 ```javascript
 function* TodoList() {
+
   let todos = []
   
-  const addTodo = (text) => {
-    this.next(() => todos.push({ id: Date.now(), text }))
-  };
+  const addTodo = text => this.next(() => todos.push({ id: Date.now(), text }))
 
-  while (true) {
-    yield (
-      <>
-        <input set:onkeydown={(e) => {
-          if (e.key === 'Enter') addTodo(e.target.value);
-        }} />
-        <ul>
-          {todos.map(todo => (
-            <li key={todo.id}>{todo.text}</li>
-          ))}
-        </ul>
-      </>
-    );
-  }
+  while (true) yield (
+    <>
+      <input set:onkeydown={e => e.key === 'Enter' && addTodo(e.target.value)} />
+      <ul>
+        {todos.map(todo => <li key={todo.id}>{todo.text}</li>)}
+      </ul>
+    </>
+  )
 }
 ```
 
@@ -108,27 +100,27 @@ The generator structure provides a natural mental model:
 
 ```javascript
 function* ShoppingCart(args) {
+
   // Persistent state (like useState)
   let items = []
-  
+
   // Persistent handlers (like useCallback)
-  const addItem = (product) => {
-    this.next(() => items.push(product))
-  };
+  const addItem = product => this.next(() => items.push(product))
 
   // Main render loop
   while (true) {
+
     // Derived values computed fresh each render
     const total = items.reduce((sum, item) => sum + item.price, 0)
     const itemCount = items.length
-    
+
     yield (
       <>
         <h2>Cart ({itemCount} items)</h2>
         <p>Total: ${total}</p>
         {/* ... */}
       </>
-    );
+    )
   }
 }
 ```
@@ -144,26 +136,23 @@ function* ShoppingCart(args) {
 
 ```javascript
 function* MapComponent(args) {
+
   let mapRef = null
-  
-  while (true) {
-    yield (
-      <div 
-        ref={el => {
-          if (el && !mapRef) {
-            mapRef = el
-            // Third-party map library controls this DOM
-            new GoogleMap(el, args.config)
-          }
-        }}
-        skip={true}
-      >
-        {/* Google Maps API manages these elements */}
-        <div class="map-controls"></div>
-        <div class="map-markers"></div>
-      </div>
-    );
-  }
+
+  while (true) yield (
+    <div 
+      ref={el => {
+        if (el && !mapRef) {
+          mapRef = el
+          // Third-party map library controls this DOM
+          new GoogleMap(el, args.config)
+        }
+      }}
+      skip={true}
+    >
+      {/* Google Maps API manages children elements */}
+    </div>
+  )
 }
 ```
 
@@ -178,11 +167,9 @@ const html = render(<App />)
 
 ### Streaming SSR
 ```javascript
-import { stream } from 'ajo/stream';
+import { stream } from 'ajo/stream'
 
-for await (const chunk of stream(<App />)) {
-  response.write(chunk);
-}
+for await (const chunk of stream(<App />)) response.write(chunk)
 ```
 
 ## Best Practices
@@ -200,9 +187,9 @@ for await (const chunk of stream(<App />)) {
 Renders JSX into a DOM container element.
 
 ```javascript
-import { render } from 'ajo';
+import { render } from 'ajo'
 
-render(<App />, document.getElementById('root'));
+render(<App />, document.getElementById('root'))
 ```
 
 #### `h(type: Type, props?: Props, ...children: Children[]): VNode`
@@ -217,7 +204,7 @@ const List = () => (
     <li>Item 1</li>
     <li>Item 2</li>
   </>
-);
+)
 ```
 
 ### Stateful Component Instance Methods
@@ -229,17 +216,18 @@ Triggers a re-render of the component by advancing to the next yield point. Opti
 
 ```javascript
 function* Counter(args) {
-  let count = 0;
+
+  let count = 0
 
   const increment = () => {
     // Simple re-render
-    this.next(() => count++);
-  };
+    this.next(() => count++)
+  }
 
   const incrementByStep = () => {
     // Access current props in callback
-    this.next(({ step }) => count += step);
-  };
+    this.next(({ step }) => count += step)
+  }
 
   // ... rest of component
 }
@@ -257,15 +245,15 @@ Terminates the generator and triggers cleanup (rarely used directly).
 Creates a context for sharing data across component trees.
 
 ```javascript
-import { context } from 'ajo/context';
+import { context } from 'ajo/context'
 
-const ThemeContext = context('light');
+const ThemeContext = context('light')
 
 // Set value
-ThemeContext('dark');
+ThemeContext('dark')
 
 // Get value
-const theme = ThemeContext(); // 'dark'
+const theme = ThemeContext() // 'dark'
 ```
 
 ### HTML Module (`ajo/html`)
@@ -274,9 +262,9 @@ const theme = ThemeContext(); // 'dark'
 Renders JSX to an HTML string for static site generation.
 
 ```javascript
-import { render } from 'ajo/html';
+import { render } from 'ajo/html'
 
-const html = render(<HomePage title="Welcome" />);
+const html = render(<HomePage title="Welcome" />)
 ```
 
 #### `html(children: Children, hooks?: Hooks): IterableIterator<string>`
@@ -288,54 +276,52 @@ Low-level HTML streaming function with custom hooks.
 Renders components to an async stream for progressive SSR.
 
 ```javascript
-import { stream } from 'ajo/stream';
+import { stream } from 'ajo/stream'
 
-for await (const chunk of stream(<App />)) {
-  response.write(chunk);
-}
+for await (const chunk of stream(<App />)) response.write(chunk)
 ```
 
 #### `hydrate(patch: Patch): Promise<void>`
 Client-side function for applying streamed patches during hydration.
 
 ```javascript
-import { hydrate } from 'ajo/stream';
+import { hydrate } from 'ajo/stream'
 
-window.$stream = { push: hydrate };
+window.$stream = { push: hydrate }
 ```
 
 ### TypeScript Support
 
 ```typescript
 // Component types
-type Stateless<Props = {}> = (props: Props) => Children;
+type Stateless<Props = {}> = (props: Props) => Children
 type Stateful<Props = {}, Tag = 'div'> = {
-  (this: StatefulElement<Tag>, props: Props): Iterator<Children>;
-  is?: Tag;
-  attrs?: Record<string, unknown>;
-  args?: Partial<Props>;
-};
+  (this: StatefulElement<Tag>, props: Props): Iterator<Children>
+  is?: Tag
+  attrs?: Record<string, unknown>
+  args?: Partial<Props>
+}
 
 // Stateful component instance
 type StatefulElement<Tag> = HTMLElement & {
-  next: (callback?: (args: ComponentArgs) => void) => void;
-  throw: (error: unknown) => void;
-  return: () => void;
+  next: (callback?: (args: ComponentArgs) => void) => void
+  throw: (error: unknown) => void
+  return: () => void
 };
 
 // Element types
-type Children = unknown;
+type Children = unknown
 type VNode<Type, Props> = Props & {
-  nodeName: Type;
-  children?: Children;
+  nodeName: Type
+  children?: Children
 };
 
 // Special attributes
 type SpecialAttributes = {
-  key?: unknown;
-  ref?: (element: Element | null) => void;
-  memo?: unknown[];
-  skip?: boolean;
+  key?: unknown
+  ref?: (element: Element | null) => void
+  memo?: unknown[]
+  skip?: boolean
 };
 ```
 
