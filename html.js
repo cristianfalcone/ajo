@@ -2,10 +2,6 @@ import { Context, current } from 'ajo/context'
 
 const Void = new Set(['area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'])
 
-const Special = new Set(['key', 'skip', 'memo', 'ref'])
-
-const Omit = new Set(['nodeName', 'children'])
-
 const Args = Symbol.for('ajo.args')
 
 const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
@@ -24,15 +20,13 @@ export const html = function* (h, { alloc = noop, push = noop, placeholder = noo
 	}
 }
 
-const element = function* (h, hooks) {
-
-	const { nodeName, children } = h
+const element = function* ({ nodeName, children, ...h }, hooks) {
 
 	let attrs = ''
 
 	for (const key in h) {
 
-		if (Omit.has(key) || key.startsWith('set:') || h[key] == null || h[key] === false) continue
+		if (key.startsWith('set:') || h[key] == null || h[key] === false) continue
 
 		if (h[key] === true) attrs += ` ${key}`
 
@@ -107,7 +101,7 @@ const runGenerator = (fn, h, hooks) => {
 
 		if (key.startsWith('attr:')) attrs[key.slice(5)] = h[key]
 
-		else if (Special.has(key) || key.startsWith('set:')) attrs[key] = h[key]
+		else if (key == 'key' || key == 'skip' || key == 'memo' || key == 'ref' || key.startsWith('set:')) attrs[key] = h[key]
 
 		else args[key] = h[key]
 	}

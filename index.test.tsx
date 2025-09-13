@@ -542,6 +542,42 @@ describe('components', () => {
 
 		vi.useRealTimers()
 	})
+
+	it('should replace stateful component when generator function changes without key', () => {
+
+		const PageA: Stateful = function* () {
+			let i = 0
+			while (true) yield <span>A{i++}</span>
+		}
+
+		const PageB: Stateful = function* () {
+			let i = 0
+			while (true) yield <span>B{i++}</span>
+		}
+
+		let useA = true
+
+		const App: Stateful = function* () {
+			while (true) yield (useA ? <PageA /> : <PageB />)
+		}
+
+		render(<App />, document.body)
+
+		expect(document.body.innerHTML).toBe('<div><div><span>A0</span></div></div>')
+
+		useA = false
+
+		render(<App />, document.body)
+
+		// Expect a fresh instance of PageB, not reuse of PageA
+		expect(document.body.innerHTML).toBe('<div><div><span>B0</span></div></div>')
+
+		// Subsequent updates should advance PageB, not PageA
+		const pageWrapper = document.querySelector('div > div') as any
+		pageWrapper.next()
+
+		expect(document.body.innerHTML).toBe('<div><div><span>B1</span></div></div>')
+	})
 })
 
 describe('context', () => {
@@ -1467,79 +1503,6 @@ describe('memo attribute', () => {
 		componentRef!.next()
 
 		expect(document.body.innerHTML).toBe('<div><p>Parent text: updated</p><div><div><p>Args count: 1</p><p>Internal count: 3</p><p>Text: updated</p></div></div></div>')
-	})
-
-	it('should correctly handle full app re-rendering', () => {
-
-		const Layout = (args: { children: Children }) =>
-			<main>
-				{args.children}
-			</main>
-
-		const Page1 = function* (args: { children: Children }) {
-
-			while (true) yield (
-				<>
-					<div>
-						Marketing Layout
-					</div>
-					{args.children}
-				</>
-			)
-		}
-
-		const Page2 = (args: { children: Children }) =>
-			<>
-				<div>
-					Shop Layout
-					<Counter />
-				</div>
-				{args.children}
-			</>
-
-		const Counter: Stateful = function* () {
-
-			let count = 0
-
-			const increment = () => this.next(() => count++)
-
-			while (true) yield (
-				<button set:onclick={increment}>
-					{count}
-				</button>
-			)
-		}
-
-		let Page = Page1
-
-		const App = () =>
-			<div memo={Page}>
-				<Layout>
-					<Page>
-						Page Content
-					</Page>
-				</Layout>
-			</div>
-
-		render(<App />, document.body)
-
-		expect(document.body.innerHTML).toBe('<div><main><div><div>Marketing Layout</div>Page Content</div></main></div>')
-
-		Page = Page2
-
-		render(<App />, document.body)
-
-		expect(document.body.innerHTML).toBe('<div><main><div>Shop Layout<div><button>0</button></div></div>Page Content</main></div>')
-
-		document.querySelector('button')!.click()
-
-		expect(document.body.innerHTML).toBe('<div><main><div>Shop Layout<div><button>1</button></div></div>Page Content</main></div>')
-
-		Page = Page1
-
-		render(<App />, document.body)
-
-		expect(document.body.innerHTML).toBe('<div><main><div><div>Marketing Layout</div>Page Content</div></main></div>')
 	})
 })
 

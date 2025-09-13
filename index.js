@@ -1,6 +1,5 @@
 import { Context, current } from 'ajo/context'
 
-const Keyed = Symbol.for('ajo.keyed')
 const Key = Symbol.for('ajo.key')
 const Memo = Symbol.for('ajo.memo')
 const Ref = Symbol.for('ajo.ref')
@@ -53,7 +52,7 @@ export const render = (h, el) => {
 
 		const node = child.nextSibling
 
-		if (child.nodeType == 1) unref(el, child)
+		if (child.nodeType == 1) unref(child)
 
 		el.removeChild(child)
 
@@ -95,12 +94,12 @@ const runGenerator = function (fn, h) {
 
 		if (key.startsWith('attr:')) attrs[key.slice(5)] = h[key]
 
-		else if (key == 'key' || key == 'memo' || key.startsWith('set:')) attrs[key] = h[key]
+		else if (key == 'key' || key == 'skip' || key == 'memo' || key == 'ref' || key.startsWith('set:')) attrs[key] = h[key]
 
 		else args[key] = h[key]
 	}
 
-	return { ...attrs, nodeName: fn.is ?? 'div', skip: true, ref: next.bind(null, fn, args) }
+	return { ...attrs, nodeName: fn.is ?? 'div', [Generator]: fn, [Args]: args }
 }
 
 const reconcile = (h, el, node) => {
@@ -119,21 +118,27 @@ const text = (h, node) => {
 	return node
 }
 
-const element = ({ nodeName, children, key, skip, memo, ref, ...h }, el, node) => {
+const element = ({ nodeName, children, key, skip, memo, ref, [Generator]: gen, [Args]: args, ...h }, el, node) => {
 
-	if (key != null) node = (el[Keyed] ??= new Map).get(key) ?? (node?.[Key] == null ? node : null)
+	while (node && (
 
-	while (node && node.localName != nodeName) node = node.nextSibling
+		(node.localName != nodeName) ||
+
+		(node[Key] != null && node[Key] != key) ||
+
+		(node[Generator] && node[Generator] != gen)
+
+	)) node = node.nextSibling
 
 	node ??= document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName)
 
-	if (key != node[Key]) el[Keyed].set(node[Key] = key, node)
+	if (key != null) node[Key] = key
 
 	if (memo == null || some(node[Memo], node[Memo] = memo)) {
 
 		attrs(node[Cache] ?? extract(node), node[Cache] = h, node)
 
-		if (!skip) render(children, node)
+		if (!skip) gen ? next(gen, args, node) : render(children, node)
 
 		if (typeof ref == 'function') (node[Ref] = ref)(node)
 	}
@@ -177,30 +182,22 @@ const before = (el, node, child) => {
 	} else el.insertBefore(node, child)
 }
 
-const unref = (el, node) => {
+const unref = node => {
 
-	for (const child of node.children) unref(node, child)
+	for (const child of node.children) unref(child)
 
-	el[Keyed]?.delete(node[Key])
-
-	node[Keyed]?.clear()
+	if (typeof node.return == 'function') node.return()
 
 	node[Ref]?.(null)
-
-	node[Generator] &&= null
 }
 
-const next = (fn, { skip, ref, ...args }, el) => {
-
-	if (!el) return
+const next = (fn, args, el) => {
 
 	el[Generator] ??= (attach(el), fn)
 
-	el[Ref] = dispose.bind(null, ref, el)
-
 	Object.assign(el[Args] ??= {}, args)
 
-	if (!skip) el[Render]()
+	el[Render]()
 }
 
 const attach = el => {
@@ -208,13 +205,6 @@ const attach = el => {
 	Object.assign(el, methods)
 
 	el[Context] = Object.create(current()?.[Context] ?? null)
-}
-
-const dispose = (ref, el, node) => {
-
-	if (typeof ref == 'function') ref(node)
-
-	if (!node) el.return()
 }
 
 const methods = {
