@@ -20,9 +20,7 @@ export const h = (type, props, ...children) => {
 	return props
 }
 
-export const render = (h, el) => {
-
-	let child = el.firstChild
+export const render = (h, el, child = el.firstChild, ref = null) => {
 
 	for (h of walk(h)) {
 
@@ -30,7 +28,7 @@ export const render = (h, el) => {
 
 		if (child == null) {
 
-			el.appendChild(node)
+			before(el, node, ref)
 
 		} else if (node == child) {
 
@@ -38,7 +36,7 @@ export const render = (h, el) => {
 
 		} else if (node == child.nextSibling) {
 
-			el.appendChild(child)
+			before(el, child, ref)
 
 			child = node.nextSibling
 
@@ -48,7 +46,7 @@ export const render = (h, el) => {
 		}
 	}
 
-	while (child) {
+	while (child != ref) {
 
 		const node = child.nextSibling
 

@@ -52,6 +52,21 @@ const App = () => <h1>Hello, Ajo!</h1>;
 render(<App />, document.body);
 ```
 
+#### Targeted updates
+
+When you only want to touch a slice of the container, pass the optional third (child) and fourth (ref) arguments to `render`. Rendering begins at the provided child node (inclusive) and stops before the ref node (exclusive), leaving siblings outside that window untouched.
+
+```javascript
+document.body.innerHTML = '<header>Header</header><main><p>Initial content</p></main><footer>Footer</footer>';
+
+const start = document.body.querySelector('main');
+const stop = document.body.querySelector('footer');
+
+render(<main><p>Updated content</p></main>, document.body, start, stop);
+```
+
+In this example the header before `main` and the footer after it remain unchanged while the `<main>` subtree is replaced in place.
+
 ### Setup with Build Tools
 
 #### Vite Configuration
@@ -374,10 +389,11 @@ const UserContext = context(null);
 // Provider component
 function* App() {
 
-  ThemeContext('dark');
-  UserContext({ name: 'John', role: 'admin' });
-  
   while (true) {
+
+    ThemeContext('dark');
+    UserContext({ name: 'John', role: 'admin' });
+
     yield (
       <div>
         <Header />
@@ -542,7 +558,7 @@ function* ChartComponent(args) {
             chartInstance = new ThirdPartyChart(el, args.data);
           }
         }}
-        skip={true}
+        skip
       >
         {/* Ajo won't touch children - third-party library controls this */}
         <canvas id="chart-canvas"></canvas>
@@ -559,12 +575,11 @@ Set DOM properties directly (not attributes):
 
 ```javascript
 const Interactive = () => (
-  <button 
+  <button
     set:onclick={() => alert('Clicked!')}
     set:disabled={false}
-    set:textContent="Dynamic Text"
   >
-    Button
+    Click me!
   </button>
 );
 ```
@@ -640,12 +655,12 @@ Create reusable component logic:
 
 ```javascript
 const withLoading = (Component) => {
-  return function* LoadingWrapper(props) {
+  return function* LoadingWrapper(args) {
     while (true) {
-      if (props.loading) {
+      if (args.loading) {
         yield <>Loading...</>;
       } else {
-        yield <Component {...props} />;
+        yield <Component {...args} />;
       }
     }
   };
@@ -872,16 +887,16 @@ type CounterProps = {
 
 const Counter: Stateful<CounterProps, 'section'> = function* (args) {
   let count = args.initialValue;
-  
+
   const increment = () => {
-    this.next(({ step }) => count += step);
+    this.next(({ step = 1 }) => count += step);
   };
-  
+
   while (true) {
     yield (
       <>
         <span>Count: {count}</span>
-        <button set:onclick={increment}>+{args.step || 1}</button>
+        <button set:onclick={increment}>+{args.step ?? 1}</button>
       </>
     );
   }

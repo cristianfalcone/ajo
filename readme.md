@@ -148,7 +148,7 @@ function* MapComponent(args) {
           new GoogleMap(el, args.config)
         }
       }}
-      skip={true}
+      skip
     >
       {/* Google Maps API manages children elements */}
     </div>
@@ -183,13 +183,17 @@ for await (const chunk of stream(<App />)) response.write(chunk)
 
 ### Core Module (`ajo`)
 
-#### `render(children: Children, container: Element): void`
-Renders JSX into a DOM container element.
+#### `render(children: Children, container: Element, child?: ChildNode, ref?: ChildNode): void`
+Renders JSX into a DOM container element. When `child` and `ref` are provided, only nodes between them (inclusive of `child`, exclusive of `ref`) are reconciled, leaving the rest of the container untouched.
 
 ```javascript
 import { render } from 'ajo'
 
 render(<App />, document.getElementById('root'))
+
+// Update only the <main> region without touching header/footer
+const container = document.body
+render(<main>Updated</main>, container, container.querySelector('main'), container.querySelector('footer'))
 ```
 
 #### `h(type: Type, props?: Props, ...children: Children[]): VNode`

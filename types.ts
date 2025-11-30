@@ -2,9 +2,9 @@ declare module 'ajo' {
 
 	type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
 
-	type Type = Tag | Stateless | Stateful
+	type Type<TArguments extends Props = {}, TTag extends Tag = 'div'> = Tag | Stateless<TArguments> | Stateful<TArguments, TTag>
 
-	type Component<TProps extends Props = {}> = Stateless<TProps> | Stateful<TProps>
+	type Component<TArguments extends Props = {}> = Stateless<TArguments> | Stateful<TArguments>
 
 	type Props = Record<string, unknown>
 
@@ -61,11 +61,12 @@ declare module 'ajo' {
 
 	function Fragment({ children }: ElementChildrenAttribute): typeof children
 	function h(tag: Type, props?: Props | null, ...children: Children[]): VNode<Type, Props>
-	function render(h: Children, el: Element, child?: Node, ref?: Node): void
+	function render(h: Children, el: ParentNode, child?: ChildNode, ref?: ChildNode): void
 }
 
 declare module 'ajo/context' {
 	function context<T>(fallback?: T): (value?: T) => T
+	function current(): import('ajo').Stateful | null
 }
 
 declare module 'ajo/html' {

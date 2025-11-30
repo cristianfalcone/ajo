@@ -107,6 +107,65 @@ describe('render', () => {
 		expect(button!.getAttribute('onclick')).toBeNull()
 		expect(button!.getAttribute('data-testid')).toBe('test-button')
 	})
+
+	it('should start rendering from the provided child node', () => {
+
+		document.body.innerHTML = '<p>Keep</p><div>Replace me</div><div>Remove me</div>'
+
+		const [before, start] = Array.from(document.body.children) as HTMLElement[]
+
+		render(
+			<section>
+				<span>New content</span>
+			</section>,
+			document.body,
+			start
+		)
+
+		expect(document.body.firstElementChild).toBe(before)
+		expect(document.body.innerHTML).toBe('<p>Keep</p><section><span>New content</span></section>')
+	})
+
+	it('should stop rendering before the provided ref node', () => {
+
+		document.body.innerHTML = '<header>Before</header><main>Old main</main><aside>Old aside</aside><footer>After</footer>'
+
+		const [header, main, aside, footer] = Array.from(document.body.children) as HTMLElement[]
+
+		render(
+			<>
+				<main>
+					<p>Updated</p>
+				</main>
+				<aside>Updated aside</aside>
+			</>,
+			document.body,
+			main,
+			footer
+		)
+
+		expect(document.body.firstElementChild).toBe(header)
+		expect(document.body.lastElementChild).toBe(footer)
+		expect(document.body.innerHTML).toBe('<header>Before</header><main><p>Updated</p></main><aside>Updated aside</aside><footer>After</footer>')
+	})
+
+	it('should remove nodes inside the range without touching the ref node', () => {
+
+		document.body.innerHTML = '<header>Before</header><main>Old main</main><section>Remove me</section><footer>After</footer>'
+
+		const [header, main, , footer] = Array.from(document.body.children) as HTMLElement[]
+
+		render(
+			<main>New main</main>,
+			document.body,
+			main,
+			footer
+		)
+
+		expect(document.body.firstElementChild).toBe(header)
+		expect(document.body.lastElementChild).toBe(footer)
+		expect(document.body.innerHTML).toBe('<header>Before</header><main>New main</main><footer>After</footer>')
+	})
 })
 
 describe('components', () => {
