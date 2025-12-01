@@ -112,7 +112,7 @@ describe('render', () => {
 
 		document.body.innerHTML = '<p>Keep</p><div>Replace me</div><div>Remove me</div>'
 
-		const [before, start] = Array.from(document.body.children) as HTMLElement[]
+		const [before, start] = Array.from(document.body.children)
 
 		render(
 			<section>
@@ -130,7 +130,7 @@ describe('render', () => {
 
 		document.body.innerHTML = '<header>Before</header><main>Old main</main><aside>Old aside</aside><footer>After</footer>'
 
-		const [header, main, aside, footer] = Array.from(document.body.children) as HTMLElement[]
+		const [header, main, aside, footer] = Array.from(document.body.children)
 
 		render(
 			<>
@@ -153,7 +153,7 @@ describe('render', () => {
 
 		document.body.innerHTML = '<header>Before</header><main>Old main</main><section>Remove me</section><footer>After</footer>'
 
-		const [header, main, , footer] = Array.from(document.body.children) as HTMLElement[]
+		const [header, main, , footer] = Array.from(document.body.children)
 
 		render(
 			<main>New main</main>,
@@ -213,7 +213,7 @@ describe('components', () => {
 		const fn = vi.fn()
 
 		const Simple = () => (
-			<div class="container" set:onclick={fn} ref={(el) => (ref = el)}>
+			<div class="container" set:onclick={fn} ref={el => ref = el}>
 				Hello world
 			</div>
 		)
@@ -482,10 +482,10 @@ describe('components', () => {
 
 		render(<App />, document.body)
 
-		const input = document.querySelector('input') as HTMLInputElement
+		const input = document.querySelector('input')
 
-		input.value = 'Hello, Ajo!'
-		input.dispatchEvent(new Event('input'))
+		input!.value = 'Hello, Ajo!'
+		input!.dispatchEvent(new Event('input'))
 
 		expect(document.body.innerHTML).toBe('<div><input type="text" value="Hello, Ajo!"><p>You typed: Hello, Ajo!</p></div>')
 	})
@@ -632,7 +632,7 @@ describe('components', () => {
 		expect(document.body.innerHTML).toBe('<div><div><span>B0</span></div></div>')
 
 		// Subsequent updates should advance PageB, not PageA
-		const pageWrapper = document.querySelector('div > div') as any
+		const pageWrapper = document.querySelector('div > div') as ThisParameterType<typeof PageB>
 		pageWrapper.next()
 
 		expect(document.body.innerHTML).toBe('<div><div><span>B1</span></div></div>')

@@ -2,13 +2,13 @@ declare module 'ajo' {
 
 	type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
 
-	type Type<TArguments extends Props = {}, TTag extends Tag = 'div'> = Tag | Stateless<TArguments> | Stateful<TArguments, TTag>
+	type Type<TArguments extends Args = {}, TTag extends Tag = 'div'> = Tag | Stateless<TArguments> | Stateful<TArguments, TTag>
 
-	type Component<TArguments extends Props = {}> = Stateless<TArguments> | Stateful<TArguments>
+	type Component<TArguments extends Args = {}> = Stateless<TArguments> | Stateful<TArguments>
 
-	type Props = Record<string, unknown>
+	type Args = Record<string, unknown>
 
-	type VNode<TTag extends Type, TProps extends Props> = TProps & {
+	type VNode<TTag extends Type, TArgs extends Args> = TArgs & {
 		nodeName: TTag,
 		children?: Children,
 	}
@@ -21,7 +21,7 @@ declare module 'ajo' {
 		? SVGElementTagNameMap[TTag]
 		: never
 
-	type SpecialProps<TElement> = {
+	type SpecialAttrs<TElement> = {
 		key: unknown,
 		skip: boolean,
 		memo: unknown,
@@ -36,37 +36,47 @@ declare module 'ajo' {
 		[key: `attr:${string}`]: unknown
 	}
 
-	type Stateless<TArguments extends Props = {}> = (args: TArguments) => Children
+	type Stateless<TArguments extends Args = {}> = (args: TArguments) => Children
 
-	type Stateful<TArguments extends Props = {}, TTag extends Tag = 'div'> = {
-		(this: StatefulElement<TArguments, TTag>, args: StatefulProps<TArguments, TTag>): Iterator<Children>
-	} & (TTag extends 'div' ? { is?: TTag } : { is: TTag }) & { attrs?: Partial<PropSetter<TTag>> & Props, args?: Partial<TArguments> }
+	type Stateful<TArguments extends Args = {}, TTag extends Tag = 'div'> = {
+		(this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>): Iterator<Children>
+	} & (TTag extends 'div' ? { is?: TTag } : { is: TTag }) & {
+		attrs?: Partial<PropSetter<TTag>> & Args,
+		args?: Partial<TArguments>,
+		src?: string,
+		fallback?: Children,
+	}
 
-	type StatefulProps<TArguments, TTag> =
-		Partial<SpecialProps<StatefulElement<TArguments, TTag>> & PropSetter<TTag>> &
+	type StatefulArgs<TArguments, TTag> =
+		Partial<SpecialAttrs<StatefulElement<TArguments, TTag>> & PropSetter<TTag>> &
 		AttrSetter &
 		TArguments
 
 	type StatefulElement<TArguments, TTag> = ElementType<TTag> & {
-		next: (fn?: (this: StatefulElement<TArguments, TTag>, args: StatefulProps<TArguments, TTag>) => void) => void,
+		next: (fn?: (this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>) => void) => void,
 		throw: (value?: unknown) => void,
 		return: () => void,
 	}
 
 	type IntrinsicElements = {
-		[TTag in Tag]: Partial<PropSetter<TTag> & SpecialProps<ElementType<TTag>>> & Props
+		[TTag in Tag]: Partial<PropSetter<TTag> & SpecialAttrs<ElementType<TTag>>> & Args
 	}
 
 	type ElementChildrenAttribute = { children: Children }
 
+	type WithChildren<T extends Args = {}> = T & Partial<ElementChildrenAttribute>
+
 	function Fragment({ children }: ElementChildrenAttribute): typeof children
-	function h(tag: Type, props?: Props | null, ...children: Children[]): VNode<Type, Props>
+	function h(tag: Type, attrs?: Args | null, ...children: Children[]): VNode<Type, Args>
 	function render(h: Children, el: ParentNode, child?: ChildNode, ref?: ChildNode): void
 }
 
 declare module 'ajo/context' {
-	function context<T>(fallback?: T): (value?: T) => T
-	function current(): import('ajo').Stateful | null
+	function context<T>(fallback?: T): {
+		(): T
+		<V extends T>(value: V): V
+	}
+	function current(): import('ajo').StatefulElement<any, any> | null
 }
 
 declare module 'ajo/html' {
