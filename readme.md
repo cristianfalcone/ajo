@@ -297,36 +297,48 @@ window.$stream = { push: hydrate }
 ### TypeScript Support
 
 ```typescript
+import type {
+  Args,
+  Children,
+  Stateful,
+  StatefulArgs,
+  StatefulElement,
+  Stateless,
+  WithChildren,
+} from 'ajo'
+
+// Base types
+type Args = Record<string, unknown>
+type Children = unknown
+
 // Component types
-type Stateless<Props = {}> = (props: Props) => Children
-type Stateful<Props = {}, Tag = 'div'> = {
-  (this: StatefulElement<Tag>, props: Props): Iterator<Children>
-  is?: Tag
+type Stateless<TArguments extends Args = {}> = (args: TArguments) => Children
+
+type Stateful<TArguments extends Args = {}, TTag extends Tag = 'div'> = {
+  (this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>): Iterator<Children>
+  is?: TTag
   attrs?: Record<string, unknown>
-  args?: Partial<Props>
+  args?: Partial<TArguments>
+  src?: string       // for islands
+  fallback?: Children // for async components
 }
 
-// Stateful component instance
-type StatefulElement<Tag> = HTMLElement & {
-  next: (callback?: (args: ComponentArgs) => void) => void
-  throw: (error: unknown) => void
+// Stateful component instance (wrapper element + control methods)
+type StatefulElement<TArguments, TTag> = HTMLElement & {
+  next: (fn?: (this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>) => void) => void
+  throw: (value?: unknown) => void
   return: () => void
-};
+}
 
-// Element types
-type Children = unknown
-type VNode<Type, Props> = Props & {
-  nodeName: Type
-  children?: Children
-};
+// Helper for components with children
+type WithChildren<T extends Args = {}> = T & { children?: Children }
 
-// Special attributes
-type SpecialAttributes = {
-  key?: unknown
-  ref?: (element: Element | null) => void
-  memo?: unknown[]
-  skip?: boolean
-};
+// Usage examples
+type CardArgs = WithChildren<{ title: string }>
+const Card: Stateless<CardArgs> = ({ title, children }) => ...
+
+type ModalArgs = WithChildren<{ open: boolean }>
+const Modal: Stateful<ModalArgs> = function* (args) { ... }
 ```
 
 ## Documentation

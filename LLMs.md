@@ -5,10 +5,10 @@ Ajo is a micro UI library using JSX and generators. **No React imports**: JSX co
 ## Stateless Component
 
 ```tsx
-import type { Children, Stateless } from 'ajo'
+import type { Stateless, WithChildren } from 'ajo'
 import clsx from 'clsx' // optional, for conditional classes
 
-type Args = { title: string; active?: boolean; children?: Children }
+type Args = WithChildren<{ title: string; active?: boolean }>
 
 const Card: Stateless<Args> = ({ title, active, children }) => ( // can destructure args here
   <div class={clsx('card', { active })}>
@@ -132,7 +132,7 @@ ref?.next()  // trigger re-render from outside
 ## Common Patterns
 
 ```tsx
-import type { Children, Stateful, Stateless } from 'ajo'
+import type { Stateful, Stateless, WithChildren } from 'ajo'
 import { context } from 'ajo/context'
 
 // Async data loading
@@ -167,7 +167,7 @@ const List: Stateless<{ items: Item[] }> = ({ items }) => (
 )
 
 // Conditional rendering
-type ShowArgs = { when: boolean; children: Children }
+type ShowArgs = WithChildren<{ when: boolean }>
 
 const Show: Stateless<ShowArgs> = ({ when, children }) => when ? children : null
 
@@ -182,7 +182,7 @@ const ThemedCard: Stateless<{ title: string }> = ({ title }) => {
 }
 
 // Stateful - read/write inside while loop
-const ThemeProvider: Stateful<{ children: Children }> = function* (args) {
+const ThemeProvider: Stateful<WithChildren> = function* (args) {
 
   let theme: 'light' | 'dark' = 'light'
 

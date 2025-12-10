@@ -859,15 +859,14 @@ Ajo provides comprehensive TypeScript support for enhanced developer experience:
 ### Component Types
 
 ```typescript
-import type { Stateful, Stateless, Children } from 'ajo';
+import type { Stateful, Stateless, WithChildren } from 'ajo';
 
 // Stateless component with typed props
-type ButtonProps = {
+type ButtonProps = WithChildren<{
   variant: 'primary' | 'secondary';
   disabled?: boolean;
-  children: Children;
   onClick: () => void;
-};
+}>;
 
 const Button: Stateless<ButtonProps> = ({ variant, disabled, children, onClick }) => (
   <button 
