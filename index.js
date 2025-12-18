@@ -84,7 +84,7 @@ const run = function* ({ nodeName, ...h }) {
 	else yield* walk(nodeName(h))
 }
 
-const runGenerator = function (fn, h) {
+const runGenerator = (fn, h) => {
 
 	const attrs = { ...fn.attrs }, args = { ...fn.args }
 
@@ -100,12 +100,7 @@ const runGenerator = function (fn, h) {
 	return { ...attrs, nodeName: fn.is ?? 'div', [Generator]: fn, [Args]: args }
 }
 
-const reconcile = (h, el, node) => {
-
-	if (typeof h == 'string') return text(h, node)
-
-	return element(h, el, node)
-}
+const reconcile = (h, el, node) => typeof h == 'string' ? text(h, node) : element(h, el, node)
 
 const text = (h, node) => {
 
@@ -223,9 +218,9 @@ const methods = {
 
 			if (done) this.return()
 
-		} catch (value) {
+		} catch (e) {
 
-			this.throw(value)
+			this.throw(e)
 
 		} finally {
 
@@ -235,29 +230,27 @@ const methods = {
 
 	next(fn) {
 
-		if (typeof fn == 'function') try {
+		try {
 
-			fn.call(this, this[Args])
+			fn?.call(this, this[Args])
 
-		} catch (error) {
+		} catch (e) {
 
-			this.throw(error)
+			return this.throw(e)
 		}
 
-		if (current()?.contains(this)) return
-
-		this[Render]()
+		if (!current()?.contains(this)) this[Render]()
 	},
 
 	throw(value) {
 
-		for (let el = this; el; el = el.parentNode) if (typeof el[Iterator]?.throw == 'function') try {
+		for (let el = this; el; el = el.parentNode) if (el[Iterator]?.throw) try {
 
 			return render(el[Iterator].throw(value).value, el)
 
-		} catch (error) {
+		} catch (e) {
 
-			value = new Error(error instanceof Error ? error.message : error, { cause: value })
+			value = new Error(e?.message ?? e, { cause: value })
 		}
 
 		throw value
@@ -269,9 +262,9 @@ const methods = {
 
 			this[Iterator]?.return()
 
-		} catch (value) {
+		} catch (e) {
 
-			this.throw(value)
+			this.throw(e)
 
 		} finally {
 
