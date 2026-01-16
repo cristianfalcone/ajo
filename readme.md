@@ -15,336 +15,433 @@
 
 A modern JavaScript library for building user interfaces with generator-based state management, efficient DOM updates, and streaming server-side rendering.
 
-## Features
-
-- **Generator-Based Components**: Use JavaScript generator functions (`function*`) for stateful components with built-in lifecycle management
-- **Efficient DOM Updates**: In-place DOM reconciliation minimizes DOM manipulation and maximizes performance
-- **Declarative JSX**: Write components using familiar JSX syntax with full TypeScript support
-- **Performance Optimization**: Built-in `memo` attribute for fine-grained performance optimization
-- **Context API**: Share state across component trees without prop drilling
-- **Server-Side Rendering**: Complete SSR solution with streaming and hydration support
-- **Islands Architecture**: Selective hydration for maximum performance with minimal client-side JavaScript
+- **Generator-Based Components**: Use `function*` for stateful components with built-in lifecycle
+- **Efficient DOM Updates**: In-place reconciliation minimizes DOM manipulation
+- **Streaming SSR**: Progressive rendering with selective hydration (islands)
 
 ## Quick Start
-
-Install Ajo using your preferred package manager:
 
 ```bash
 npm install ajo
 ```
 
-Create your first component:
-
 ```javascript
 import { render } from 'ajo'
 
-// Stateless component
-const Greeting = ({ name }) => <p>Hello, {name}!</p>
-
-// Stateful component
 function* Counter() {
-
   let count = 0
 
-  const increment = () => this.next(() => count++)
-
   while (true) yield (
-    <button set:onclick={increment}>
+    <button set:onclick={() => this.next(() => count++)}>
       Count: {count}
     </button>
   )
 }
 
-// Render to DOM
 render(<Counter />, document.body)
 ```
 
-## Core Concepts
+### Build Configuration
 
-### Component Types
+Configure your build tool to use Ajo's JSX factory:
 
-**Stateless Components** are pure functions:
-```javascript
-const UserCard = ({ user }) => (
-  <div class="user-card">
-    <h3>{user.name}</h3>
-    <p>{user.email}</p>
-  </div>
-);
+**Vite:**
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  esbuild: {
+    jsxFactory: 'h',
+    jsxFragment: 'Fragment',
+    jsxInject: `import { h, Fragment } from 'ajo'`,
+  },
+})
 ```
 
-**Stateful Components** use generator functions with automatic wrapper elements:
-```javascript
-function* TodoList() {
-
-  let todos = []
-  
-  const addTodo = text => this.next(() => todos.push({ id: Date.now(), text }))
-
-  while (true) yield (
-    <>
-      <input set:onkeydown={e => e.key === 'Enter' && addTodo(e.target.value)} />
-      <ul>
-        {todos.map(todo => <li key={todo.id}>{todo.text}</li>)}
-      </ul>
-    </>
-  )
+**TypeScript:**
+```json
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment"
+  }
 }
 ```
 
-### State Management Pattern
+**Other build tools:** Set `jsxFactory: 'h'`, `jsxFragment: 'Fragment'`, and auto-import `{ h, Fragment }` from `'ajo'`.
 
-The generator structure provides a natural mental model:
-- **Before the loop**: Persistent state, handlers, and utilities  
-- **Inside the loop**: Re-executed on each render for derived values
+## Core Concepts
+
+### Stateless Components
+
+Pure functions that receive props and return JSX:
 
 ```javascript
-function* ShoppingCart(args) {
+const Greeting = ({ name }) => <p>Hello, {name}!</p>
+```
 
-  // Persistent state (like useState)
-  let items = []
+### Stateful Components
 
-  // Persistent handlers (like useCallback)
-  const addItem = product => this.next(() => items.push(product))
+Generator functions with automatic wrapper elements. The structure provides a natural mental model:
 
-  // Main render loop
+- **Before the loop**: Persistent state and handlers (survives re-renders)
+- **Inside the loop**: Derived values (computed fresh each render)
+
+```javascript
+function* TodoList() {
+  let todos = []
+  let text = ''
+
+  const add = () => this.next(() => {
+    if (text.trim()) {
+      todos.push({ id: Date.now(), text })
+      text = ''
+    }
+  })
+
   while (true) {
-
-    // Derived values computed fresh each render
-    const total = items.reduce((sum, item) => sum + item.price, 0)
-    const itemCount = items.length
+    const count = todos.length
 
     yield (
       <>
-        <h2>Cart ({itemCount} items)</h2>
-        <p>Total: ${total}</p>
-        {/* ... */}
+        <input
+          set:value={text}
+          set:oninput={e => text = e.target.value}
+          set:onkeydown={e => e.key === 'Enter' && add()}
+        />
+        <button set:onclick={add}>Add ({count})</button>
+        <ul>
+          {todos.map(t => <li key={t.id}>{t.text}</li>)}
+        </ul>
       </>
     )
   }
 }
 ```
 
-### Special Attributes
+### Re-rendering with `this.next()`
 
-- **`key`**: List reconciliation
-- **`ref`**: DOM element access
-- **`memo`**: Performance optimization 
-- **`skip`**: Third-party DOM management
-- **`set:`**: Direct property setting
-- **`attr:`**: Force HTML attributes
+Call `this.next()` to trigger a re-render. The optional callback receives current props, useful when props may have changed:
 
 ```javascript
-function* MapComponent(args) {
+function* Stepper(args) {
+  let count = 0
 
-  let mapRef = null
+  // Access current props in callback
+  const inc = () => this.next(({ step = 1 }) => count += step)
 
   while (true) yield (
-    <div 
-      ref={el => {
-        if (el && !mapRef) {
-          mapRef = el
-          // Third-party map library controls this DOM
-          new GoogleMap(el, args.config)
-        }
-      }}
-      skip
-    >
-      {/* Google Maps API manages children elements */}
-    </div>
+    <button set:onclick={inc}>Count: {count} (+{args.step})</button>
   )
 }
 ```
 
-## Server-Side Rendering
-
-### Static SSR
-```javascript
-import { render } from 'ajo/html'
-
-const html = render(<App />)
-```
-
-### Streaming SSR
-```javascript
-import { stream } from 'ajo/stream'
-
-for await (const chunk of stream(<App />)) response.write(chunk)
-```
-
-## Best Practices
-
-1. **Use fragments in stateful components** to avoid unnecessary DOM nesting
-2. **Don't destructure props in function signatures** - use `args` parameter or destructure inside the render loop
-3. **Leverage the generator structure** for natural state and lifecycle management
-4. **Use TypeScript** for enhanced developer experience
-
-## API Reference
-
-### Core Module (`ajo`)
-
-#### `render(children: Children, container: Element, child?: ChildNode, ref?: ChildNode): void`
-Renders JSX into a DOM container element. When `child` and `ref` are provided, only nodes between them (inclusive of `child`, exclusive of `ref`) are reconciled, leaving the rest of the container untouched.
+**Never destructure args in the generator signature** - it locks values to initial props:
 
 ```javascript
-import { render } from 'ajo'
+// DON'T - values frozen at mount
+function* Bad({ step }) { let count = step }
 
-render(<App />, document.getElementById('root'))
-
-// Update only the <main> region without touching header/footer
-const container = document.body
-render(<main>Updated</main>, container, container.querySelector('main'), container.querySelector('footer'))
-```
-
-#### `h(type: Type, props?: Props, ...children: Children[]): VNode`
-JSX factory function (rarely used directly).
-
-#### `Fragment({ children }: { children: Children }): Children`
-JSX fragment component for rendering multiple elements without a wrapper.
-
-```javascript
-const List = () => (
-  <>
-    <li>Item 1</li>
-    <li>Item 2</li>
-  </>
-)
-```
-
-### Stateful Component Instance Methods
-
-Stateful components have access to several instance methods through `this`:
-
-#### `this.next(callback?: (args: ComponentArgs) => void): void`
-Triggers a re-render of the component by advancing to the next yield point. Optionally accepts a callback function that receives the component's current props/args as the first parameter.
-
-```javascript
-function* Counter(args) {
-
-  let count = 0
-
-  const increment = () => {
-    // Simple re-render
-    this.next(() => count++)
+// DO - use args directly, or destructure inside the loop
+function* Good(args) {
+  while (true) {
+    const { step } = args  // fresh each render
+    yield ...
   }
-
-  const incrementByStep = () => {
-    // Access current props in callback
-    this.next(({ step }) => count += step)
-  }
-
-  // ... rest of component
 }
 ```
 
-#### `this.throw(error: unknown): void`
-Throws an error that can be caught by parent error boundaries.
+### Lifecycle and Cleanup
 
-#### `this.return(): void`
-Terminates the generator and triggers cleanup (rarely used directly).
+Use `try...finally` for cleanup when the component unmounts:
 
-### Context Module (`ajo/context`)
+```javascript
+function* Clock() {
+  let time = new Date()
+  const interval = setInterval(() => this.next(() => time = new Date()), 1000)
 
-#### `context<T>(fallback?: T): ContextFunction<T>`
-Creates a context for sharing data across component trees.
+  try {
+    while (true) yield <p>{time.toLocaleTimeString()}</p>
+  } finally {
+    clearInterval(interval)
+  }
+}
+```
+
+### Error Boundaries
+
+Use `try...catch` **inside** the loop to catch errors and recover:
+
+```javascript
+function* ErrorBoundary(args) {
+  while (true) {
+    try {
+      yield args.children
+    } catch (error) {
+      yield (
+        <>
+          <p>Error: {error.message}</p>
+          <button set:onclick={() => this.next()}>Retry</button>
+        </>
+      )
+    }
+  }
+}
+```
+
+## Special Attributes
+
+| Attribute | Description |
+|-----------|-------------|
+| `key` | Unique identifier for list reconciliation |
+| `ref` | Callback receiving DOM element (or `null` on unmount) |
+| `memo` | Skip reconciliation: `memo={[deps]}`, `memo={value}`, or `memo` (render once) |
+| `skip` | Exclude children from reconciliation (required with `set:innerHTML`) |
+| `set:*` | Set DOM properties instead of HTML attributes |
+| `attr:*` | Force HTML attributes on stateful component wrappers |
+
+### `set:` - DOM Properties vs HTML Attributes
+
+```javascript
+// Events (always use set:)
+<button set:onclick={handleClick}>Click</button>
+
+// Dynamic values that need to sync with state
+<input set:value={text} />              // DOM property (syncs)
+<input value="initial" />                // HTML attribute (initial only)
+
+<input type="checkbox" set:checked={bool} />
+<video set:currentTime={0} set:muted />
+
+// innerHTML requires skip
+<div set:innerHTML={html} skip />
+```
+
+### `ref` - DOM Access
+
+```javascript
+function* AutoFocus() {
+  let input = null
+
+  while (true) yield (
+    <>
+      <input ref={el => el?.focus()} />
+      <button set:onclick={() => input?.select()}>Select</button>
+    </>
+  )
+}
+
+// Ref to stateful component includes control methods
+let timer = null
+<Clock ref={el => timer = el} />
+timer?.next()  // trigger re-render from outside
+```
+
+### `memo` - Performance Optimization
+
+```javascript
+<div memo={[user.id]}>...</div>   // re-render when user.id changes
+<div memo={count}>...</div>        // re-render when count changes
+<footer memo>Static content</footer>  // render once, never update
+```
+
+### `skip` - Third-Party DOM
+
+```javascript
+function* Chart(args) {
+  let chart = null
+
+  while (true) yield (
+    <div skip ref={el => el && (chart ??= new ChartLib(el, args.data))} />
+  )
+}
+```
+
+### `attr:` - Wrapper Attributes
+
+```javascript
+<Counter
+  initial={0}                    // → args
+  attr:id="main"                 // → wrapper HTML attribute
+  attr:class="widget"            // → wrapper HTML attribute
+  set:onclick={fn}               // → wrapper DOM property
+/>
+```
+
+## Context API
+
+Share data across component trees without prop drilling:
 
 ```javascript
 import { context } from 'ajo/context'
 
 const ThemeContext = context('light')
-
-// Set value
-ThemeContext('dark')
-
-// Get value
-const theme = ThemeContext() // 'dark'
 ```
 
-### HTML Module (`ajo/html`)
-
-#### `render(children: Children): string`
-Renders JSX to an HTML string for static site generation.
+**Stateless**: read only.
+**Stateful**: read/write. Write inside the loop to update each render, or outside for a one-time set.
 
 ```javascript
+// Stateless - read only
+const Card = ({ title }) => {
+  const theme = ThemeContext()
+  return <div class={`card theme-${theme}`}>{title}</div>
+}
+
+// Stateful - write inside loop (updates each render)
+function* ThemeProvider(args) {
+  let theme = 'light'
+
+  while (true) {
+    ThemeContext(theme)
+    yield (
+      <>
+        <button set:onclick={() => this.next(() => theme = theme === 'light' ? 'dark' : 'light')}>
+          {theme}
+        </button>
+        {args.children}
+      </>
+    )
+  }
+}
+
+// Stateful - write outside loop (one-time set)
+function* FixedTheme(args) {
+  ThemeContext('dark')  // set once at mount
+  while (true) yield args.children
+}
+```
+
+## Async Operations
+
+```javascript
+function* UserProfile(args) {
+  let data = null, error = null, loading = true
+
+  fetch(`/api/users/${args.id}`)
+    .then(r => r.json())
+    .then(d => this.next(() => { data = d; loading = false }))
+    .catch(e => this.next(() => { error = e; loading = false }))
+
+  while (true) {
+    if (loading) yield <p>Loading...</p>
+    else if (error) yield <p>Error: {error.message}</p>
+    else yield <h1>{data.name}</h1>
+  }
+}
+```
+
+## Server-Side Rendering
+
+```javascript
+// Static
 import { render } from 'ajo/html'
+const html = render(<App />)
 
-const html = render(<HomePage title="Welcome" />)
-```
-
-#### `html(children: Children, hooks?: Hooks): IterableIterator<string>`
-Low-level HTML streaming function with custom hooks.
-
-### Stream Module (`ajo/stream`)
-
-#### `stream(children: Children): AsyncIterableIterator<string>`
-Renders components to an async stream for progressive SSR.
-
-```javascript
+// Streaming
 import { stream } from 'ajo/stream'
+for await (const chunk of stream(<App />)) res.write(chunk)
 
-for await (const chunk of stream(<App />)) response.write(chunk)
-```
-
-#### `hydrate(patch: Patch): Promise<void>`
-Client-side function for applying streamed patches during hydration.
-
-```javascript
+// Hydration (client-side)
 import { hydrate } from 'ajo/stream'
-
 window.$stream = { push: hydrate }
 ```
 
-### TypeScript Support
+### Islands Architecture
 
-```typescript
-import type {
-  Args,
-  Children,
-  Stateful,
-  StatefulArgs,
-  StatefulElement,
-  Stateless,
-  WithChildren,
-} from 'ajo'
-
-// Base types
-type Args = Record<string, unknown>
-type Children = unknown
-
-// Component types
-type Stateless<TArguments extends Args = {}> = (args: TArguments) => Children
-
-type Stateful<TArguments extends Args = {}, TTag extends Tag = 'div'> = {
-  (this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>): Iterator<Children>
-  is?: TTag
-  attrs?: Record<string, unknown>
-  args?: Partial<TArguments>
-  src?: string       // for islands
-  fallback?: Children // for async components
+```javascript
+function* Interactive() {
+  let count = 0
+  while (true) yield (
+    <button set:onclick={() => this.next(() => count++)}>
+      {count}
+    </button>
+  )
 }
 
-// Stateful component instance (wrapper element + control methods)
-type StatefulElement<TArguments, TTag> = HTMLElement & {
-  next: (fn?: (this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>) => void) => void
-  throw: (value?: unknown) => void
-  return: () => void
-}
+Interactive.src = '/islands/interactive.js'  // hydrate on client
 
-// Helper for components with children
-type WithChildren<T extends Args = {}> = T & { children?: Children }
-
-// Usage examples
-type CardArgs = WithChildren<{ title: string }>
-const Card: Stateless<CardArgs> = ({ title, children }) => ...
-
-type ModalArgs = WithChildren<{ open: boolean }>
-const Modal: Stateful<ModalArgs> = function* (args) { ... }
+const Page = () => (
+  <html>
+    <body>
+      <p>Static content</p>
+      <Interactive fallback={<button>0</button>} />
+    </body>
+  </html>
+)
 ```
 
-## Documentation
+## TypeScript
 
-For comprehensive guides, advanced patterns, and detailed examples, see [documentation.md](./documentation.md).
+```typescript
+import type { Stateless, Stateful, WithChildren } from 'ajo'
+
+// Stateless
+type CardProps = WithChildren<{ title: string }>
+const Card: Stateless<CardProps> = ({ title, children }) => (
+  <div class="card"><h3>{title}</h3>{children}</div>
+)
+
+// Stateful with custom wrapper element
+type CounterProps = { initial: number; step?: number }
+
+const Counter: Stateful<CounterProps, 'section'> = function* (args) {
+  let count = args.initial
+
+  while (true) {
+    const { step = 1 } = args
+    yield <button set:onclick={() => this.next(() => count += step)}>+{step}</button>
+  }
+}
+
+Counter.is = 'section'               // wrapper element (default: 'div')
+Counter.attrs = { class: 'counter' } // default wrapper attributes
+Counter.args = { step: 1 }           // default args
+
+// Ref typing
+let ref: ThisParameterType<typeof Counter> | null = null
+<Counter ref={el => ref = el} initial={0} />
+```
+
+## API Reference
+
+### `ajo`
+| Export | Description |
+|--------|-------------|
+| `render(children, container, start?, end?)` | Render to DOM. Optional `start`/`end` for targeted updates. |
+| `h`, `Fragment` | JSX factory and fragment |
+
+### `ajo/context`
+| Export | Description |
+|--------|-------------|
+| `context<T>(fallback?)` | Create context. Call with value to write, without to read. |
+
+### `ajo/html`
+| Export | Description |
+|--------|-------------|
+| `render(children)` | Render to HTML string |
+
+### `ajo/stream`
+| Export | Description |
+|--------|-------------|
+| `stream(children)` | Async iterator for streaming SSR |
+| `hydrate(patch)` | Apply streamed patch on client |
+
+### Stateful `this`
+| Method | Description |
+|--------|-------------|
+| `this.next(fn?)` | Re-render. Callback receives current args. |
+| `this.throw(error)` | Throw to parent boundary |
+| `this.return()` | Terminate generator |
+
+`this` is also the wrapper element (`this.addEventListener()`, etc).
+
+## For AI Assistants
+
+See [LLMs.md](./LLMs.md) for a condensed reference.
 
 ## License
 
-ISC © [Cristian Falcone](cristianfalcone.com)
+ISC © [Cristian Falcone](https://cristianfalcone.com)
