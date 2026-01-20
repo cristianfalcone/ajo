@@ -125,11 +125,15 @@ const runGenerator = (fn, h, hooks) => {
 
 	current(instance)
 
+	const result = children => ({ ...attrs, nodeName: fn.is ?? 'div', ...vdom({ children }, hooks) })
+
 	try {
 
-		const children = [...walk(iterator.next().value, hooks)]
+		return result(iterator.next().value)
 
-		return { ...attrs, nodeName: fn.is ?? 'div', children: children.length == 1 ? children[0] : children }
+	} catch (error) {
+
+		return result(iterator.throw(error).value)
 
 	} finally {
 

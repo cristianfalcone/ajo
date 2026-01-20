@@ -281,7 +281,9 @@ describe('components', () => {
 			}
 		}
 
-		expect(() => render(<Parent attr:class="parent" />)).toThrow('test')
+		const html = render(<Parent attr:class="parent" />)
+
+		expect(html).toBe('<div class="parent"><div>test</div></div>')
 	})
 })
 
