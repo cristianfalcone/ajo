@@ -1,6 +1,6 @@
 {
 	"name": "ajo",
-	"version": "0.1.28",
+	"version": "0.1.29",
 	"description": "ajo is a JavaScript view library for building user interfaces",
 	"type": "module",
 	"types": "./types.ts",
