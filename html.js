@@ -10,17 +10,17 @@ const noop = () => { }
 
 export const render = h => [...html(h)].join('')
 
-export const html = function* (h, { alloc = noop, push = noop, placeholder = noop } = {}) {
+export const html = function* (h) {
 
-	for (h of walk(h, { alloc, push, placeholder })) {
+	for (h of walk(h)) {
 
 		if (typeof h == 'string') yield escape(h)
 
-		else yield* element(h, { alloc, push, placeholder })
+		else yield* element(h)
 	}
 }
 
-const element = function* ({ nodeName, children, ...h }, hooks) {
+const element = function* ({ nodeName, children, ...h }) {
 
 	let attrs = ''
 
@@ -39,13 +39,13 @@ const element = function* ({ nodeName, children, ...h }, hooks) {
 
 		yield `<${nodeName}${attrs}>`
 
-		if (children != null) yield* html(children, hooks)
+		if (children != null) yield* html(children)
 
 		yield `</${nodeName}>`
 	}
 }
 
-const walk = function* (h, hooks) {
+const walk = function* (h) {
 
 	if (h == null) return
 
@@ -57,43 +57,21 @@ const walk = function* (h, hooks) {
 
 	else if (type == 'number' || type == 'bigint') yield String(h)
 
-	else if (Symbol.iterator in h) for (h of h) yield* walk(h, hooks)
+	else if (Symbol.iterator in h) for (h of h) yield* walk(h)
 
-	else if ('nodeName' in h) typeof h.nodeName == 'function' ? yield* run(h, hooks) : yield vdom(h, hooks)
+	else if ('nodeName' in h) typeof h.nodeName == 'function' ? yield* run(h) : yield vdom(h)
 
 	else yield String(h)
 }
 
-const run = function* ({ nodeName, fallback = nodeName.fallback, ...h }, hooks) {
+const run = function* ({ nodeName, fallback = nodeName.fallback, ...h }) {
 
-	const type = nodeName.constructor.name
+	if (nodeName.constructor.name == 'GeneratorFunction') yield runGenerator(nodeName, h)
 
-	if (nodeName.src) yield runIsland(nodeName.src, h, hooks)
-
-	else if (type == 'GeneratorFunction') yield runGenerator(nodeName, h, hooks)
-
-	else if (type == 'AsyncGeneratorFunction') yield runAsyncGenerator(nodeName, fallback, h, hooks)
-
-	else {
-
-		h = nodeName(h)
-
-		if (typeof h?.then == 'function') yield runAsync(fallback, h, hooks)
-
-		else yield* walk(h, hooks)
-	}
+	else yield* walk(nodeName(h))
 }
 
-const runIsland = (src, h, hooks) => {
-
-	const id = hooks.alloc()
-
-	hooks.push({ id, src, h: vdom(h, hooks), done: true })
-
-	return hooks.placeholder(id)
-}
-
-const runGenerator = (fn, h, hooks) => {
+const runGenerator = (fn, h) => {
 
 	const attrs = { ...fn.attrs }, args = { ...fn.args }
 
@@ -125,7 +103,7 @@ const runGenerator = (fn, h, hooks) => {
 
 	current(instance)
 
-	const result = children => ({ ...attrs, nodeName: fn.is ?? 'div', ...vdom({ children }, hooks) })
+	const result = children => ({ ...attrs, nodeName: fn.is ?? 'div', ...vdom({ children }) })
 
 	try {
 
@@ -143,56 +121,11 @@ const runGenerator = (fn, h, hooks) => {
 	}
 }
 
-const runAsyncGenerator = (fn, fallback, h, hooks) => {
-
-	const id = hooks.alloc()
-
-	Promise.resolve().then(async () => {
-
-		const iterator = fn(h)
-
-		hooks = { ...hooks, alloc: (parent = id) => hooks.alloc(parent) }
-
-		try {
-
-			h = await iterator.next()
-
-			while (!h.done) {
-
-				hooks.push({ id, h: vdom(h.value, hooks), done: false })
-
-				h = await iterator.next()
-			}
-
-			hooks.push({ id, h: vdom(h.value, hooks), done: true })
-
-		} catch (value) {
-
-			hooks.push({ id, h: vdom(value, hooks), done: true })
-
-		} finally {
-
-			iterator.return?.()
-		}
-	})
-
-	return hooks.placeholder(id, fallback)
-}
-
-const runAsync = (fallback, h, hooks) => {
-
-	const id = hooks.alloc()
-
-	h.then(h => hooks.push({ id, h: vdom(h, { ...hooks, alloc: (parent = id) => hooks.alloc(parent) }), done: true }))
-
-	return hooks.placeholder(id, fallback)
-}
-
-const vdom = ({ key, skip, memo, ref, ...h }, hooks) => {
+const vdom = ({ key, skip, memo, ref, ...h }) => {
 
 	if ('children' in h) {
 
-		const children = [...walk(h.children, hooks)]
+		const children = [...walk(h.children)]
 
 		if (children.length) h.children = children.length == 1 ? children[0] : children
 

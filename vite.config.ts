@@ -17,7 +17,6 @@ export default defineConfig({
 		alias: [
 			{ find: 'ajo/context', replacement: resolve(__dirname, 'context.js') },
 			{ find: 'ajo/html', replacement: resolve(__dirname, 'html.js') },
-			{ find: 'ajo/stream', replacement: resolve(__dirname, 'stream.js') },
 			{ find: 'ajo', replacement: resolve(__dirname, 'index.js') },
 		],
 	},
@@ -31,7 +30,6 @@ export default defineConfig({
 			entry: [
 				resolve(__dirname, 'context.js'),
 				resolve(__dirname, 'html.js'),
-				resolve(__dirname, 'stream.js'),
 				resolve(__dirname, 'index.js'),
 			],
 		},

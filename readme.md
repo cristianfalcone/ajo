@@ -13,11 +13,10 @@
   </a>
 </div>
 
-A modern JavaScript library for building user interfaces with generator-based state management, efficient DOM updates, and streaming server-side rendering.
+A modern JavaScript library for building user interfaces with generator-based state management and efficient DOM updates.
 
 - **Generator-Based Components**: Use `function*` for stateful components with built-in lifecycle
 - **Efficient DOM Updates**: In-place reconciliation minimizes DOM manipulation
-- **Streaming SSR**: Progressive rendering with selective hydration (islands)
 
 ## Quick Start
 
@@ -29,6 +28,7 @@ npm install ajo
 import { render } from 'ajo'
 
 function* Counter() {
+
   let count = 0
 
   while (true) yield (
@@ -91,6 +91,7 @@ Generator functions with automatic wrapper elements. The structure provides a na
 
 ```javascript
 function* TodoList() {
+
   let todos = []
   let text = ''
 
@@ -102,6 +103,7 @@ function* TodoList() {
   })
 
   while (true) {
+
     const count = todos.length
 
     yield (
@@ -127,6 +129,7 @@ Call `this.next()` to trigger a re-render. The optional callback receives curren
 
 ```javascript
 function* Stepper(args) {
+
   let count = 0
 
   // Access current props in callback
@@ -159,7 +162,9 @@ Use `try...finally` for cleanup when the component unmounts:
 
 ```javascript
 function* Clock() {
+
   let time = new Date()
+
   const interval = setInterval(() => this.next(() => time = new Date()), 1000)
 
   try {
@@ -223,6 +228,7 @@ function* ErrorBoundary(args) {
 
 ```javascript
 function* AutoFocus() {
+
   let input = null
 
   while (true) yield (
@@ -251,6 +257,7 @@ timer?.next()  // trigger re-render from outside
 
 ```javascript
 function* Chart(args) {
+
   let chart = null
 
   while (true) yield (
@@ -292,6 +299,7 @@ const Card = ({ title }) => {
 
 // Stateful - write inside loop (updates each render)
 function* ThemeProvider(args) {
+
   let theme = 'light'
 
   while (true) {
@@ -318,6 +326,7 @@ function* FixedTheme(args) {
 
 ```javascript
 function* UserProfile(args) {
+
   let data = null, error = null, loading = true
 
   fetch(`/api/users/${args.id}`)
@@ -336,41 +345,8 @@ function* UserProfile(args) {
 ## Server-Side Rendering
 
 ```javascript
-// Static
 import { render } from 'ajo/html'
 const html = render(<App />)
-
-// Streaming
-import { stream } from 'ajo/stream'
-for await (const chunk of stream(<App />)) res.write(chunk)
-
-// Hydration (client-side)
-import { hydrate } from 'ajo/stream'
-window.$stream = { push: hydrate }
-```
-
-### Islands Architecture
-
-```javascript
-function* Interactive() {
-  let count = 0
-  while (true) yield (
-    <button set:onclick={() => this.next(() => count++)}>
-      {count}
-    </button>
-  )
-}
-
-Interactive.src = '/islands/interactive.js'  // hydrate on client
-
-const Page = () => (
-  <html>
-    <body>
-      <p>Static content</p>
-      <Interactive fallback={<button>0</button>} />
-    </body>
-  </html>
-)
 ```
 
 ## TypeScript
@@ -388,6 +364,7 @@ const Card: Stateless<CardProps> = ({ title, children }) => (
 type CounterProps = { initial: number; step?: number }
 
 const Counter: Stateful<CounterProps, 'section'> = function* (args) {
+
   let count = args.initial
 
   while (true) {
@@ -422,12 +399,6 @@ let ref: ThisParameterType<typeof Counter> | null = null
 | Export | Description |
 |--------|-------------|
 | `render(children)` | Render to HTML string |
-
-### `ajo/stream`
-| Export | Description |
-|--------|-------------|
-| `stream(children)` | Async iterator for streaming SSR |
-| `hydrate(patch)` | Apply streamed patch on client |
 
 ### Stateful `this`
 | Method | Description |
