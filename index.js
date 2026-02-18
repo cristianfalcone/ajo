@@ -8,6 +8,7 @@ const Generator = Symbol.for('ajo.generator')
 const Iterator = Symbol.for('ajo.iterator')
 const Render = Symbol.for('ajo.render')
 const Args = Symbol.for('ajo.args')
+const Controller = Symbol.for('ajo.controller')
 
 export const Fragment = props => props.children
 
@@ -210,7 +211,14 @@ const methods = {
 
 		try {
 
-			const { value, done } = (this[Iterator] ??= this[Generator].call(this, this[Args])).next()
+			if (!this[Iterator]) {
+
+				this.signal = (this[Controller] = new AbortController()).signal
+
+				this[Iterator] = this[Generator].call(this, this[Args])
+			}
+
+			const { value, done } = this[Iterator].next()
 
 			render(value, this)
 
@@ -228,11 +236,11 @@ const methods = {
 		}
 	},
 
-	next(fn) {
+	next(fn, result) {
 
 		try {
 
-			fn?.call(this, this[Args])
+			if (typeof fn == 'function') result = fn.call(this, this[Args])
 
 		} catch (e) {
 
@@ -240,6 +248,8 @@ const methods = {
 		}
 
 		if (!current()?.contains(this)) this[Render]()
+
+		return result
 	},
 
 	throw(value) {
@@ -269,6 +279,8 @@ const methods = {
 		} finally {
 
 			this[Iterator] = null
+
+			this[Controller]?.abort()
 		}
 	}
 }

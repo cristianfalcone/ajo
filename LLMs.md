@@ -45,40 +45,35 @@ const Counter: Stateful<Args, 'section'> = function* (args) { // do NOT destruct
     else if (e.key === 'ArrowDown' && count > 0) dec()
   }
 
-  this.addEventListener('keydown', handleKeydown) // this = wrapper element with .next(), .throw(), .return()
+  this.addEventListener('keydown', handleKeydown, { signal: this.signal }) // auto-cleanup on unmount
 
-  try { // optional: cleanup wrapper
+  while (true) { // main render loop
 
-    while (true) { // main render loop
+    try { // optional: error boundary
 
-      try { // optional: error boundary
+      // fresh destructure each render
+      const { step = 1 } = args
 
-        // fresh destructure each render
-        const { step = 1 } = args
+      // derived values
+      const isEven = count % 2 === 0
 
-        // derived values
-        const isEven = count % 2 === 0
-
-        yield (
-          <>
-            <input
-              ref={el => inputRef = el}
-              value={count}
-              set:oninput={e => this.next(() => count = +(e.target as HTMLInputElement).value)}
-            />
-            <button set:onclick={inc}>+{step}</button>
-            <button set:onclick={dec} disabled={count <= 0}>-</button>
-            <p memo={isEven}>Even: {isEven ? 'yes' : 'no'}</p>
-            <footer memo>Static content - rendered once</footer>
-            <div skip>{/* third-party managed DOM here */}</div>
-          </>
-        )
-      } catch (err: unknown) {
-        yield <p class="error">{err instanceof Error ? err.message : String(err)}</p>
-      }
+      yield (
+        <>
+          <input
+            ref={el => inputRef = el}
+            value={count}
+            set:oninput={e => this.next(() => count = +(e.target as HTMLInputElement).value)}
+          />
+          <button set:onclick={inc}>+{step}</button>
+          <button set:onclick={dec} disabled={count <= 0}>-</button>
+          <p memo={isEven}>Even: {isEven ? 'yes' : 'no'}</p>
+          <footer memo>Static content - rendered once</footer>
+          <div skip>{/* third-party managed DOM here */}</div>
+        </>
+      )
+    } catch (err: unknown) {
+      yield <p class="error">{err instanceof Error ? err.message : String(err)}</p>
     }
-  } finally {
-    this.removeEventListener('keydown', handleKeydown)
   }
 }
 
@@ -116,7 +111,7 @@ ref?.next()  // trigger re-render from outside
 | **Styles** | `style` must be string (`style="color: red"`), not object. No special handling |
 | **Args** | Never destructure in generator signature. Use `args` param |
 | **Root JSX** | Use `<>...</>` in stateful to avoid double wrapper |
-| **Re-render** | `this.next()` or `this.next(fn)` where `fn` receives current `args` |
+| **Re-render** | `this.next(fn?)` — returns `fn`'s result. Use `this.throw(e)` for explicit error routing |
 | **Context** | `context<T>(fallback)` creates context. Stateless: read only. Stateful: read/write inside `while` loop |
 | **Lists** | Always provide unique `key` on elements |
 | **Refs** | `ref={el => ...}` on elements. Receives `null` on unmount. Stateful ref type: `ThisParameterType<typeof Component>` |
@@ -125,9 +120,9 @@ ref?.next()  // trigger re-render from outside
 | **Custom wrapper** | Set `.is = 'tagname'` AND TypeScript generic `Stateful<Args, 'tagname'>` for stateful components. Default is `div` (no need to set) |
 | **Default attrs** | `.attrs = { class: '...' }` on stateful component generator function |
 | **Default args** | `.args = { prop: value }` on stateful component generator function |
-| **Cleanup** | `try { while(true) yield ... } finally { cleanup }` |
+| **Cleanup** | `this.signal` for APIs that accept AbortSignal (fetch, addEventListener). `try/finally` for the rest |
 | **Error recovery** | `try { ... } catch { yield error UI }` inside loop |
-| **this** | Stateful component wrapper element with `.next()`, `.throw()`, `.return()`. Type: `ThisParameterType<typeof Component>` |
+| **this** | Stateful wrapper element with `.signal`, `.next(fn?)` (returns `fn`'s result), `.throw()`, `.return()`. Type: `ThisParameterType<typeof Component>` |
 
 ## Common Patterns
 
@@ -143,7 +138,7 @@ const DataLoader: Stateful<LoaderArgs> = function* (args) {
   let data: unknown = null
   let error: Error | null = null
 
-  fetch(args.url)
+  fetch(args.url, { signal: this.signal })
     .then(r => r.json())
     .then(d => this.next(() => data = d))
     .catch(e => this.next(() => error = e))
@@ -226,6 +221,19 @@ counterRef?.next()  // trigger re-render from outside
 <video set:currentTime={0} set:muted />      // DOM properties
 <div set:textContent={str} skip />           // DOM property + skip (required!)
 <div set:innerHTML={html} skip />            // DOM property + skip (required!)
+
+// Post-render work (DOM is updated by the time the microtask runs)
+const ScrollList: Stateful<{ items: Item[] }> = function* (args) {
+  let container: HTMLUListElement | null = null
+  while (true) {
+    queueMicrotask(() => container!.scrollTop = container!.scrollHeight)
+    yield (
+      <ul ref={el => container = el}>
+        {args.items.map(item => <li key={item.id}>{item.text}</li>)}
+      </ul>
+    )
+  }
+}
 
 // Third-party managed DOM
 let map: MapLibrary | null = null

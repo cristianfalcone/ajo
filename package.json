@@ -25,6 +25,10 @@
 	},
 	"files": [
 		"dist",
+		"context.js",
+		"html.js",
+		"index.js",
+		"LLMs.md",
 		"types.ts"
 	],
 	"scripts": {

@@ -1615,3 +1615,408 @@ describe('render callback', () => {
 		expect(document.body.innerHTML).toBe('<div><button>Count: 2</button></div>')
 	})
 })
+
+describe('async next', () => {
+
+	beforeEach(() => {
+		render(null, document.body)
+	})
+
+	it('should return undefined from next() without callback', () => {
+
+		const App: Stateful = function* () {
+			while (true) yield <div>Hello</div>
+		}
+
+		render(<App />, document.body)
+
+		const el = document.body.firstElementChild as ThisParameterType<typeof App>
+		const result = el.next()
+
+		expect(result).toBeUndefined()
+	})
+
+	it('should return sync callback value directly', () => {
+
+		const App: Stateful = function* () {
+			while (true) yield <div>Hello</div>
+		}
+
+		render(<App />, document.body)
+
+		const el = document.body.firstElementChild as ThisParameterType<typeof App>
+		const result = el.next(() => 42)
+
+		expect(result).toBe(42)
+		expect(result).not.toBeInstanceOf(Promise)
+	})
+
+	it('should return a promise from async callback', () => {
+
+		const App: Stateful = function* () {
+			while (true) yield <div>Hello</div>
+		}
+
+		render(<App />, document.body)
+
+		const el = document.body.firstElementChild as ThisParameterType<typeof App>
+		const result = el.next(async () => 42)
+
+		expect(result).toBeInstanceOf(Promise)
+	})
+
+	it('should resolve with the async callback result', async () => {
+
+		const App: Stateful = function* () {
+
+			let data = 'loading'
+
+			while (true) yield <div>{data}</div>
+		}
+
+		render(<App />, document.body)
+
+		expect(document.body.innerHTML).toBe('<div><div>loading</div></div>')
+
+		const el = document.body.firstElementChild as ThisParameterType<typeof App>
+		const result = await el.next(async () => {
+			return await Promise.resolve('fetched')
+		})
+
+		expect(result).toBe('fetched')
+	})
+
+	it('should update DOM with sync part of async callback before promise resolves', async () => {
+
+		const App: Stateful = function* () {
+
+			let count = 0
+
+			const inc = () => this.next(async () => {
+				count++
+				await Promise.resolve()
+				return 'done'
+			})
+
+			while (true) yield (
+				<button set:onclick={inc}>Count: {count}</button>
+			)
+		}
+
+		render(<App />, document.body)
+
+		expect(document.body.innerHTML).toBe('<div><button>Count: 0</button></div>')
+
+		document.querySelector('button')!.click()
+
+		// count++ runs synchronously before the await, so DOM updates immediately
+		expect(document.body.innerHTML).toBe('<div><button>Count: 1</button></div>')
+	})
+
+	it('should allow explicit error routing with this.throw()', async () => {
+
+		const Child: Stateful = function* () {
+			while (true) yield <div>child</div>
+		}
+
+		const Parent: Stateful = function* () {
+			while (true) {
+				try {
+					yield <Child />
+				} catch (e) {
+					yield <div>{e instanceof Error ? e.message : String(e)}</div>
+				}
+			}
+		}
+
+		render(<Parent />, document.body)
+
+		expect(document.body.innerHTML).toBe('<div><div><div>child</div></div></div>')
+
+		const child = document.body.querySelector('div > div') as ThisParameterType<typeof Child>
+
+		await child.next(async () => {
+			try {
+				throw new Error('async failure')
+			} catch (e) {
+				child.throw(e)
+			}
+		})
+
+		expect(document.body.innerHTML).toBe('<div><div>async failure</div></div>')
+	})
+
+	it('should allow post-render work after sync next()', () => {
+
+		const App: Stateful = function* () {
+
+			let count = 0
+
+			while (true) yield (
+				<button set:onclick={() => this.next(() => count++)}>Count: {count}</button>
+			)
+		}
+
+		render(<App />, document.body)
+
+		const el = document.body.firstElementChild as ThisParameterType<typeof App>
+
+		el.next(() => { })
+
+		// DOM was updated synchronously during next()
+		expect(document.body.innerHTML).toBe('<div><button>Count: 0</button></div>')
+	})
+
+	it('should allow post-render work after async next()', async () => {
+
+		const actions: string[] = []
+
+		const App: Stateful = function* () {
+
+			let count = 0
+
+			while (true) yield (
+				<button set:onclick={() => this.next(() => count++)}>Count: {count}</button>
+			)
+		}
+
+		render(<App />, document.body)
+
+		const el = document.body.firstElementChild as ThisParameterType<typeof App>
+
+		actions.push('before next')
+
+		await el.next(async () => {
+			actions.push('async callback')
+			await Promise.resolve()
+			actions.push('after await inside callback')
+		})
+
+		actions.push('after await')
+
+		expect(actions).toEqual(['before next', 'async callback', 'after await inside callback', 'after await'])
+	})
+})
+
+describe('this.signal', () => {
+
+	beforeEach(() => {
+		render(null, document.body)
+	})
+
+	it('should provide an AbortSignal that is not aborted during render', () => {
+
+		let signal: AbortSignal | null = null
+
+		const Component: Stateful = function* () {
+			signal = this.signal
+			while (true) yield <div>test</div>
+		}
+
+		render(<Component />, document.body)
+
+		expect(signal).toBeInstanceOf(AbortSignal)
+		expect(signal!.aborted).toBe(false)
+	})
+
+	it('should abort signal on unmount', () => {
+
+		let signal: AbortSignal | null = null
+
+		const Component: Stateful = function* () {
+			signal = this.signal
+			while (true) yield <div>test</div>
+		}
+
+		render(<Component />, document.body)
+
+		expect(signal!.aborted).toBe(false)
+
+		render(null, document.body)
+
+		expect(signal!.aborted).toBe(true)
+	})
+
+	it('should abort signal after generator finally block runs', () => {
+
+		const events: string[] = []
+
+		const Component: Stateful = function* () {
+			try {
+				while (true) yield <div>test</div>
+			} finally {
+				events.push(this.signal.aborted ? 'finally:aborted' : 'finally:active')
+			}
+		}
+
+		render(<Component />, document.body)
+
+		render(null, document.body)
+
+		expect(events).toEqual(['finally:active'])
+	})
+
+	it('should auto-remove addEventListener on unmount', () => {
+
+		const handler = vi.fn()
+
+		const Component: Stateful = function* () {
+			document.body.addEventListener('click', handler, { signal: this.signal })
+			while (true) yield <div>test</div>
+		}
+
+		render(<Component />, document.body)
+
+		document.body.click()
+		expect(handler).toHaveBeenCalledTimes(1)
+
+		render(null, document.body)
+
+		document.body.click()
+		expect(handler).toHaveBeenCalledTimes(1)
+	})
+
+	it('should abort child signal when parent removes child', () => {
+
+		let childSignal: AbortSignal | null = null
+
+		const Child: Stateful = function* () {
+			childSignal = this.signal
+			while (true) yield <div>child</div>
+		}
+
+		const Parent: Stateful = function* () {
+			let show = true
+			while (true) yield (
+				<>
+					<button set:onclick={() => this.next(() => show = !show)}>toggle</button>
+					{show && <Child />}
+				</>
+			)
+		}
+
+		render(<Parent />, document.body)
+
+		expect(childSignal!.aborted).toBe(false)
+
+		document.querySelector('button')!.click()
+
+		expect(childSignal!.aborted).toBe(true)
+	})
+
+	it('should provide fresh signal on re-initialization', () => {
+
+		let signals: AbortSignal[] = []
+		let el: ThisParameterType<typeof Component> | null = null
+
+		const Component: Stateful = function* () {
+			signals.push(this.signal)
+			yield <div>test</div>
+		}
+
+		render(<Component ref={e => el = e} />, document.body)
+
+		expect(signals).toHaveLength(1)
+		expect(signals[0].aborted).toBe(false)
+
+		el!.next() // generator finishes (done: true) → return() → abort
+
+		expect(signals[0].aborted).toBe(true)
+
+		el!.next() // re-initializes with fresh controller + iterator
+
+		expect(signals).toHaveLength(2)
+		expect(signals[0]).not.toBe(signals[1])
+		expect(signals[1].aborted).toBe(false)
+	})
+})
+
+describe('post-render work via queueMicrotask', () => {
+
+	beforeEach(() => {
+		render(null, document.body)
+	})
+
+	it('should run queueMicrotask after DOM is updated on first render', async () => {
+
+		let domContentDuringMicrotask = ''
+
+		const App: Stateful = function* () {
+			while (true) {
+				queueMicrotask(() => {
+					domContentDuringMicrotask = document.body.innerHTML
+				})
+				yield <p>hello</p>
+			}
+		}
+
+		render(<App />, document.body)
+
+		// microtask hasn't run yet
+		expect(domContentDuringMicrotask).toBe('')
+
+		await Promise.resolve()
+
+		// microtask ran after render() completed
+		expect(domContentDuringMicrotask).toBe('<div><p>hello</p></div>')
+	})
+
+	it('should run queueMicrotask after DOM is updated on re-render', async () => {
+
+		const snapshots: string[] = []
+		let el: any = null
+
+		const Counter: Stateful = function* () {
+			let count = 0
+			while (true) {
+				queueMicrotask(() => {
+					snapshots.push(document.body.innerHTML)
+				})
+				yield <p>count: {count}</p>
+				count++ // runs when generator resumes on next this.next()
+			}
+		}
+
+		render(<Counter ref={e => el = e} />, document.body)
+		await Promise.resolve()
+
+		expect(snapshots).toHaveLength(1)
+		expect(snapshots[0]).toContain('count: 0')
+
+		el.next()
+		await Promise.resolve()
+
+		expect(snapshots).toHaveLength(2)
+		expect(snapshots[1]).toContain('count: 1')
+	})
+
+	it('should see updated DOM when scrolling after render', async () => {
+
+		let container: HTMLUListElement | null = null
+		let scrollTopSet = false
+		let el: any = null
+
+		const List: Stateful<{ items: string[] }> = function* (args) {
+			while (true) {
+				queueMicrotask(() => {
+					if (container) {
+						container.scrollTop = container.scrollHeight
+						scrollTopSet = true
+					}
+				})
+				yield (
+					<ul ref={e => container = e as HTMLUListElement}>
+						{args.items.map((item, i) => <li key={i}>{item}</li>)}
+					</ul>
+				)
+			}
+		}
+
+		render(<List ref={e => el = e} items={['a', 'b']} />, document.body)
+		await Promise.resolve()
+
+		expect(scrollTopSet).toBe(true)
+		expect(container).toBeInstanceOf(HTMLUListElement)
+		expect(container!.children.length).toBe(2)
+	})
+})

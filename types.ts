@@ -53,7 +53,8 @@ declare module 'ajo' {
 		TArguments
 
 	type StatefulElement<TArguments, TTag> = ElementType<TTag> & {
-		next: (fn?: (this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>) => void) => void,
+		signal: AbortSignal,
+		next: <R>(fn?: (this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>) => R) => R,
 		throw: (value?: unknown) => void,
 		return: () => void,
 	}

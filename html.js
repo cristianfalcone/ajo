@@ -84,11 +84,15 @@ const runGenerator = (fn, h) => {
 		else args[key] = h[key]
 	}
 
+	const controller = new AbortController()
+
 	const instance = {
 
 		[Context]: Object.create(current()?.[Context] ?? null),
 
 		[Args]: args,
+
+		signal: controller.signal,
 
 		next: noop,
 
@@ -115,7 +119,9 @@ const runGenerator = (fn, h) => {
 
 	} finally {
 
-		iterator.return?.()
+		iterator.return()
+
+		controller.abort()
 
 		current(parent)
 	}

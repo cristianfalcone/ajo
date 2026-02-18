@@ -527,4 +527,19 @@ describe('context', () => {
 
 		expect(html).toBe('<div><div><span style="color: red">Text</span></div></div>')
 	})
+
+	it('should provide this.signal during SSR', () => {
+
+		let signal: AbortSignal | null = null
+
+		const Component: Stateful = function* () {
+			signal = this.signal
+			while (true) yield <div>test</div>
+		}
+
+		render(<Component />)
+
+		expect(signal).toBeInstanceOf(AbortSignal)
+		expect(signal!.aborted).toBe(true)
+	})
 })

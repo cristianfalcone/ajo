@@ -125,7 +125,7 @@ function* TodoList() {
 
 ### Re-rendering with `this.next()`
 
-Call `this.next()` to trigger a re-render. The optional callback receives current props, useful when props may have changed:
+Call `this.next()` to trigger a re-render. The optional callback receives current props and its return value is passed through:
 
 ```javascript
 function* Stepper(args) {
@@ -158,7 +158,22 @@ function* Good(args) {
 
 ### Lifecycle and Cleanup
 
-Use `try...finally` for cleanup when the component unmounts:
+Every stateful component has a `this.signal` (AbortSignal) that aborts when the component unmounts. Use it with any API that accepts a signal:
+
+```javascript
+function* MouseTracker() {
+
+  let pos = { x: 0, y: 0 }
+
+  document.addEventListener('mousemove', e => this.next(() => {
+    pos = { x: e.clientX, y: e.clientY }
+  }), { signal: this.signal }) // auto-removed on unmount
+
+  while (true) yield <p>{pos.x}, {pos.y}</p>
+}
+```
+
+For APIs that don't accept a signal, use `try...finally`:
 
 ```javascript
 function* Clock() {
@@ -329,7 +344,7 @@ function* UserProfile(args) {
 
   let data = null, error = null, loading = true
 
-  fetch(`/api/users/${args.id}`)
+  fetch(`/api/users/${args.id}`, { signal: this.signal })
     .then(r => r.json())
     .then(d => this.next(() => { data = d; loading = false }))
     .catch(e => this.next(() => { error = e; loading = false }))
@@ -401,9 +416,10 @@ let ref: ThisParameterType<typeof Counter> | null = null
 | `render(children)` | Render to HTML string |
 
 ### Stateful `this`
-| Method | Description |
-|--------|-------------|
-| `this.next(fn?)` | Re-render. Callback receives current args. |
+| Property | Description |
+|----------|-------------|
+| `this.signal` | AbortSignal that aborts on unmount. Pass to `fetch()`, `addEventListener()`, etc. |
+| `this.next(fn?)` | Re-render. Callback receives current args. Returns callback's result. |
 | `this.throw(error)` | Throw to parent boundary |
 | `this.return()` | Terminate generator |
 
