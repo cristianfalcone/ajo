@@ -2,7 +2,6 @@ import { Context, current } from 'ajo/context'
 
 const Key = Symbol.for('ajo.key')
 const Memo = Symbol.for('ajo.memo')
-const Ref = Symbol.for('ajo.ref')
 const Cache = Symbol.for('ajo.cache')
 const Generator = Symbol.for('ajo.generator')
 const Iterator = Symbol.for('ajo.iterator')
@@ -112,7 +111,7 @@ const text = (h, node) => {
 	return node
 }
 
-const element = ({ nodeName, children, key, skip, memo, ref, [Generator]: gen, [Args]: args, ...h }, el, node) => {
+const element = ({ nodeName, children, key, skip, memo, [Generator]: gen, [Args]: args, ...h }, el, node) => {
 
 	while (node && (
 
@@ -133,8 +132,6 @@ const element = ({ nodeName, children, key, skip, memo, ref, [Generator]: gen, [
 		attrs(node[Cache] ?? extract(node), node[Cache] = h, node)
 
 		if (!skip) gen ? next(gen, args, node) : render(children, node)
-
-		if (typeof ref == 'function') (node[Ref] = ref)(node)
 	}
 
 	return node
@@ -146,7 +143,9 @@ const attrs = (cache, h, node) => {
 
 		if (cache[key] === h[key]) continue
 
-		if (key.startsWith('set:')) node[key.slice(4)] = h[key]
+		if (key == 'ref' && typeof h[key] == 'function') h[key](node)
+
+		else if (key.startsWith('set:')) node[key.slice(4)] = h[key]
 
 		else if (h[key] == null || h[key] === false) node.removeAttribute(key)
 
@@ -182,7 +181,7 @@ const unref = node => {
 
 	if (typeof node.return == 'function') node.return()
 
-	node[Ref]?.(null)
+	if (typeof node[Cache]?.ref == 'function') node[Cache].ref(null)
 }
 
 const next = (fn, args, el) => {
@@ -221,8 +220,6 @@ const methods = {
 			const { value, done } = this[Iterator].next()
 
 			render(value, this)
-
-			this[Ref]?.(this)
 
 			if (done) this.return()
 
