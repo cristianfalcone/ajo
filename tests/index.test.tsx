@@ -1,6 +1,6 @@
 import type { Children, Stateful } from 'ajo'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render } from 'ajo'
+import { render, stateful } from 'ajo'
 import { context } from 'ajo/context'
 
 describe('render', () => {
@@ -130,7 +130,7 @@ describe('render', () => {
 
 		document.body.innerHTML = '<header>Before</header><main>Old main</main><aside>Old aside</aside><footer>After</footer>'
 
-		const [header, main, aside, footer] = Array.from(document.body.children)
+		const [header, main, , footer] = Array.from(document.body.children)
 
 		render(
 			<>
@@ -236,10 +236,10 @@ describe('components', () => {
 
 	it('should render a stateful component with attrs and children', () => {
 
-		const Self: Stateful<{ name: string, children: Children }> = function* (args) {
-			while (true) yield (
+		const Self: Stateful<{ name: string, children: Children }> = function* () {
+			for (const { name, children } of this) yield (
 				<div>
-					Hello {args.name},<br /> and {args.children}!
+					Hello {name},<br /> and {children}!
 				</div>
 			)
 		}
@@ -256,15 +256,15 @@ describe('components', () => {
 
 	it('should reuse the same stateful component instance', () => {
 
-		const Self: Stateful<{ name: string }> = function* (args) {
-			while (true) yield (
+		const Self: Stateful<{ name: string }> = function* () {
+			for (const { name } of this) yield (
 				<div
 					ref={(el) => {
 						ref = el
 						count++
 					}}
 				>
-					Hello {args.name}!
+					Hello {name}!
 				</div>
 			)
 		}
@@ -288,8 +288,8 @@ describe('components', () => {
 
 	it('should extend a built-in element', () => {
 
-		const Self: Stateful<{ name: string }, 'section'> = function* (args) {
-			while (true) yield <div>Hello {args.name}!</div>
+		const Self: Stateful<{ name: string }, 'section'> = function* () {
+			for (const { name } of this) yield <div>Hello {name}!</div>
 		}
 
 		Self.is = 'section'
@@ -317,16 +317,16 @@ describe('components', () => {
 		const end = vi.fn()
 		const click = vi.fn()
 
-		const Self: Stateful<{ name: string }, 'section'> = function* (args) {
+		const Self: Stateful<{ name: string }, 'section'> = function* () {
 
 			init()
 
 			try {
-				while (true) {
+				for (const { name } of this) {
 					loop()
 					yield (
 						<span ref={(el) => (child = el)} set:onclick={click}>
-							Hello {args.name}!
+							Hello {name}!
 						</span>
 					)
 				}
@@ -474,7 +474,7 @@ describe('components', () => {
 
 			while (true) yield (
 				<>
-					<input type="text" value={inputValue} set:oninput={handleInput} />
+					<input type="text"  value={inputValue} set:oninput={handleInput} />
 					<p>You typed: {inputValue}</p>
 				</>
 			)
@@ -492,8 +492,8 @@ describe('components', () => {
 
 	it('should handle custom events', () => {
 
-		const CustomButton: Stateful<{ onCustomClick: () => void }> = function* ({ onCustomClick }) {
-			while (true) {
+		const CustomButton: Stateful<{ onCustomClick: () => void }> = function* () {
+			for (const { onCustomClick } of this) {
 				yield <button set:onclick={onCustomClick}>Custom Button</button>
 			}
 		}
@@ -673,8 +673,10 @@ describe('context', () => {
 		}
 
 		const App: Stateful = function* () {
-			UserContext({ name: 'John' })
-			while (true) yield <UserProfile />
+			while (true) {
+				UserContext({ name: 'John' })
+				yield <UserProfile />
+			}
 		}
 
 		render(<App />, document.body)
@@ -730,9 +732,11 @@ describe('context', () => {
 		}
 
 		const App: Stateful = function* () {
-			ThemeContext('dark')
-			LanguageContext('es')
-			while (true) yield <Component />
+			while (true) {
+				ThemeContext('dark')
+				LanguageContext('es')
+				yield <Component />
+			}
 		}
 
 		render(<App />, document.body)
@@ -754,8 +758,10 @@ describe('context', () => {
 		const Child = () => <div><GrandChild /></div>
 
 		const Parent: Stateful = function* () {
-			ColorContext('red')
-			while (true) yield <Child />
+			while (true) {
+				ColorContext('red')
+				yield <Child />
+			}
 		}
 
 		render(<Parent />, document.body)
@@ -826,9 +832,11 @@ describe('context', () => {
 		}
 
 		const App: Stateful = function* () {
-			ThemeContext('dark')
-			LanguageContext('fr')
-			while (true) yield <ThemedMultiLingualButton />
+			while (true) {
+				ThemeContext('dark')
+				LanguageContext('fr')
+				yield <ThemedMultiLingualButton />
+			}
 		}
 
 		render(<App />, document.body)
@@ -848,8 +856,10 @@ describe('context', () => {
 		const Child = () => <div><GrandChild /></div>
 
 		const Parent: Stateful = function* () {
-			ColorContext('red')
-			while (true) yield <Child />
+			while (true) {
+				ColorContext('red')
+				yield <Child />
+			}
 		}
 
 		render(<Parent />, document.body)
@@ -866,9 +876,9 @@ describe('key special attribute', () => {
 
 	it('should render a list with keyed items', () => {
 
-		const List = (args: { items: string[] }) => (
+		const List = ({ items }: { items: string[] }) => (
 			<ul>
-				{args.items.map(item => (
+				{items.map(item => (
 					<li key={item}>{item}</li>
 				))}
 			</ul>
@@ -888,10 +898,10 @@ describe('key special attribute', () => {
 
 	it('should update keyed list efficiently', () => {
 
-		const List: Stateful<{ items: string[] }> = function* (args) {
-			while (true) yield (
+		const List: Stateful<{ items: string[] }> = function* () {
+			for (const { items } of this) yield (
 				<ul>
-					{args.items.map(item => (
+					{items.map(item => (
 						<li key={item}>{item}</li>
 					))}
 				</ul>
@@ -977,8 +987,8 @@ it('should hydrate a server-rendered keyed list', () => {
 
 	document.body.innerHTML = '<div><ul><li>Apple</li><li>Banana</li><li>Cherry</li></ul></div>'
 
-	const List: Stateful<{ items: string[] }> = function* ({ items }) {
-		while (true) yield (
+	const List: Stateful<{ items: string[] }> = function* () {
+		for (const { items } of this) yield (
 			<ul>
 				{items.map(item => <li key={item}>{item}</li>)}
 			</ul>
@@ -1224,8 +1234,8 @@ describe('ref special attribute', () => {
 			name: string
 		}
 
-		const Self: Stateful<Args> = function* (args) {
-			while (true) yield <div>Hello {args.name}!</div>
+		const Self: Stateful<Args> = function* () {
+			for (const { name } of this) yield <div>Hello {name}!</div>
 		}
 
 		render(
@@ -1264,7 +1274,7 @@ describe('ref special attribute', () => {
 
 		const refCallback = vi.fn()
 
-		const NullComponent = (args: { ref: typeof refCallback }) => null
+		const NullComponent = (_args: { ref: typeof refCallback }) => null
 
 		render(<NullComponent ref={refCallback} />, document.body)
 
@@ -1366,35 +1376,33 @@ describe('memo attribute', () => {
 
 	it('should work with stateful components', () => {
 
-		let ref: ThisParameterType<typeof StatefulMemoComponent> | null = null
-
 		type Args = {
 			count: number
 			text: string
 		}
 
-		const StatefulMemoComponent: Stateful<Args> = function* (args) {
+		const StatefulMemoComponent: Stateful<Args> = function* () {
 
-			while (true) yield (
+			for (const { count, text } of this) yield (
 				<div>
-					<p>Always updates: {args.text}</p>
-					<div memo={[args.count]}>
-						<p>Memoized count: {args.count}</p>
-						<p>Won't update unless count changes: {args.text}</p>
+					<p>Always updates: {text}</p>
+					<div memo={[count]}>
+						<p>Memoized count: {count}</p>
+						<p>Won't update unless count changes: {text}</p>
 					</div>
 				</div>
 			)
 		}
 
-		render(<StatefulMemoComponent count={0} text="initial" ref={(el) => { ref = el }} />, document.body)
+		render(<StatefulMemoComponent count={0} text="initial" />, document.body)
 
 		expect(document.body.innerHTML).toBe('<div><div><p>Always updates: initial</p><div><p>Memoized count: 0</p><p>Won\'t update unless count changes: initial</p></div></div></div>')
 
-		render(<StatefulMemoComponent count={0} text="changed" ref={(el) => { ref = el }} />, document.body)
+		render(<StatefulMemoComponent count={0} text="changed" />, document.body)
 
 		expect(document.body.innerHTML).toBe('<div><div><p>Always updates: changed</p><div><p>Memoized count: 0</p><p>Won\'t update unless count changes: initial</p></div></div></div>')
 
-		render(<StatefulMemoComponent count={1} text="changed again" ref={(el) => { ref = el }} />, document.body)
+		render(<StatefulMemoComponent count={1} text="changed again" />, document.body)
 
 		expect(document.body.innerHTML).toBe('<div><div><p>Always updates: changed again</p><div><p>Memoized count: 1</p><p>Won\'t update unless count changes: changed again</p></div></div></div>')
 	})
@@ -1407,15 +1415,15 @@ describe('memo attribute', () => {
 			text: string
 		}
 
-		const StatefulChild: Stateful<Args> = function* (args) {
+		const StatefulChild: Stateful<Args> = function* () {
 
 			let internalCount = 0
 
-			while (true) {
+			for (const { text } of this) {
 				yield (
 					<div>
 						<p>Child internal count: {internalCount}</p>
-						<p>Child prop: {args.text}</p>
+						<p>Child prop: {text}</p>
 					</div>
 				)
 				internalCount++
@@ -1462,16 +1470,16 @@ describe('memo attribute', () => {
 			text: string
 		}
 
-		const MemoStatefulComponent: Stateful<Args> = function* (args) {
+		const MemoStatefulComponent: Stateful<Args> = function* () {
 
 			let internalCount = 0
 
-			while (true) {
+			for (const { count, text } of this) {
 				yield (
-					<div memo={[args.count]}>
-						<p>Args count: {args.count}</p>
+					<div memo={[count]}>
+						<p>Args count: {count}</p>
 						<p>Internal count: {internalCount}</p>
-						<p>Text: {args.text}</p>
+						<p>Text: {text}</p>
 					</div>
 				)
 				internalCount++
@@ -1508,16 +1516,16 @@ describe('memo attribute', () => {
 			text: string
 		}
 
-		const StatefulComponent: Stateful<Args> = function* (args) {
+		const StatefulComponent: Stateful<Args> = function* () {
 
 			let internalCount = 0
 
-			while (true) {
+			for (const { count, text } of this) {
 				yield (
 					<div>
-						<p>Args count: {args.count}</p>
+						<p>Args count: {count}</p>
 						<p>Internal count: {internalCount}</p>
-						<p>Text: {args.text}</p>
+						<p>Text: {text}</p>
 					</div>
 				)
 				internalCount++
@@ -1964,7 +1972,7 @@ describe('post-render work via queueMicrotask', () => {
 	it('should run queueMicrotask after DOM is updated on re-render', async () => {
 
 		const snapshots: string[] = []
-		let el: any = null
+		let el: ThisParameterType<typeof Counter> | null = null
 
 		const Counter: Stateful = function* () {
 			let count = 0
@@ -1983,7 +1991,7 @@ describe('post-render work via queueMicrotask', () => {
 		expect(snapshots).toHaveLength(1)
 		expect(snapshots[0]).toContain('count: 0')
 
-		el.next()
+		el!.next()
 		await Promise.resolve()
 
 		expect(snapshots).toHaveLength(2)
@@ -1994,10 +2002,8 @@ describe('post-render work via queueMicrotask', () => {
 
 		let container: HTMLUListElement | null = null
 		let scrollTopSet = false
-		let el: any = null
-
-		const List: Stateful<{ items: string[] }> = function* (args) {
-			while (true) {
+		const List: Stateful<{ items: string[] }> = function* () {
+			for (const { items } of this) {
 				queueMicrotask(() => {
 					if (container) {
 						container.scrollTop = container.scrollHeight
@@ -2006,17 +2012,611 @@ describe('post-render work via queueMicrotask', () => {
 				})
 				yield (
 					<ul ref={e => container = e as HTMLUListElement}>
-						{args.items.map((item, i) => <li key={i}>{item}</li>)}
+						{items.map((item, i) => <li key={i}>{item}</li>)}
 					</ul>
 				)
 			}
 		}
 
-		render(<List ref={e => el = e} items={['a', 'b']} />, document.body)
+		render(<List items={['a', 'b']} />, document.body)
 		await Promise.resolve()
 
 		expect(scrollTopSet).toBe(true)
 		expect(container).toBeInstanceOf(HTMLUListElement)
 		expect(container!.children.length).toBe(2)
+	})
+})
+
+describe('error handling during cleanup', () => {
+
+	beforeEach(() => {
+		render(null, document.body)
+	})
+
+	it('should run finally block on unmount', () => {
+
+		const events: string[] = []
+
+		const Component: Stateful = function* () {
+			try {
+				while (true) yield <div>content</div>
+			} finally {
+				events.push('finally')
+			}
+		}
+
+		render(<Component />, document.body)
+		render(null, document.body)
+
+		expect(events).toEqual(['finally'])
+	})
+
+	it('should run finally blocks depth-first on unmount', () => {
+
+		const events: string[] = []
+
+		const GrandChild: Stateful = function* () {
+			try {
+				while (true) yield <span>gc</span>
+			} finally {
+				events.push('grandchild')
+			}
+		}
+
+		const Child: Stateful = function* () {
+			try {
+				while (true) yield <GrandChild />
+			} finally {
+				events.push('child')
+			}
+		}
+
+		const Parent: Stateful = function* () {
+			try {
+				while (true) yield <Child />
+			} finally {
+				events.push('parent')
+			}
+		}
+
+		render(<Parent />, document.body)
+		render(null, document.body)
+
+		expect(events).toEqual(['grandchild', 'child', 'parent'])
+	})
+
+	it('should propagate cleanup error to top-level when no boundary exists', () => {
+
+		const events: string[] = []
+
+		const Faulty: Stateful = function* () {
+			try {
+				while (true) yield <span>faulty</span>
+			} finally {
+				events.push('faulty:finally')
+				throw new Error('cleanup boom')
+			}
+		}
+
+		render(<Faulty />, document.body)
+
+		expect(() => render(null, document.body)).toThrow('cleanup boom')
+
+		expect(events).toEqual(['faulty:finally'])
+	})
+
+	it('should clean up throwing node even when error propagates', () => {
+
+		let signal: AbortSignal | null = null
+
+		const Faulty: Stateful = function* () {
+			signal = this.signal
+			try {
+				while (true) yield <span>faulty</span>
+			} finally {
+				throw new Error('cleanup boom')
+			}
+		}
+
+		render(<Faulty />, document.body)
+
+		expect(signal!.aborted).toBe(false)
+
+		try { render(null, document.body) } catch { }
+
+		expect(signal!.aborted).toBe(true)
+	})
+
+	it('should catch cleanup error in ancestor error boundary via this.throw()', () => {
+
+		const events: string[] = []
+
+		const Faulty: Stateful = function* () {
+			try {
+				while (true) yield <span>faulty</span>
+			} finally {
+				throw new Error('cleanup boom')
+			}
+		}
+
+		const Boundary: Stateful = function* () {
+			while (true) {
+				try {
+					yield <Faulty />
+				} catch (e) {
+					events.push('caught:' + (e instanceof Error ? e.message : e))
+					yield <div>recovered</div>
+				}
+			}
+		}
+
+		render(<Boundary />, document.body)
+
+		expect(document.body.innerHTML).toContain('faulty')
+
+		// unmount triggers Faulty's finally → throws → this.throw(e) → Boundary catches
+		render(null, document.body)
+
+		expect(events).toContain('caught:cleanup boom')
+	})
+
+	it('should recover zombie nodes on re-render after unhandled cleanup error', () => {
+
+		const Faulty: Stateful = function* () {
+			try {
+				while (true) yield <span>faulty</span>
+			} finally {
+				throw new Error('cleanup boom')
+			}
+		}
+
+		render(<Faulty />, document.body)
+
+		try { render(null, document.body) } catch { }
+
+		// re-render recovers — reconciler cleans up zombie nodes
+		render(<div>recovered</div>, document.body)
+
+		expect(document.body.innerHTML).toBe('<div>recovered</div>')
+	})
+
+	it('should return() deep — reset all descendant generators', () => {
+
+		const events: string[] = []
+
+		const GrandChild: Stateful = function* () {
+			events.push('grandchild:init')
+			try {
+				while (true) yield <span>gc</span>
+			} finally {
+				events.push('grandchild:finally')
+			}
+		}
+
+		const Child: Stateful = function* () {
+			events.push('child:init')
+			try {
+				while (true) yield <div><GrandChild /></div>
+			} finally {
+				events.push('child:finally')
+			}
+		}
+
+		let app: ThisParameterType<typeof App> | null = null
+
+		const App: Stateful = function* () {
+			events.push('app:init')
+			try {
+				while (true) yield <Child />
+			} finally {
+				events.push('app:finally')
+			}
+		}
+
+		render(<App ref={e => app = e} />, document.body)
+
+		expect(events).toEqual(['app:init', 'child:init', 'grandchild:init'])
+
+		events.length = 0
+
+		app!.return()
+		app!.next()
+
+		expect(events).toEqual([
+			'grandchild:finally',
+			'child:finally',
+			'app:finally',
+			'app:init',
+			'child:init',
+			'grandchild:init',
+		])
+	})
+
+	it('should return() deep — find generators through plain elements', () => {
+
+		const events: string[] = []
+
+		const Deep: Stateful = function* () {
+			events.push('deep:init')
+			try {
+				while (true) yield <span>deep</span>
+			} finally {
+				events.push('deep:finally')
+			}
+		}
+
+		let app: ThisParameterType<typeof App> | null = null
+
+		const App: Stateful = function* () {
+			events.push('app:init')
+			while (true) yield (
+				<div>
+					<section>
+						<Deep />
+					</section>
+				</div>
+			)
+		}
+
+		render(<App ref={e => app = e} />, document.body)
+
+		expect(events).toEqual(['app:init', 'deep:init'])
+
+		events.length = 0
+
+		app!.return()
+		app!.next()
+
+		expect(events).toEqual(['deep:finally', 'app:init', 'deep:init'])
+	})
+
+	it('should return(false) — shallow, only reset self not children', () => {
+
+		const events: string[] = []
+
+		const Child: Stateful = function* () {
+			events.push('child:init')
+			try {
+				while (true) yield <span>child</span>
+			} finally {
+				events.push('child:finally')
+			}
+		}
+
+		let app: ThisParameterType<typeof App> | null = null
+
+		const App: Stateful = function* () {
+			events.push('app:init')
+			try {
+				while (true) yield <Child />
+			} finally {
+				events.push('app:finally')
+			}
+		}
+
+		render(<App ref={e => app = e} />, document.body)
+
+		expect(events).toEqual(['app:init', 'child:init'])
+
+		events.length = 0
+
+		app!.return(false)
+		app!.next()
+
+		expect(events).toEqual(['app:finally', 'app:init'])
+		expect(events).not.toContain('child:finally')
+	})
+
+	it('should abort all descendant signals on deep return', () => {
+
+		const signals: AbortSignal[] = []
+
+		const C: Stateful = function* () {
+			signals.push(this.signal)
+			while (true) yield <span>c</span>
+		}
+
+		const B: Stateful = function* () {
+			signals.push(this.signal)
+			while (true) yield <C />
+		}
+
+		let app: ThisParameterType<typeof A> | null = null
+
+		const A: Stateful = function* () {
+			signals.push(this.signal)
+			while (true) yield <B />
+		}
+
+		render(<A ref={e => app = e} />, document.body)
+
+		expect(signals).toHaveLength(3)
+		expect(signals.every(s => !s.aborted)).toBe(true)
+
+		app!.return()
+
+		expect(signals.every(s => s.aborted)).toBe(true)
+
+		app!.next()
+
+		// three new fresh signals
+		expect(signals).toHaveLength(6)
+		expect(signals.slice(3).every(s => !s.aborted)).toBe(true)
+	})
+
+	it('should reset child state and UI after return() + next()', () => {
+
+		const Counter: Stateful = function* () {
+
+			let count = 0
+
+			while (true) {
+				yield <span>{count}</span>
+				count++
+			}
+		}
+
+		let app: ThisParameterType<typeof App> | null = null
+
+		const App: Stateful = function* () {
+			while (true) yield <Counter />
+		}
+
+		render(<App ref={e => app = e} />, document.body)
+
+		expect(document.body.textContent).toBe('0')
+
+		// advance Counter twice
+		const counter = document.body.querySelector('div > div') as ThisParameterType<typeof Counter>
+
+		counter.next()
+		expect(document.body.textContent).toBe('1')
+
+		counter.next()
+		expect(document.body.textContent).toBe('2')
+
+		// deep return + restart — Counter should reset to 0
+		app!.return()
+		app!.next()
+
+		expect(document.body.textContent).toBe('0')
+	})
+
+	it('should reset multiple siblings after return() + next()', () => {
+
+		const Counter: Stateful<{ label: string }> = function* () {
+
+			let count = 0
+
+			for (const { label } of this) {
+				yield <span>{label}:{count}</span>
+				count++
+			}
+		}
+
+		let app: ThisParameterType<typeof App> | null = null
+
+		const App: Stateful = function* () {
+			while (true) yield (
+				<>
+					<Counter label="a" />
+					<Counter label="b" />
+				</>
+			)
+		}
+
+		render(<App ref={e => app = e} />, document.body)
+
+		expect(document.body.textContent).toBe('a:0b:0')
+
+		// advance both counters
+		const [a, b] = Array.from(document.body.querySelectorAll('div > div')) as ThisParameterType<typeof Counter>[]
+		a.next()
+		b.next()
+		b.next()
+
+		expect(document.body.textContent).toBe('a:1b:2')
+
+		app!.return()
+		app!.next()
+
+		expect(document.body.textContent).toBe('a:0b:0')
+	})
+
+	it('should reset deeply nested tree with mixed static and stateful nodes', () => {
+
+		const leafRefs: ThisParameterType<typeof Leaf>[] = []
+
+		const Leaf: Stateful<{ id: string }> = function* () {
+
+			let n = 0
+
+			for (const { id } of this) {
+				yield <em>{id}={n}</em>
+				n++
+			}
+		}
+
+		let app: ThisParameterType<typeof App> | null = null
+
+		const App: Stateful = function* () {
+			while (true) yield (
+				<div>
+					<header><Leaf ref={e => e && leafRefs.push(e)} id="h" /></header>
+					<main>
+						<section>
+							<Leaf ref={e => e && leafRefs.push(e)} id="s" />
+						</section>
+					</main>
+					<footer><Leaf ref={e => e && leafRefs.push(e)} id="f" /></footer>
+				</div>
+			)
+		}
+
+		render(<App ref={e => app = e} />, document.body)
+
+		expect(document.body.textContent).toBe('h=0s=0f=0')
+
+		// advance each leaf
+		leafRefs.forEach(l => { l.next(); l.next() })
+
+		expect(document.body.textContent).toBe('h=2s=2f=2')
+
+		app!.return()
+		app!.next()
+
+		expect(document.body.textContent).toBe('h=0s=0f=0')
+	})
+
+	it('should preserve DOM structure after return() + next()', () => {
+
+		const Child: Stateful = function* () {
+			while (true) yield <p>child content</p>
+		}
+
+		let app: ThisParameterType<typeof App> | null = null
+
+		const App: Stateful = function* () {
+			while (true) yield (
+				<>
+					<h1>title</h1>
+					<Child />
+					<span>footer</span>
+				</>
+			)
+		}
+
+		render(<App ref={e => app = e} />, document.body)
+
+		const htmlBefore = document.body.innerHTML
+
+		app!.return()
+		app!.next()
+
+		expect(document.body.innerHTML).toBe(htmlBefore)
+	})
+
+	it('should reset context values after return() + next()', () => {
+
+		const theme = context<string>('light')
+
+		const Reader: Stateful = function* () {
+			while (true) {
+				yield <span>{theme()}</span>
+			}
+		}
+
+		let app: ThisParameterType<typeof App> | null = null
+
+		const App: Stateful = function* () {
+
+			let current = 'dark'
+
+			while (true) {
+
+				theme(current)
+
+				yield (
+					<>
+						<button set:onclick={() => this.next(() => current = 'blue')} />
+						<Reader />
+					</>
+				)
+			}
+		}
+
+		render(<App ref={e => app = e} />, document.body)
+
+		expect(document.body.textContent).toBe('dark')
+
+		// change theme
+		document.querySelector('button')!.click()
+
+		expect(document.body.textContent).toBe('blue')
+
+		// return + next resets App's state, current goes back to 'dark'
+		app!.return()
+		app!.next()
+
+		expect(document.body.textContent).toBe('dark')
+	})
+})
+
+describe('stateful()', () => {
+
+	beforeEach(() => {
+		render(null, document.body)
+	})
+
+	it('should set .is and create custom wrapper element', () => {
+
+		const Box = stateful(function* () {
+			while (true) yield <span>content</span>
+		}, 'section')
+
+		expect(Box.is).toBe('section')
+
+		render(<Box />, document.body)
+
+		expect(document.body.innerHTML).toBe('<section><span>content</span></section>')
+	})
+
+	it('should use default wrapper when no tag is provided', () => {
+
+		const Box = stateful(function* () {
+			while (true) yield <span>content</span>
+		})
+
+		expect(Box.is).toBeUndefined()
+
+		render(<Box />, document.body)
+
+		expect(document.body.innerHTML).toBe('<div><span>content</span></div>')
+	})
+
+	it('should work with args, this.next(), and cleanup', () => {
+
+		type Args = { label: string }
+
+		const events: string[] = []
+
+		const Counter = stateful(function* ({ label }: Args) {
+
+			let count = 0
+
+			this.signal.addEventListener('abort', () => events.push('abort'))
+
+			for ({} of this) {
+				yield <span>{label}:{count}</span>
+				count++
+			}
+
+		}, 'article')
+
+		let ref: ThisParameterType<typeof Counter> | null = null
+
+		render(<Counter ref={e => ref = e} label="x" />, document.body)
+
+		expect(document.body.innerHTML).toBe('<article><span>x:0</span></article>')
+
+		ref!.next()
+
+		expect(document.body.innerHTML).toBe('<article><span>x:1</span></article>')
+
+		render(null, document.body)
+
+		expect(events).toEqual(['abort'])
+	})
+
+	it('should return the same function reference', () => {
+
+		const fn = function* () {
+			while (true) yield <div />
+		}
+
+		const result = stateful(fn, 'nav')
+
+		expect(result).toBe(fn)
+		expect(result.is).toBe('nav')
 	})
 })

@@ -8,11 +8,13 @@
 	"main": "./dist/index.cjs",
 	"exports": {
 		".": {
+			"react-native": "./index.js",
 			"types": "./types.ts",
 			"import": "./dist/index.js",
 			"require": "./dist/index.cjs"
 		},
 		"./context": {
+			"react-native": "./context.js",
 			"types": "./types.ts",
 			"import": "./dist/context.js",
 			"require": "./dist/context.cjs"
@@ -21,6 +23,18 @@
 			"types": "./types.ts",
 			"import": "./dist/html.js",
 			"require": "./dist/html.cjs"
+		},
+		"./jsx-runtime": {
+			"react-native": "./jsx.js",
+			"types": "./types.ts",
+			"import": "./dist/jsx.js",
+			"require": "./dist/jsx.cjs"
+		},
+		"./jsx-dev-runtime": {
+			"react-native": "./jsx.js",
+			"types": "./types.ts",
+			"import": "./dist/jsx.js",
+			"require": "./dist/jsx.cjs"
 		}
 	},
 	"files": [
@@ -28,6 +42,7 @@
 		"context.js",
 		"html.js",
 		"index.js",
+		"jsx.js",
 		"LLMs.md",
 		"types.ts"
 	],
@@ -38,8 +53,9 @@
 		"release": "pnpm test && pnpm build && pnpm bump && pnpm publish"
 	},
 	"devDependencies": {
-		"@types/node": "25.2.3",
-		"happy-dom": "20.6.1",
+		"@types/node": "25.3.1",
+		"happy-dom": "20.7.0",
+		"typescript": "5.9.3",
 		"vite": "7.3.1",
 		"vite-tsconfig-paths": "6.1.1",
 		"vitest": "4.0.18"

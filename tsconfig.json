@@ -18,5 +18,16 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
+		"paths": {
+			"ajo/context": [
+				"./context.js"
+			],
+			"ajo/html": [
+				"./html.js"
+			],
+			"ajo": [
+				"./index.js"
+			]
+		}
 	}
 }

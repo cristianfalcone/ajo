@@ -10,7 +10,7 @@ import clsx from 'clsx' // optional, for conditional classes
 
 type Args = WithChildren<{ title: string; active?: boolean }>
 
-const Card: Stateless<Args> = ({ title, active, children }) => ( // can destructure args here
+const Card: Stateless<Args> = ({ title, active, children }) => (
   <div class={clsx('card', { active })}>
     <h3>{title}</h3>
     {children}
@@ -30,11 +30,11 @@ import type { Stateful } from 'ajo'
 
 type Args = { initial: number; step?: number }
 
-const Counter: Stateful<Args, 'section'> = function* (args) { // do NOT destructure args here
+const Counter: Stateful<Args, 'section'> = function* ({ initial }) {
 
-  // before loop: persistent state & handlers
+  // before loop: init state & handlers (use parameter for initial args)
 
-  let count = args.initial
+  let count = initial
   let inputRef: HTMLInputElement | null = null
 
   const inc = () => this.next(({ step = 1 }) => count += step)
@@ -45,14 +45,11 @@ const Counter: Stateful<Args, 'section'> = function* (args) { // do NOT destruct
     else if (e.key === 'ArrowDown' && count > 0) dec()
   }
 
-  this.addEventListener('keydown', handleKeydown, { signal: this.signal }) // auto-cleanup on unmount
+  this.addEventListener('keydown', handleKeydown, { signal: this.signal }) // auto-cleanup on lifecycle end
 
-  while (true) { // main render loop
+  for (const { step = 1 } of this) { // main render loop — `for...of this` yields fresh args each cycle
 
     try { // optional: error boundary
-
-      // fresh destructure each render
-      const { step = 1 } = args
 
       // derived values
       const isEven = count % 2 === 0
@@ -80,6 +77,11 @@ const Counter: Stateful<Args, 'section'> = function* (args) { // do NOT destruct
 Counter.is = 'section'                    // wrapper element (default: div)
 Counter.attrs = { class: 'counter-wrap' } // default wrapper attributes
 Counter.args = { step: 1 }                // default args
+
+// Or use stateful() to avoid duplicating 'section':
+// const Counter = stateful(function* ({ initial }: Args) { ... }, 'section')
+// Counter.attrs = { class: 'counter-wrap' }
+// Counter.args = { step: 1 }
 
 // Example usage - special attrs apply to wrapper, rest goes to args:
 
@@ -109,39 +111,41 @@ ref?.next()  // trigger re-render from outside
 | **Events** | `set:onclick`, `set:oninput`, etc. Never `onClick` |
 | **Classes** | `class`, never `className`. Must be string, no object/array syntax. Use `clsx()` or template literals |
 | **Styles** | `style` must be string (`style="color: red"`), not object. No special handling |
-| **Args** | Never destructure in generator signature. Use `args` param |
+| **Args** | Destructure in parameter for init code. Render loops: `for (const { prop } of this)` for fresh args each cycle (new bindings), or `for ({ prop } of this)` without `const` to reassign variables from the outer scope. `while (true)` when you don't need fresh args |
+| **Generators** | Stateful components are JS generators with a main render loop (`while`/`for...of`). Since they're generators, yields can also appear outside the loop — sequential phases, conditional blocks, etc. are all valid |
 | **Root JSX** | Use `<>...</>` in stateful to avoid double wrapper |
-| **Re-render** | `this.next(fn?)` — returns `fn`'s result. Use `this.throw(e)` for explicit error routing |
-| **Context** | `context<T>(fallback)` creates context. Stateless: read only. Stateful: read/write inside `while` loop |
+| **Re-render** | `this.next(fn?)` — returns `fn`'s result. Safe after unmount (no-op). Use `this.throw(e)` for explicit error routing |
+| **Context** | `context<T>(fallback)` creates context. Stateless: read only. Stateful: read/write. Reads go inside loop (fresh each render). Constant writes can go before loop; dynamic writes go inside loop |
 | **Lists** | Always provide unique `key` on elements |
 | **Refs** | `ref={el => ...}` on elements. Receives `null` on unmount. Stateful ref type: `ThisParameterType<typeof Component>` |
 | **Memo** | `memo={[deps]}` array, `memo={value}` single, or just `memo` (never re-render). Skips subtree if unchanged |
-| **Skip** | `skip` excludes children from reconciliation. Use for `set:textContent`/`set:innerHTML` or third-party maneged DOM |
-| **Custom wrapper** | Set `.is = 'tagname'` AND TypeScript generic `Stateful<Args, 'tagname'>` for stateful components. Default is `div` (no need to set) |
+| **Skip** | `skip` excludes children from reconciliation. Use for `set:textContent`/`set:innerHTML` or third-party managed DOM |
+| **Custom wrapper** | `stateful(fn, 'tagname')` sets `.is` and infers `this` type. Or manually: `Stateful<Args, 'tagname'>` + `.is = 'tagname'`. Default is `div` (no need to set) |
 | **Default attrs** | `.attrs = { class: '...' }` on stateful component generator function |
 | **Default args** | `.args = { prop: value }` on stateful component generator function |
-| **Cleanup** | `this.signal` for APIs that accept AbortSignal (fetch, addEventListener). `try/finally` for the rest |
+| **Cleanup** | `this.signal` aborts on lifecycle end (unmount, `this.return()`, generator done). Use for fetch, addEventListener, etc. `try/finally` for the rest |
 | **Error recovery** | `try { ... } catch { yield error UI }` inside loop |
-| **this** | Stateful wrapper element with `.signal`, `.next(fn?)` (returns `fn`'s result), `.throw()`, `.return()`. Type: `ThisParameterType<typeof Component>` |
+| **this** | Stateful wrapper element with `.signal`, `.next(fn?)` (returns `fn`'s result), `.throw()`, `.return(deep?)`. Iterable: `for...of this` yields args. Type: `ThisParameterType<typeof Component>` |
 
 ## Common Patterns
 
 ```tsx
 import type { Stateful, Stateless, WithChildren } from 'ajo'
+import { stateful } from 'ajo'
 import { context } from 'ajo/context'
 
 // Async data loading
 type LoaderArgs = { url: string }
 
-const DataLoader: Stateful<LoaderArgs> = function* (args) {
+const DataLoader: Stateful<LoaderArgs> = function* ({ url }) {
 
   let data: unknown = null
   let error: Error | null = null
 
-  fetch(args.url, { signal: this.signal })
+  fetch(url, { signal: this.signal })  // signal auto-aborts on lifecycle end
     .then(r => r.json())
-    .then(d => this.next(() => data = d))
-    .catch(e => this.next(() => error = e))
+    .then(d => this.next(() => data = d))   // no-op if unmounted
+    .catch(e => this.next(() => error = e)) // no-op if unmounted
 
   while (true) yield (
     <>
@@ -176,14 +180,14 @@ const ThemedCard: Stateless<{ title: string }> = ({ title }) => {
   return <div class={`card theme-${theme}`}>{title}</div>
 }
 
-// Stateful - read/write inside while loop
-const ThemeProvider: Stateful<WithChildren> = function* (args) {
+// Stateful - read/write inside render loop
+const ThemeProvider: Stateful<WithChildren> = function* () {
 
   let theme: 'light' | 'dark' = 'light'
 
   const toggle = () => this.next(() => theme = theme === 'light' ? 'dark' : 'light')
 
-  while (true) {
+  for (const { children } of this) {
 
     ThemeContext(theme)  // write: sets value for descendants
     const user = UserContext()  // read: gets value from ancestor
@@ -192,7 +196,7 @@ const ThemeProvider: Stateful<WithChildren> = function* (args) {
       <>
         <button set:onclick={toggle}>Theme: {theme}</button>
         {user && <span>User: {user.name}</span>}
-        {args.children}
+        {children}
       </>
     )
   }
@@ -223,15 +227,23 @@ counterRef?.next()  // trigger re-render from outside
 <div set:innerHTML={html} skip />            // DOM property + skip (required!)
 
 // Post-render work (DOM is updated by the time the microtask runs)
-const ScrollList: Stateful<{ items: Item[] }> = function* (args) {
+const ScrollList: Stateful<{ items: Item[] }> = function* () {
   let container: HTMLUListElement | null = null
-  while (true) {
+  for (const { items } of this) {
     queueMicrotask(() => container!.scrollTop = container!.scrollHeight)
     yield (
       <ul ref={el => container = el}>
-        {args.items.map(item => <li key={item.id}>{item.text}</li>)}
+        {items.map(item => <li key={item.id}>{item.text}</li>)}
       </ul>
     )
+  }
+}
+
+// Reassign parameter vars in render loop (no const/let — updates outer scope)
+const Greeter: Stateful<{ name: string }> = function* ({ name }) {
+  // name is available for init code here
+  for ({ name } of this) {  // reassigns `name` from parameter each cycle
+    yield <p>Hello, {name}!</p>
   }
 }
 
@@ -271,22 +283,31 @@ const Good: Stateless<{ deps?: unknown }> = ({ deps }) => (
 )
 // <Good deps={[id]} /> or <Good deps={data} />
 
-// ❌ Destructure in signature - locks to initial values
-function* Bad({ count }) { ... }
-
-// ❌ Context read/write outside loop in stateful - stale values
-function* Bad(args) {
-  const theme = ThemeContext()  // frozen at mount
-  ThemeContext('dark')          // only set once, not updated
+// ❌ Context read outside loop - stale values
+function* Bad() {
+  const theme = ThemeContext()  // frozen at mount, never updated
   while (true) yield ...
 }
 
-// ✅ Context read/write inside loop in stateful
-function* Good(args) {
+// ✅ Context read inside loop - fresh each render
+function* Good() {
+  while (true) {
+    const user = UserContext()    // read: fresh value each render
+    yield ...
+  }
+}
+
+// ✅ Constant context write outside loop - value never changes, OK
+function* Good() {
+  ThemeContext('dark')            // write once: constant value
+  while (true) yield ...
+}
+
+// ✅ Dynamic context write inside loop - value depends on state
+function* Good() {
   let theme = 'light'
   while (true) {
     ThemeContext(theme)           // write: updated each render
-    const user = UserContext()    // read: fresh value each render
     yield ...
   }
 }
@@ -313,17 +334,16 @@ pnpm add ajo
 yarn add ajo
 ```
 
-Configure JSX factory (Vite example):
+Configure JSX automatic runtime (Vite example):
 
 ```ts
 // vite.config.ts
 export default defineConfig({
   esbuild: {
-    jsxFactory: 'h',
-    jsxFragment: 'Fragment',
-    jsxInject: `import { h, Fragment } from 'ajo'`,
+    jsx: 'automatic',
+    jsxImportSource: 'ajo',
   },
 })
 ```
 
-For other build systems: `jsxFactory: 'h'`, `jsxFragment: 'Fragment'`, auto-import `{ h, Fragment }` from `'ajo'`.
+For other build systems: `jsx: 'react-jsx'` (or `'automatic'`), `jsxImportSource: 'ajo'`. No manual imports needed — the build tool auto-imports from `ajo/jsx-runtime`.

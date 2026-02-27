@@ -2,27 +2,26 @@ declare module 'ajo' {
 
 	type Tag = keyof (HTMLElementTagNameMap & SVGElementTagNameMap)
 
-	type Type<TArguments extends Args = {}, TTag extends Tag = 'div'> = Tag | Stateless<TArguments> | Stateful<TArguments, TTag>
+	type Type = Tag | (string & {}) | Stateless | Stateful
 
-	type Component<TArguments extends Args = {}> = Stateless<TArguments> | Stateful<TArguments>
+	type Children = unknown
 
 	type Args = Record<string, unknown>
 
-	type VNode<TTag extends Type, TArgs extends Args> = TArgs & {
-		nodeName: TTag,
+	type VNode = {
+		nodeName: Type,
 		children?: Children,
+		[key: string]: unknown,
 	}
-
-	type Children = unknown
 
 	type ElementType<TTag> = TTag extends keyof HTMLElementTagNameMap
 		? HTMLElementTagNameMap[TTag]
 		: TTag extends keyof SVGElementTagNameMap
 		? SVGElementTagNameMap[TTag]
-		: never
+		: object
 
 	type SpecialAttrs<TElement> = {
-		key: unknown,
+		key: string | number,
 		skip: boolean,
 		memo: unknown,
 		ref: (el: TElement | null) => void,
@@ -36,40 +35,59 @@ declare module 'ajo' {
 		[key: `attr:${string}`]: unknown
 	}
 
-	type Stateless<TArguments extends Args = {}> = (args: TArguments) => Children
+	interface Defaults { }
 
-	type Stateful<TArguments extends Args = {}, TTag extends Tag = 'div'> = {
-		(this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>): Iterator<Children>
-	} & (TTag extends 'div' ? { is?: TTag } : { is: TTag }) & {
+	type DefaultTag = Defaults extends { tag: infer T extends string } ? T : 'div'
+
+	const defaults: { tag: string }
+
+	type Stateless<TArgs extends Args = {}> = (args: TArgs) => Children
+
+	type Stateful<TArgs extends Args = {}, TTag extends string = DefaultTag> = {
+		(this: StatefulElement<TArgs, TTag>, args: TArgs): Iterator<Children>
+	} & (TTag extends DefaultTag ? { is?: TTag } : { is: TTag }) & {
 		attrs?: Partial<PropSetter<TTag>> & Args,
-		args?: Partial<TArguments>,
-		src?: string,
-		fallback?: Children,
+		args?: Partial<TArgs>,
 	}
 
-	type StatefulArgs<TArguments, TTag> =
-		Partial<SpecialAttrs<StatefulElement<TArguments, TTag>> & PropSetter<TTag>> &
+	type Component<TArgs extends Args = {}> = Stateless<TArgs> | Stateful<TArgs>
+
+	type StatefulArgs<TArgs, TTag> =
+		Partial<SpecialAttrs<StatefulElement<TArgs, TTag>> & PropSetter<TTag>> &
 		AttrSetter &
-		TArguments
+		TArgs
 
-	type StatefulElement<TArguments, TTag> = ElementType<TTag> & {
+	type StatefulElement<TArgs, TTag> = ElementType<TTag> & {
+		[Symbol.iterator](): Iterator<TArgs>,
 		signal: AbortSignal,
-		next: <R>(fn?: (this: StatefulElement<TArguments, TTag>, args: StatefulArgs<TArguments, TTag>) => R) => R,
+		next: <R>(fn?: (this: StatefulElement<TArgs, TTag>, args: TArgs) => R) => R,
 		throw: (value?: unknown) => void,
-		return: () => void,
+		return: (deep?: boolean) => void,
 	}
 
-	type IntrinsicElements = {
+	type HTMLIntrinsicElements = {
 		[TTag in Tag]: Partial<PropSetter<TTag> & SpecialAttrs<ElementType<TTag>>> & Args
 	}
+
+	interface IntrinsicElements extends HTMLIntrinsicElements { }
 
 	type ElementChildrenAttribute = { children: Children }
 
 	type WithChildren<T extends Args = {}> = T & Partial<ElementChildrenAttribute>
 
-	function Fragment({ children }: ElementChildrenAttribute): typeof children
-	function h(tag: Type, attrs?: Args | null, ...children: Children[]): VNode<Type, Args>
+	type ManagedAttributes<C, P> =
+		C extends (...args: any) => Iterator<any>
+			? C extends { is?: infer TTag }
+				? StatefulArgs<P, TTag & string>
+				: P
+			: P
+
 	function render(h: Children, el: ParentNode, child?: ChildNode, ref?: ChildNode): void
+
+	function stateful<TArgs extends Args, TTag extends string = DefaultTag>(
+		fn: (this: StatefulElement<TArgs, TTag>, args: TArgs) => Iterator<Children>,
+		is?: TTag
+	): Stateful<TArgs, TTag>
 }
 
 declare module 'ajo/context' {
@@ -85,7 +103,32 @@ declare module 'ajo/html' {
 	function html(h: import('ajo').Children): IterableIterator<string>
 }
 
+declare module 'ajo/jsx-runtime' {
+	import { Type, Args, VNode, Children, ElementChildrenAttribute, IntrinsicElements as _IE } from 'ajo'
+	export function Fragment({ children }: ElementChildrenAttribute): typeof children
+	export function h(tag: Type, attrs?: Args | null, ...children: Children[]): VNode
+	export function jsx(type: Type, props: Args | null, key?: string | number): VNode
+	export function jsxs(type: Type, props: Args | null, key?: string | number): VNode
+	export function jsxDEV(type: Type, props: Args | null, key?: string | number): VNode
+	export namespace JSX {
+		type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
+		type LibraryManagedAttributes<C, P> = import('ajo').ManagedAttributes<C, P>
+		interface IntrinsicElements extends _IE { }
+	}
+}
+
+declare module 'ajo/jsx-dev-runtime' {
+	import { IntrinsicElements as _IE } from 'ajo'
+	export { Fragment, h, jsx, jsxs, jsxDEV } from 'ajo/jsx-runtime'
+	export namespace JSX {
+		type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
+		type LibraryManagedAttributes<C, P> = import('ajo').ManagedAttributes<C, P>
+		interface IntrinsicElements extends _IE { }
+	}
+}
+
 declare namespace JSX {
 	type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
+	type LibraryManagedAttributes<C, P> = import('ajo').ManagedAttributes<C, P>
 	type IntrinsicElements = import('ajo').IntrinsicElements
 }

@@ -1,4 +1,4 @@
-import { Context, current } from 'ajo/context'
+import { Context, current } from './context.js'
 
 const Void = new Set(['area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'])
 
@@ -87,6 +87,8 @@ const runGenerator = (fn, h) => {
 	const controller = new AbortController()
 
 	const instance = {
+
+		*[Symbol.iterator]() { while (true) yield this[Args] },
 
 		[Context]: Object.create(current()?.[Context] ?? null),
 

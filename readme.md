@@ -43,7 +43,7 @@ render(<Counter />, document.body)
 
 ### Build Configuration
 
-Configure your build tool to use Ajo's JSX factory:
+Configure your build tool to use Ajo's automatic JSX runtime:
 
 **Vite:**
 ```typescript
@@ -52,9 +52,8 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   esbuild: {
-    jsxFactory: 'h',
-    jsxFragment: 'Fragment',
-    jsxInject: `import { h, Fragment } from 'ajo'`,
+    jsx: 'automatic',
+    jsxImportSource: 'ajo',
   },
 })
 ```
@@ -63,14 +62,13 @@ export default defineConfig({
 ```json
 {
   "compilerOptions": {
-    "jsx": "react",
-    "jsxFactory": "h",
-    "jsxFragmentFactory": "Fragment"
+    "jsx": "react-jsx",
+    "jsxImportSource": "ajo"
   }
 }
 ```
 
-**Other build tools:** Set `jsxFactory: 'h'`, `jsxFragment: 'Fragment'`, and auto-import `{ h, Fragment }` from `'ajo'`.
+**Other build tools:** Set `jsx: 'react-jsx'` (or `'automatic'`), `jsxImportSource: 'ajo'`. No manual imports needed — the build tool auto-imports from `ajo/jsx-runtime`.
 
 ## Core Concepts
 
@@ -125,34 +123,44 @@ function* TodoList() {
 
 ### Re-rendering with `this.next()`
 
-Call `this.next()` to trigger a re-render. The optional callback receives current props and its return value is passed through:
+Call `this.next()` to trigger a re-render. The optional callback receives current args and its return value is passed through:
 
 ```javascript
-function* Stepper(args) {
+function* Stepper() {
 
   let count = 0
 
-  // Access current props in callback
+  // Access current args in callback
   const inc = () => this.next(({ step = 1 }) => count += step)
 
-  while (true) yield (
-    <button set:onclick={inc}>Count: {count} (+{args.step})</button>
+  for (const { step = 1 } of this) yield (
+    <button set:onclick={inc}>Count: {count} (+{step})</button>
   )
 }
 ```
 
-**Never destructure args in the generator signature** - it locks values to initial props:
+### Args in the Render Loop
+
+Use `for...of this` to receive fresh args each render cycle. Destructure in the parameter for values needed in init code:
 
 ```javascript
-// DON'T - values frozen at mount
-function* Bad({ step }) { let count = step }
+function* Counter({ initial }) {
 
-// DO - use args directly, or destructure inside the loop
-function* Good(args) {
-  while (true) {
-    const { step } = args  // fresh each render
-    yield ...
+  let count = initial  // parameter destructuring for init code
+
+  for (const { step = 1 } of this) {  // fresh args each cycle
+    yield <button set:onclick={() => this.next(() => count += step)}>+{step}</button>
   }
+}
+```
+
+Use `while (true)` when you don't need args in the loop:
+
+```javascript
+function* Timer() {
+  let seconds = 0
+  setInterval(() => this.next(() => seconds++), 1000)
+  while (true) yield <p>{seconds}s</p>
 }
 ```
 
@@ -195,10 +203,10 @@ function* Clock() {
 Use `try...catch` **inside** the loop to catch errors and recover:
 
 ```javascript
-function* ErrorBoundary(args) {
-  while (true) {
+function* ErrorBoundary() {
+  for (const { children } of this) {
     try {
-      yield args.children
+      yield children
     } catch (error) {
       yield (
         <>
@@ -271,12 +279,12 @@ timer?.next()  // trigger re-render from outside
 ### `skip` - Third-Party DOM
 
 ```javascript
-function* Chart(args) {
+function* Chart() {
 
   let chart = null
 
-  while (true) yield (
-    <div skip ref={el => el && (chart ??= new ChartLib(el, args.data))} />
+  for (const { data } of this) yield (
+    <div skip ref={el => el && (chart ??= new ChartLib(el, data))} />
   )
 }
 ```
@@ -303,7 +311,7 @@ const ThemeContext = context('light')
 ```
 
 **Stateless**: read only.
-**Stateful**: read/write. Write inside the loop to update each render, or outside for a one-time set.
+**Stateful**: read/write. Write inside the loop when the value depends on state, or outside for a constant value.
 
 ```javascript
 // Stateless - read only
@@ -312,39 +320,39 @@ const Card = ({ title }) => {
   return <div class={`card theme-${theme}`}>{title}</div>
 }
 
-// Stateful - write inside loop (updates each render)
-function* ThemeProvider(args) {
+// Stateful - write inside loop (value depends on state)
+function* ThemeProvider() {
 
   let theme = 'light'
 
-  while (true) {
+  for (const { children } of this) {
     ThemeContext(theme)
     yield (
       <>
         <button set:onclick={() => this.next(() => theme = theme === 'light' ? 'dark' : 'light')}>
           {theme}
         </button>
-        {args.children}
+        {children}
       </>
     )
   }
 }
 
-// Stateful - write outside loop (one-time set)
-function* FixedTheme(args) {
+// Stateful - write outside loop (constant value)
+function* FixedTheme() {
   ThemeContext('dark')  // set once at mount
-  while (true) yield args.children
+  for (const { children } of this) yield children
 }
 ```
 
 ## Async Operations
 
 ```javascript
-function* UserProfile(args) {
+function* UserProfile({ id }) {
 
   let data = null, error = null, loading = true
 
-  fetch(`/api/users/${args.id}`, { signal: this.signal })
+  fetch(`/api/users/${id}`, { signal: this.signal })
     .then(r => r.json())
     .then(d => this.next(() => { data = d; loading = false }))
     .catch(e => this.next(() => { error = e; loading = false }))
@@ -378,12 +386,11 @@ const Card: Stateless<CardProps> = ({ title, children }) => (
 // Stateful with custom wrapper element
 type CounterProps = { initial: number; step?: number }
 
-const Counter: Stateful<CounterProps, 'section'> = function* (args) {
+const Counter: Stateful<CounterProps, 'section'> = function* ({ initial }) {
 
-  let count = args.initial
+  let count = initial
 
-  while (true) {
-    const { step = 1 } = args
+  for (const { step = 1 } of this) {
     yield <button set:onclick={() => this.next(() => count += step)}>+{step}</button>
   }
 }
@@ -391,6 +398,9 @@ const Counter: Stateful<CounterProps, 'section'> = function* (args) {
 Counter.is = 'section'               // wrapper element (default: 'div')
 Counter.attrs = { class: 'counter' } // default wrapper attributes
 Counter.args = { step: 1 }           // default args
+
+// Or use stateful() to avoid duplicating 'section':
+// const Counter = stateful(function* ({ initial }: CounterProps) { ... }, 'section')
 
 // Ref typing
 let ref: ThisParameterType<typeof Counter> | null = null
@@ -403,7 +413,8 @@ let ref: ThisParameterType<typeof Counter> | null = null
 | Export | Description |
 |--------|-------------|
 | `render(children, container, start?, end?)` | Render to DOM. Optional `start`/`end` for targeted updates. |
-| `h`, `Fragment` | JSX factory and fragment |
+| `stateful(fn, tag?)` | Create stateful component with type inference for custom wrapper. |
+| `defaults` | Default wrapper tag config (`defaults.tag`). |
 
 ### `ajo/context`
 | Export | Description |
@@ -413,15 +424,17 @@ let ref: ThisParameterType<typeof Counter> | null = null
 ### `ajo/html`
 | Export | Description |
 |--------|-------------|
-| `render(children)` | Render to HTML string |
+| `render(children)` | Render to HTML string. |
+| `html(children)` | Render to HTML generator (yields strings). |
 
 ### Stateful `this`
 | Property | Description |
 |----------|-------------|
+| `for...of this` | Iterable: yields fresh args each render cycle. |
 | `this.signal` | AbortSignal that aborts on unmount. Pass to `fetch()`, `addEventListener()`, etc. |
 | `this.next(fn?)` | Re-render. Callback receives current args. Returns callback's result. |
-| `this.throw(error)` | Throw to parent boundary |
-| `this.return()` | Terminate generator |
+| `this.throw(error)` | Throw to parent boundary. |
+| `this.return(deep?)` | Terminate generator. Pass `true` to also terminate child generators. |
 
 `this` is also the wrapper element (`this.addEventListener()`, etc).
 

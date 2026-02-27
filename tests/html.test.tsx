@@ -219,13 +219,12 @@ describe('components', () => {
 
 	it('should render a stateful component with attrs and children', () => {
 
-		const Component: Stateful<{ name: string, children: Children }> = function* (args) {
-			while (true)
-				yield (
-					<div>
-						Hello {args.name},<br /> and {args.children}!
-					</div>
-				)
+		const Component: Stateful<{ name: string, children: Children }> = function* () {
+			for (const { name, children } of this) yield (
+				<div>
+					Hello {name},<br /> and {children}!
+				</div>
+			)
 		}
 
 		const html = render(<Component name="world">you</Component>)
@@ -239,14 +238,14 @@ describe('components', () => {
 		const loop = vi.fn()
 		const end = vi.fn()
 
-		const Component: Stateful<{ name: string }> = function* (args) {
+		const Component: Stateful<{ name: string }> = function* () {
 
 			init()
 
 			try {
-				while (true) {
+				for (const { name } of this) {
 					loop()
-					yield <div>Hello {args.name}!</div>
+					yield <div>Hello {name}!</div>
 				}
 			} finally {
 				end()
@@ -420,11 +419,9 @@ describe('context', () => {
 		}
 
 		const App: Stateful = function* () {
-
 			ThemeContext('dark')
 			UserContext('Alice')
 			LanguageContext('fr')
-
 			while (true) yield (
 				<>
 					<Header />
@@ -470,14 +467,12 @@ describe('context', () => {
 
 		const App: Stateful = function* () {
 			CountContext(5)
-			while (true) {
-				yield (
-					<>
-						<Counter />
-						<button>Increment</button>
-					</>
-				)
-			}
+			while (true) yield (
+				<>
+					<Counter />
+					<button>Increment</button>
+				</>
+			)
 		}
 
 		const html = render(<App />)

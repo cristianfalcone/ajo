@@ -1,2 +1,6 @@
 node_modules
 dist
+.claude
+CLAUDE.md
+AGENTS.md
+ai

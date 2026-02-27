@@ -1,4 +1,4 @@
-import { Context, current } from 'ajo/context'
+import { Context, current } from './context.js'
 
 const Key = Symbol.for('ajo.key')
 const Memo = Symbol.for('ajo.memo')
@@ -9,16 +9,9 @@ const Render = Symbol.for('ajo.render')
 const Args = Symbol.for('ajo.args')
 const Controller = Symbol.for('ajo.controller')
 
-export const Fragment = props => props.children
+export const defaults = { tag: 'div' }
 
-export const h = (type, props, ...children) => {
-
-	(props ??= {}).nodeName = type
-
-	if (!('children' in props) && children.length) props.children = children.length == 1 ? children[0] : children
-
-	return props
-}
+export const stateful = (fn, is) => (is && (fn.is = is), fn)
 
 export const render = (h, el, child = el.firstChild, ref = null) => {
 
@@ -97,7 +90,7 @@ const runGenerator = (fn, h) => {
 		else args[key] = h[key]
 	}
 
-	return { ...attrs, nodeName: fn.is ?? 'div', [Generator]: fn, [Args]: args }
+	return { ...attrs, nodeName: fn.is ?? defaults.tag, [Generator]: fn, [Args]: args }
 }
 
 const reconcile = (h, el, node) => typeof h == 'string' ? text(h, node) : element(h, el, node)
@@ -121,7 +114,7 @@ const element = ({ nodeName, children, key, skip, memo, [Generator]: gen, [Args]
 
 		(node[Generator] && node[Generator] != gen)
 
-	)) node = node.nextSibling
+	)) node = node.nextElementSibling
 
 	node ??= document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName)
 
@@ -157,6 +150,22 @@ const some = (a, b) => Array.isArray(a) && Array.isArray(b) ? a.some((v, i) => v
 
 const extract = el => Array.from(el.attributes).reduce((out, attr) => (out[attr.name] = attr.value, out), {})
 
+const each = (fn, node) => {
+
+	let child = node.firstElementChild
+
+	while (child)
+
+		if (fn(child) && child.firstElementChild) child = child.firstElementChild
+
+		else {
+
+			while (child != node && !child.nextElementSibling) child = child.parentNode ?? node
+
+			child = child != node && child.nextElementSibling
+		}
+}
+
 const before = (el, node, child) => {
 
 	if (node.contains(document.activeElement)) {
@@ -175,20 +184,33 @@ const before = (el, node, child) => {
 	} else el.insertBefore(node, child)
 }
 
-const unref = node => {
+const unref = root => {
 
-	for (const child of node.children) unref(child)
+	let node = root
 
-	if (typeof node.return == 'function') node.return()
+	while (node.firstElementChild) node = node.firstElementChild
 
-	if (typeof node[Cache]?.ref == 'function') node[Cache].ref(null)
+	while (true) {
+
+		const { nextElementSibling, parentNode } = node
+
+		if (typeof node.return == 'function') node.return(false)
+
+		if (typeof node[Cache]?.ref == 'function') node[Cache].ref(null)
+
+		if (node === root) break
+
+		node = nextElementSibling ?? parentNode ?? root
+
+		if (nextElementSibling) while (node.firstElementChild) node = node.firstElementChild
+	}
 }
 
 const next = (fn, args, el) => {
 
 	el[Generator] ??= (attach(el), fn)
 
-	Object.assign(el[Args] ??= {}, args)
+	el[Args] = args
 
 	el[Render]()
 }
@@ -201,6 +223,8 @@ const attach = el => {
 }
 
 const methods = {
+
+	*[Symbol.iterator]() { while (true) yield this[Args] },
 
 	[Render]() {
 
@@ -235,6 +259,8 @@ const methods = {
 
 	next(fn, result) {
 
+		if (!this.isConnected) return result
+
 		try {
 
 			if (typeof fn == 'function') result = fn.call(this, this[Args])
@@ -263,7 +289,9 @@ const methods = {
 		throw value
 	},
 
-	return() {
+	return(deep = true) {
+
+		if (deep) each(el => typeof el.return == 'function' ? el.return() : true, this)
 
 		try {
 
