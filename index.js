@@ -1,6 +1,9 @@
 import { Context, current } from './context.js'
 
+const { isArray } = Array, { assign, create } = Object
+
 const Key = Symbol.for('ajo.key')
+const Keyed = Symbol.for('ajo.keyed')
 const Memo = Symbol.for('ajo.memo')
 const Cache = Symbol.for('ajo.cache')
 const Generator = Symbol.for('ajo.generator')
@@ -15,9 +18,9 @@ export const stateful = (fn, is) => (is && (fn.is = is), fn)
 
 export const render = (h, el, child = el.firstChild, ref = null) => {
 
-	for (h of walk(h)) {
+	walk(h, h => {
 
-		const node = reconcile(h, el, child)
+		const node = typeof h == 'string' ? text(h, child) : element(h, el, child)
 
 		if (child == null) {
 
@@ -37,7 +40,7 @@ export const render = (h, el, child = el.firstChild, ref = null) => {
 
 			before(el, node, child)
 		}
-	}
+	})
 
 	while (child != ref) {
 
@@ -51,7 +54,7 @@ export const render = (h, el, child = el.firstChild, ref = null) => {
 	}
 }
 
-const walk = function* (h) {
+const walk = (h, fn) => {
 
 	if (h == null) return
 
@@ -59,22 +62,22 @@ const walk = function* (h) {
 
 	if (type == 'boolean') return
 
-	if (type == 'string') yield h
+	if (type == 'string') fn(h)
 
-	else if (type == 'number' || type == 'bigint') yield String(h)
+	else if (type == 'number' || type == 'bigint') fn(String(h))
 
-	else if (Symbol.iterator in h) for (h of h) yield* walk(h)
+	else if (Symbol.iterator in h) for (h of h) walk(h, fn)
 
-	else if ('nodeName' in h) typeof h.nodeName == 'function' ? yield* run(h) : yield h
+	else if ('nodeName' in h) typeof h.nodeName == 'function' ? run(h, fn) : fn(h)
 
-	else yield String(h)
+	else fn(String(h))
 }
 
-const run = function* ({ nodeName, ...h }) {
+const run = ({ nodeName, ...h }, fn) => {
 
-	if (nodeName.constructor.name == 'GeneratorFunction') yield runGenerator(nodeName, h)
+	if (nodeName.constructor.name == 'GeneratorFunction') fn(runGenerator(nodeName, h))
 
-	else yield* walk(nodeName(h))
+	else walk(nodeName(h), fn)
 }
 
 const runGenerator = (fn, h) => {
@@ -93,8 +96,6 @@ const runGenerator = (fn, h) => {
 	return { ...attrs, nodeName: fn.is ?? defaults.tag, [Generator]: fn, [Args]: args }
 }
 
-const reconcile = (h, el, node) => typeof h == 'string' ? text(h, node) : element(h, el, node)
-
 const text = (h, node) => {
 
 	while (node && node.nodeType != 3) node = node.nextSibling
@@ -104,7 +105,11 @@ const text = (h, node) => {
 	return node
 }
 
-const element = ({ nodeName, children, key, skip, memo, [Generator]: gen, [Args]: args, ...h }, el, node) => {
+const element = (h, el, node) => {
+
+	const { nodeName, children, key, skip, memo, [Generator]: gen, [Args]: args } = h
+
+	if (key != null) node = (el[Keyed] ??= new Map()).get(key) ?? node
 
 	while (node && (
 
@@ -114,15 +119,15 @@ const element = ({ nodeName, children, key, skip, memo, [Generator]: gen, [Args]
 
 		(node[Generator] && node[Generator] != gen)
 
-	)) node = node.nextElementSibling
+	)) node = node[Key] != null ? null : node.nextElementSibling
 
 	node ??= document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName)
 
-	if (key != null) node[Key] = key
+	if (key != null) el[Keyed].set(node[Key] = key, node)
 
 	if (memo == null || some(node[Memo], node[Memo] = memo)) {
 
-		attrs(node[Cache] ?? extract(node), node[Cache] = h, node)
+		attrs(node[Cache], node[Cache] = h, node)
 
 		if (!skip) gen ? next(gen, args, node) : render(children, node)
 	}
@@ -134,7 +139,7 @@ const attrs = (cache, h, node) => {
 
 	for (const key in { ...cache, ...h }) {
 
-		if (cache[key] === h[key]) continue
+		if (key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo' || cache?.[key] === h[key]) continue
 
 		if (key == 'ref' && typeof h[key] == 'function') h[key](node)
 
@@ -146,9 +151,7 @@ const attrs = (cache, h, node) => {
 	}
 }
 
-const some = (a, b) => Array.isArray(a) && Array.isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
-
-const extract = el => Array.from(el.attributes).reduce((out, attr) => (out[attr.name] = attr.value, out), {})
+const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
 
 const each = (fn, node) => {
 
@@ -168,7 +171,7 @@ const each = (fn, node) => {
 
 const before = (el, node, child) => {
 
-	if (node.contains(document.activeElement)) {
+	if (node.isConnected && node.contains(document.activeElement)) {
 
 		const ref = node.nextSibling
 
@@ -194,6 +197,8 @@ const unref = root => {
 
 		const { nextElementSibling, parentNode } = node
 
+		if (node[Key] != null) parentNode?.[Keyed]?.delete(node[Key])
+
 		if (typeof node.return == 'function') node.return(false)
 
 		if (typeof node[Cache]?.ref == 'function') node[Cache].ref(null)
@@ -208,18 +213,11 @@ const unref = root => {
 
 const next = (fn, args, el) => {
 
-	el[Generator] ??= (attach(el), fn)
+	el[Generator] ??= (assign(el, methods)[Context] = create(current()?.[Context] ?? null), fn)
 
 	el[Args] = args
 
 	el[Render]()
-}
-
-const attach = el => {
-
-	Object.assign(el, methods)
-
-	el[Context] = Object.create(current()?.[Context] ?? null)
 }
 
 const methods = {

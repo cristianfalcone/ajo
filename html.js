@@ -8,44 +8,18 @@ const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 
 const noop = () => { }
 
-export const render = h => [...html(h)].join('')
+export const defaults = { tag: 'div' }
 
-export const html = function* (h) {
+export const render = h => {
 
-	for (h of walk(h)) {
+	let out = ''
 
-		if (typeof h == 'string') yield escape(h)
+	html(h, chunk => out += chunk)
 
-		else yield* element(h)
-	}
+	return out
 }
 
-const element = function* ({ nodeName, children, ...h }) {
-
-	let attrs = ''
-
-	for (const key in h) {
-
-		if (key.startsWith('set:') || h[key] == null || h[key] === false) continue
-
-		if (h[key] === true) attrs += ` ${key}`
-
-		else attrs += ` ${key}="${escape(String(h[key]))}"`
-	}
-
-	if (Void.has(nodeName)) yield `<${nodeName}${attrs}>`
-
-	else {
-
-		yield `<${nodeName}${attrs}>`
-
-		if (children != null) yield* html(children)
-
-		yield `</${nodeName}>`
-	}
-}
-
-const walk = function* (h) {
+export const html = (h, emit) => {
 
 	if (h == null) return
 
@@ -53,25 +27,52 @@ const walk = function* (h) {
 
 	if (type == 'boolean') return
 
-	if (type == 'string') yield h
+	if (type == 'string') emit(escape(h))
 
-	else if (type == 'number' || type == 'bigint') yield String(h)
+	else if (type == 'number' || type == 'bigint') emit(escape(String(h)))
 
-	else if (Symbol.iterator in h) for (h of h) yield* walk(h)
+	else if (Symbol.iterator in h) for (h of h) html(h, emit)
 
-	else if ('nodeName' in h) typeof h.nodeName == 'function' ? yield* run(h) : yield vdom(h)
+	else if ('nodeName' in h) typeof h.nodeName == 'function' ? run(h, emit) : element(h, emit)
 
-	else yield String(h)
+	else emit(escape(String(h)))
 }
 
-const run = function* ({ nodeName, fallback = nodeName.fallback, ...h }) {
+const element = (h, emit) => {
 
-	if (nodeName.constructor.name == 'GeneratorFunction') yield runGenerator(nodeName, h)
+	const { nodeName, children } = h
 
-	else yield* walk(nodeName(h))
+	let a = ''
+
+	for (const key in h) {
+
+		if (key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo' || key == 'ref' || key.startsWith('set:') || h[key] == null || h[key] === false) continue
+
+		if (h[key] === true) a += ` ${key}`
+
+		else a += ` ${key}="${escape(String(h[key]))}"`
+	}
+
+	if (Void.has(nodeName)) emit(`<${nodeName}${a}>`)
+
+	else {
+
+		emit(`<${nodeName}${a}>`)
+
+		if (children != null) html(children, emit)
+
+		emit(`</${nodeName}>`)
+	}
 }
 
-const runGenerator = (fn, h) => {
+const run = ({ nodeName, fallback = nodeName.fallback, ...h }, emit) => {
+
+	if (nodeName.constructor.name == 'GeneratorFunction') runGenerator(nodeName, h, emit)
+
+	else html(nodeName(h), emit)
+}
+
+const runGenerator = (fn, h, emit) => {
 
 	const attrs = { ...fn.attrs }, args = { ...fn.args }
 
@@ -109,15 +110,19 @@ const runGenerator = (fn, h) => {
 
 	current(instance)
 
-	const result = children => ({ ...attrs, nodeName: fn.is ?? 'div', ...vdom({ children }) })
+	const vnode = children => ({ ...attrs, nodeName: fn.is ?? defaults.tag, children })
+
+	let out = ''
 
 	try {
 
-		return result(iterator.next().value)
+		element(vnode(iterator.next().value), chunk => out += chunk)
 
 	} catch (error) {
 
-		return result(iterator.throw(error).value)
+		out = ''
+
+		element(vnode(iterator.throw(error).value), chunk => out += chunk)
 
 	} finally {
 
@@ -127,18 +132,6 @@ const runGenerator = (fn, h) => {
 
 		current(parent)
 	}
-}
 
-const vdom = ({ key, skip, memo, ref, ...h }) => {
-
-	if ('children' in h) {
-
-		const children = [...walk(h.children)]
-
-		if (children.length) h.children = children.length == 1 ? children[0] : children
-
-		else delete h.children
-	}
-
-	return h
+	emit(out)
 }

@@ -99,8 +99,9 @@ declare module 'ajo/context' {
 }
 
 declare module 'ajo/html' {
+	const defaults: { tag: string }
 	function render(h: import('ajo').Children): string
-	function html(h: import('ajo').Children): IterableIterator<string>
+	function html(h: import('ajo').Children, emit: (chunk: string) => void): void
 }
 
 declare module 'ajo/jsx-runtime' {
