@@ -2,6 +2,7 @@ import type { Children, Stateful } from 'ajo'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, stateful } from 'ajo'
 import { context } from 'ajo/context'
+import { h } from 'ajo/jsx-runtime'
 
 describe('render', () => {
 
@@ -185,6 +186,65 @@ describe('render', () => {
 		expect(document.body.lastElementChild).toBe(footer)
 		expect(document.body.innerHTML).toBe('<header>Before</header><main>New main</main><footer>After</footer>')
 	})
+
+	it('should not reconcile the ref node when a bounded range grows', () => {
+
+		document.body.innerHTML = '<ul><li id="old">old</li><li id="sentinel" data-guard="keep">sentinel</li></ul>'
+
+		const ul = document.querySelector('ul')!
+		const [start, sentinel] = Array.from(ul.children)
+
+		render(
+			<>
+				<li id="first">first</li>
+				<li id="extra">extra</li>
+			</>,
+			ul,
+			start,
+			sentinel
+		)
+
+		expect(sentinel.id).toBe('sentinel')
+		expect(sentinel.getAttribute('data-guard')).toBe('keep')
+		expect(ul.innerHTML).toBe('<li id="first">first</li><li id="extra">extra</li><li id="sentinel" data-guard="keep">sentinel</li>')
+	})
+
+	it('should support keyed nodes inside bounded ranges', () => {
+
+		document.body.innerHTML = '<ul><li id="old">old</li><li id="sentinel">sentinel</li></ul>'
+
+		const ul = document.querySelector('ul')!
+		const [start, sentinel] = Array.from(ul.children)
+
+		render(<li key="next" id="new">new</li>, ul, start, sentinel)
+
+		expect(ul.innerHTML).toBe('<li id="new">new</li><li id="sentinel">sentinel</li>')
+	})
+
+	it('should not advance the attribute cache when a setter throws', () => {
+
+		const onclick = vi.fn()
+
+		render(h('button', { children: 'Go' }), document.body)
+
+		const button = document.querySelector('button')!
+
+		Object.defineProperty(button, 'guard', {
+			configurable: true,
+			set(value) {
+				if (value == 'boom') throw new Error('boom')
+			},
+		})
+
+		render(h('button', { 'set:guard': 'ok', 'set:onclick': onclick, children: 'Go' }), document.body)
+
+		expect(() => render(h('button', { 'set:guard': 'boom', 'set:onclick': null, children: 'Go' }), document.body)).toThrow('boom')
+		expect(button.onclick).toBe(onclick)
+
+		render(h('button', { 'set:guard': 'ok', 'set:onclick': null, children: 'Go' }), document.body)
+
+		expect(button.onclick).toBeNull()
+	})
 })
 
 describe('components', () => {
@@ -271,6 +331,20 @@ describe('components', () => {
 		)
 
 		expect(document.body.innerHTML).toBe('<div class="container"><div>Hello world,<br> and you!</div></div>')
+	})
+
+	it('should not copy inherited attr props on stateful components', () => {
+
+		const Component: Stateful = function* () {
+			while (true) yield <span>safe</span>
+		}
+
+		const props = Object.create({ 'attr:onmouseover': 'alert(1)' })
+
+		render(h(Component, props), document.body)
+
+		expect(document.body.firstElementChild!.getAttribute('onmouseover')).toBeNull()
+		expect(document.body.innerHTML).toBe('<div><span>safe</span></div>')
 	})
 
 	it('should reuse the same stateful component instance', () => {
@@ -1174,6 +1248,27 @@ describe('skip special attribute', () => {
 
 		expect(document.body.innerHTML).toBe('<div><p>This content may or may not be skipped</p></div>')
 	})
+
+	it('should update attributes when skip keeps children unmanaged', () => {
+
+		let href: string | null = '/old'
+		let title: string | null = 'old'
+
+		const Link = () => h('a', { skip: true, href, title, children: 'unmanaged' })
+
+		render(<Link />, document.body)
+
+		href = '/new'
+		title = null
+
+		render(<Link />, document.body)
+
+		const link = document.querySelector('a')!
+
+		expect(link.getAttribute('href')).toBe('/new')
+		expect(link.getAttribute('title')).toBeNull()
+		expect(link.textContent).toBe('')
+	})
 })
 
 describe('ref special attribute', () => {
@@ -1349,6 +1444,26 @@ describe('memo attribute', () => {
 		render(<MemoComponent />, document.body)
 
 		expect(document.body.innerHTML).toBe('<div><p>This will always update: changed</p><div><p>Memoized count: 0</p><p>This won\'t update: initial</p></div></div>')
+	})
+
+	it('should update attributes when memo skips children', () => {
+
+		let href = '/old'
+		let label = 'old'
+
+		const Link = () => <a memo={0} href={href}>{label}</a>
+
+		render(<Link />, document.body)
+
+		href = '/new'
+		label = 'new'
+
+		render(<Link />, document.body)
+
+		const link = document.querySelector('a')!
+
+		expect(link.getAttribute('href')).toBe('/new')
+		expect(link.textContent).toBe('old')
 	})
 
 	it('should update memoized element and its children when memo values change', () => {
@@ -1881,6 +1996,28 @@ describe('this.signal', () => {
 		expect(signal!.aborted).toBe(true)
 	})
 
+	it('should not restart from abort-triggered next during unmount', () => {
+
+		let starts = 0
+		let aborts = 0
+
+		const Component: Stateful = function* () {
+			starts++
+			this.signal.addEventListener('abort', () => {
+				aborts++
+				this.next()
+			})
+			while (true) yield <div>test</div>
+		}
+
+		render(<Component />, document.body)
+		render(null, document.body)
+
+		expect(starts).toBe(1)
+		expect(aborts).toBe(1)
+		expect(document.body.innerHTML).toBe('')
+	})
+
 	it('should abort signal after generator finally block runs', () => {
 
 		const events: string[] = []
@@ -1972,6 +2109,52 @@ describe('this.signal', () => {
 		expect(signals).toHaveLength(2)
 		expect(signals[0]).not.toBe(signals[1])
 		expect(signals[1].aborted).toBe(false)
+	})
+
+	it('should abort signal after native DOM removal', async () => {
+
+		const events: string[] = []
+		let signal: AbortSignal | null = null
+
+		const Component: Stateful = function* () {
+			signal = this.signal
+			try {
+				while (true) yield <span>test</span>
+			} finally {
+				events.push('finally')
+			}
+		}
+
+		render(<Component />, document.body)
+
+		document.body.firstElementChild!.remove()
+
+		await Promise.resolve()
+		await Promise.resolve()
+
+		expect(signal!.aborted).toBe(true)
+		expect(events).toEqual(['finally'])
+	})
+
+	it('should forget keyed stateful nodes after native DOM removal', async () => {
+
+		const Component: Stateful<{ label: string }> = function* () {
+			for (const { label } of this) yield <span>{label}</span>
+		}
+
+		render(<Component key="item" label="one" />, document.body)
+
+		const removed = document.body.firstElementChild!
+
+		removed.remove()
+
+		await Promise.resolve()
+		await Promise.resolve()
+
+		render(<Component key="item" label="two" />, document.body)
+
+		expect(document.body.firstElementChild).not.toBe(removed)
+		expect(document.body.textContent).toBe('two')
 	})
 })
 
@@ -2161,6 +2344,7 @@ describe('error handling during cleanup', () => {
 		try { render(null, document.body) } catch { }
 
 		expect(signal!.aborted).toBe(true)
+		expect(document.body.innerHTML).toBe('')
 	})
 
 	it('should catch cleanup error in ancestor error boundary via this.throw()', () => {
@@ -2642,6 +2826,18 @@ describe('stateful()', () => {
 		render(null, document.body)
 
 		expect(events).toEqual(['abort'])
+	})
+
+	it('should keep legacy args parameter live across renders', () => {
+
+		const Secret: Stateful<{ isAdmin?: boolean }> = function* (args) {
+			while (true) yield <span>{args.isAdmin ? 'secret' : 'public'}</span>
+		}
+
+		render(<Secret isAdmin={true} />, document.body)
+		render(<Secret />, document.body)
+
+		expect(document.body.textContent).toBe('public')
 	})
 
 	it('should return the same function reference', () => {

@@ -1,7 +1,7 @@
 import { Context, current } from './context.js'
 import { isVNode, mark } from './jsx.js'
 
-const { isArray } = Array, { assign, create, hasOwn, keys } = Object
+const { isArray } = Array, { assign, hasOwn, keys } = Object
 
 const Key = Symbol.for('ajo.key')
 const Keyed = Symbol.for('ajo.keyed')
@@ -21,7 +21,7 @@ export const render = (h, el, child = el.firstChild, ref = null) => {
 
 	walk(h, h => {
 
-		const node = typeof h == 'string' ? text(h, child) : element(h, el, child)
+		const node = typeof h == 'string' ? text(h, child, ref) : element(h, el, child, ref)
 
 		if (child == null) {
 
@@ -43,13 +43,13 @@ export const render = (h, el, child = el.firstChild, ref = null) => {
 		}
 	})
 
-	while (child != ref) {
+	while (child && child != ref) {
 
 		const node = child.nextSibling
 
-		if (child.nodeType == 1) unref(child)
+		const gone = el.removeChild(child)
 
-		el.removeChild(child)
+		if (gone.nodeType == 1) unref(gone, el)
 
 		child = node
 	}
@@ -97,22 +97,22 @@ const runGenerator = (fn, h) => {
 	return mark({ ...attrs, nodeName: fn.is ?? defaults.tag, [Generator]: fn, [Args]: args })
 }
 
-const text = (h, node) => {
+const text = (h, node, ref) => {
 
-	while (node && node.nodeType != 3) node = node.nextSibling
+	while (node && node != ref && node.nodeType != 3) node = node.nextSibling
 
-	node ? node.data != h && (node.data = h) : node = document.createTextNode(h)
+	node && node != ref ? node.data != h && (node.data = h) : node = document.createTextNode(h)
 
 	return node
 }
 
-const element = (h, el, node) => {
+const element = (h, el, node, ref) => {
 
 	const { nodeName, children, key, skip, memo, [Generator]: gen, [Args]: args } = h
 
-	if (key != null) node = (el[Keyed] ??= new Map()).get(key) ?? node
+	if (key != null && ref == null) node = (el[Keyed] ??= new Map()).get(key) ?? node
 
-	while (node && (
+	while (node && node != ref && (
 
 		(node.localName != nodeName) ||
 
@@ -122,16 +122,21 @@ const element = (h, el, node) => {
 
 	)) node = node[Key] != null ? null : node.nextElementSibling
 
+	if (node == ref) node = null
+
 	node ??= document.createElementNS(h.xmlns ?? el.namespaceURI, nodeName)
 
-	if (key != null) el[Keyed].set(node[Key] = key, node)
+	if (key != null) (el[Keyed] ??= new Map()).set(node[Key] = key, node)
 
-	if (memo == null || some(node[Memo], node[Memo] = memo)) {
+	const fresh = memo == null || some(node[Memo], memo)
 
-		attrs(node[Cache], node[Cache] = h, node)
+	attrs(node[Cache], h, node)
 
-		if (!skip) gen ? next(gen, args, node) : render(children, node)
-	}
+	if (fresh && !skip) gen ? next(gen, args, node) : render(children, node)
+
+	node[Memo] = memo
+
+	node[Cache] = h
 
 	return node
 }
@@ -190,7 +195,11 @@ const before = (el, node, child) => {
 	} else el.insertBefore(node, child)
 }
 
-const unref = root => {
+const unref = (root, parent) => {
+
+	if (root[Memo] == unref) return
+
+	root[Memo] = unref
 
 	let node = root
 
@@ -200,7 +209,7 @@ const unref = root => {
 
 		const { nextElementSibling, parentNode } = node
 
-		if (node[Key] != null) parentNode?.[Keyed]?.delete(node[Key])
+		if (node[Key] != null) (parentNode ?? parent)?.[Keyed]?.delete(node[Key])
 
 		if (typeof node.return == 'function') node.return(false)
 
@@ -216,12 +225,22 @@ const unref = root => {
 
 const next = (fn, args, el) => {
 
-	el[Generator] ??= (assign(el, methods)[Context] = create(current()?.[Context] ?? null), fn)
+	el[Generator] ??= (watch(), assign(el, methods)[Context] = Object.create(current()?.[Context] ?? null), fn)
 
-	el[Args] = args
+	for (const key of keys(el[Args] ??= args)) hasOwn(args, key) || delete el[Args][key]
+
+	assign(el[Args], args)
 
 	el[Render]()
 }
+
+let observer
+
+const watch = () => observer || (observer = new MutationObserver(records => {
+
+	for (const record of records) for (const node of record.removedNodes) if (node.nodeType == 1 && !node.isConnected) unref(node, record.target)
+
+})).observe(document, { childList: true, subtree: true })
 
 const methods = {
 
@@ -260,7 +279,7 @@ const methods = {
 
 	next(fn, result) {
 
-		if (!this.isConnected) return result
+		if (this[Iterator] === false || !this.isConnected) return result
 
 		try {
 
@@ -292,11 +311,17 @@ const methods = {
 
 	return(deep = true) {
 
+		if (this[Iterator] === false) return
+
+		const iterator = this[Iterator]
+
+		this[Iterator] = false
+
 		if (deep) each(el => typeof el.return == 'function' ? el.return() : true, this)
 
 		try {
 
-			this[Iterator]?.return()
+			iterator?.return()
 
 		} catch (e) {
 

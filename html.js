@@ -9,7 +9,7 @@ const Args = Symbol.for('ajo.args')
 
 const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 
-const Tag = /^[A-Za-z][\w:.-]*$/, Attr = /^[^\s"'/>=\x00-\x1F\x7F]+$/
+const Tag = /^[A-Za-z][\w:.-]*$/, Attr = /^[^\s"'/>=\0-\x1F\x7F]+$/
 
 const noop = () => { }
 
@@ -45,9 +45,9 @@ export const html = (h, emit) => {
 
 const element = (h, emit) => {
 
-	const { children } = h
+	let { nodeName, children } = h
 
-	const nodeName = typeof h.nodeName == 'string' && Tag.test(h.nodeName) ? h.nodeName : defaults.tag
+	nodeName = typeof nodeName == 'string' && Tag.test(nodeName) ? nodeName : defaults.tag
 
 	let a = ''
 
@@ -60,11 +60,9 @@ const element = (h, emit) => {
 		else a += ` ${key}="${escape(String(h[key]))}"`
 	}
 
-	if (Void.has(nodeName)) emit(`<${nodeName}${a}>`)
+	emit(`<${nodeName}${a}>`)
 
-	else {
-
-		emit(`<${nodeName}${a}>`)
+	if (!Void.has(nodeName)) {
 
 		if (children != null) html(children, emit)
 
@@ -72,7 +70,7 @@ const element = (h, emit) => {
 	}
 }
 
-const run = ({ nodeName, fallback = nodeName.fallback, ...h }, emit) => {
+const run = ({ nodeName, ...h }, emit) => {
 
 	if (nodeName.constructor.name == 'GeneratorFunction') runGenerator(nodeName, h, emit)
 

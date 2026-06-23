@@ -226,7 +226,7 @@ function* ErrorBoundary() {
 | `key` | Unique identifier for list reconciliation |
 | `ref` | Callback receiving DOM element (or `null` on unmount) |
 | `memo` | Skip reconciliation: `memo={[deps]}`, `memo={value}`, or `memo` (render once) |
-| `skip` | Exclude children from reconciliation (required with `set:innerHTML`) |
+| `skip` | Exclude children from reconciliation; not a sanitizer |
 | `set:*` | Set DOM properties instead of HTML attributes |
 | `attr:*` | Force HTML attributes on stateful component wrappers |
 
@@ -243,8 +243,8 @@ function* ErrorBoundary() {
 <input type="checkbox" set:checked={bool} />
 <video set:currentTime={0} set:muted />
 
-// innerHTML requires skip
-<div set:innerHTML={html} skip />
+// innerHTML is only for trusted/sanitized HTML; skip preserves assigned children
+<div set:innerHTML={trustedHtml} skip />
 ```
 
 ### `ref` - DOM Access

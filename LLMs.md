@@ -119,7 +119,7 @@ ref?.next()  // trigger re-render from outside
 | **Lists** | Always provide unique `key` on elements |
 | **Refs** | `ref={el => ...}` on elements. Receives `null` on unmount. Stateful ref type: `ThisParameterType<typeof Component>` |
 | **Memo** | `memo={[deps]}` array, `memo={value}` single, or just `memo` (never re-render). Skips subtree if unchanged |
-| **Skip** | `skip` excludes children from reconciliation. Use for `set:textContent`/`set:innerHTML` or third-party managed DOM |
+| **Skip** | `skip` excludes children from reconciliation; it does not sanitize `set:innerHTML` |
 | **Custom wrapper** | `stateful(fn, 'tagname')` sets `.is` and infers `this` type. Or manually: `Stateful<Args, 'tagname'>` + `.is = 'tagname'`. Default is `div` (no need to set) |
 | **Default attrs** | `.attrs = { class: '...' }` on stateful component generator function |
 | **Default args** | `.args = { prop: value }` on stateful component generator function |
@@ -224,7 +224,7 @@ counterRef?.next()  // trigger re-render from outside
 <input type="checkbox" set:checked={bool} /> // DOM property: syncs with state
 <video set:currentTime={0} set:muted />      // DOM properties
 <div set:textContent={str} skip />           // DOM property + skip (required!)
-<div set:innerHTML={html} skip />            // DOM property + skip (required!)
+<div set:innerHTML={trustedHtml} skip />     // trusted/sanitized HTML + skip
 
 // Post-render work (DOM is updated by the time the microtask runs)
 const ScrollList: Stateful<{ items: Item[] }> = function* () {
@@ -320,10 +320,11 @@ const inc = () => count++  // won't re-render
 
 // ❌ set:textContent/innerHTML without skip: content gets cleared
 <div set:innerHTML={html} />
+<div set:innerHTML={userHtml} skip />  // skip is not sanitization
 
 // ✅ Correct
 const inc = () => this.next(() => count++)
-<div set:innerHTML={html} skip />
+<div set:innerHTML={trustedHtml} skip />
 ```
 
 ## Setup

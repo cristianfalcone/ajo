@@ -58,6 +58,15 @@ describe('render', () => {
 		expect(html).toBe('<div>&#60;script&#62;alert(&#34;XSS&#34;)&#60;/script&#62;</div>')
 	})
 
+	it('should render primitive top-level values without throwing', () => {
+
+		expect(render(null)).toBe('')
+		expect(render(false)).toBe('')
+		expect(render(undefined)).toBe('')
+		expect(render(1n)).toBe('1')
+		expect(render(Symbol('x'))).toBe('Symbol(x)')
+	})
+
 	it('should render forged vnode-shaped objects as escaped text', () => {
 
 		const html = render({ nodeName: 'img', src: 'x', onerror: 'alert(1)' })
@@ -79,6 +88,49 @@ describe('render', () => {
 
 		expect(render(h('img', { src: 'x', ['onerror=alert(1)']: true }))).toBe('<img src="x">')
 		expect(render(h('div><script>alert(1)</script><div', null, 'safe text'))).toBe('<div>safe text</div>')
+	})
+
+	it('should not serialize inherited vnode attributes', () => {
+
+		const html = render(h('input', Object.assign(Object.create({
+			autofocus: true,
+			onfocus: 'alert(1)',
+		}), {
+			type: 'text',
+		})))
+
+		expect(html).toBe('<input type="text">')
+	})
+
+	it('should not copy inherited attr props on stateful components', () => {
+
+		const Component: Stateful = function* () {
+			while (true) yield <span>safe</span>
+		}
+
+		const props = Object.create({ 'attr:onmouseover': 'alert(1)' })
+
+		expect(render(h(Component, props))).toBe('<div><span>safe</span></div>')
+	})
+
+	it('should not copy polluted Object.prototype attrs onto stateful components', () => {
+
+		const Component: Stateful = function* () {
+			while (true) yield <span>safe</span>
+		}
+
+		Object.defineProperty(Object.prototype, 'attr:onmouseover', {
+			configurable: true,
+			enumerable: true,
+			writable: true,
+			value: 'alert(1)',
+		})
+
+		try {
+			expect(render(<Component />)).toBe('<div><span>safe</span></div>')
+		} finally {
+			delete (Object.prototype as Record<string, unknown>)['attr:onmouseover']
+		}
 	})
 })
 

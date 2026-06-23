@@ -2,9 +2,25 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
+import type { Plugin } from 'vite'
 import { resolve } from 'path'
+import { minify } from 'terser'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+const terser = (): Plugin => ({
+	name: 'terser',
+	async generateBundle({ format }, bundle) {
+		for (const chunk of Object.values(bundle)) if (chunk.type == 'chunk') {
+			chunk.code = (await minify(chunk.code, {
+				module: format == 'es',
+				compress: { module: format == 'es', passes: 2, toplevel: true },
+				mangle: { toplevel: true },
+				format: { comments: false, quote_style: 0 },
+			})).code!
+		}
+	},
+})
 
 export default defineConfig({
 	test: {
@@ -32,6 +48,9 @@ export default defineConfig({
 				resolve(__dirname, 'html.js'),
 				resolve(__dirname, 'index.js'),
 			],
+		},
+		rolldownOptions: {
+			plugins: [terser()],
 		},
 	},
 })
