@@ -48,6 +48,7 @@ export default defineConfig({
 				resolve(__dirname, 'html.js'),
 				resolve(__dirname, 'index.js'),
 			],
+			formats: ['es'],
 		},
 		rolldownOptions: {
 			plugins: [terser()],

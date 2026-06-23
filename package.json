@@ -5,36 +5,30 @@
 	"type": "module",
 	"types": "./types.ts",
 	"module": "./dist/index.js",
-	"main": "./dist/index.cjs",
 	"exports": {
 		".": {
 			"react-native": "./index.js",
 			"types": "./types.ts",
-			"import": "./dist/index.js",
-			"require": "./dist/index.cjs"
+			"import": "./dist/index.js"
 		},
 		"./context": {
 			"react-native": "./context.js",
 			"types": "./types.ts",
-			"import": "./dist/context.js",
-			"require": "./dist/context.cjs"
+			"import": "./dist/context.js"
 		},
 		"./html": {
 			"types": "./types.ts",
-			"import": "./dist/html.js",
-			"require": "./dist/html.cjs"
+			"import": "./dist/html.js"
 		},
 		"./jsx-runtime": {
 			"react-native": "./jsx.js",
 			"types": "./types.ts",
-			"import": "./dist/jsx.js",
-			"require": "./dist/jsx.cjs"
+			"import": "./dist/jsx.js"
 		},
 		"./jsx-dev-runtime": {
 			"react-native": "./jsx.js",
 			"types": "./types.ts",
-			"import": "./dist/jsx.js",
-			"require": "./dist/jsx.cjs"
+			"import": "./dist/jsx.js"
 		}
 	},
 	"files": [
