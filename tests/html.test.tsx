@@ -2,6 +2,7 @@ import type { Stateful, Children } from 'ajo'
 import { describe, it, expect, vi } from 'vitest'
 import { render } from 'ajo/html'
 import { context } from 'ajo/context'
+import { h } from 'ajo/jsx-runtime'
 
 describe('render', () => {
 
@@ -55,6 +56,29 @@ describe('render', () => {
 		const html = render(<div>{'<script>alert("XSS")</script>'}</div>)
 
 		expect(html).toBe('<div>&#60;script&#62;alert(&#34;XSS&#34;)&#60;/script&#62;</div>')
+	})
+
+	it('should render forged vnode-shaped objects as escaped text', () => {
+
+		const html = render({ nodeName: 'img', src: 'x', onerror: 'alert(1)' })
+
+		expect(html).toBe('[object Object]')
+	})
+
+	it('should not treat inherited nodeName properties as vnodes', () => {
+
+		const html = render(Object.assign(Object.create({ nodeName: 'img' }), {
+			src: 'x',
+			onerror: 'alert(1)',
+		}))
+
+		expect(html).toBe('[object Object]')
+	})
+
+	it('should not emit unsafe tag or attribute names', () => {
+
+		expect(render(h('img', { src: 'x', ['onerror=alert(1)']: true }))).toBe('<img src="x">')
+		expect(render(h('div><script>alert(1)</script><div', null, 'safe text'))).toBe('<div>safe text</div>')
 	})
 })
 

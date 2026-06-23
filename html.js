@@ -1,10 +1,15 @@
 import { Context, current } from './context.js'
+import { isVNode, mark } from './jsx.js'
+
+const { keys } = Object
 
 const Void = new Set(['area', 'base', 'br', 'col', 'command', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr'])
 
 const Args = Symbol.for('ajo.args')
 
 const escape = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
+
+const Tag = /^[A-Za-z][\w:.-]*$/, Attr = /^[^\s"'/>=\x00-\x1F\x7F]+$/
 
 const noop = () => { }
 
@@ -31,22 +36,24 @@ export const html = (h, emit) => {
 
 	else if (type == 'number' || type == 'bigint') emit(escape(String(h)))
 
-	else if (Symbol.iterator in h) for (h of h) html(h, emit)
+	else if (isVNode(h)) typeof h.nodeName == 'function' ? run(h, emit) : element(h, emit)
 
-	else if ('nodeName' in h) typeof h.nodeName == 'function' ? run(h, emit) : element(h, emit)
+	else if (Symbol.iterator in Object(h)) for (h of h) html(h, emit)
 
 	else emit(escape(String(h)))
 }
 
 const element = (h, emit) => {
 
-	const { nodeName, children } = h
+	const { children } = h
+
+	const nodeName = typeof h.nodeName == 'string' && Tag.test(h.nodeName) ? h.nodeName : defaults.tag
 
 	let a = ''
 
-	for (const key in h) {
+	for (const key of keys(h)) {
 
-		if (key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo' || key == 'ref' || key.startsWith('set:') || h[key] == null || h[key] === false) continue
+		if (key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo' || key == 'ref' || key.startsWith('set:') || !Attr.test(key) || h[key] == null || h[key] === false) continue
 
 		if (h[key] === true) a += ` ${key}`
 
@@ -76,7 +83,7 @@ const runGenerator = (fn, h, emit) => {
 
 	const attrs = { ...fn.attrs }, args = { ...fn.args }
 
-	for (const key in h) {
+	for (const key of keys(h)) {
 
 		if (key.startsWith('attr:')) attrs[key.slice(5)] = h[key]
 
@@ -110,7 +117,7 @@ const runGenerator = (fn, h, emit) => {
 
 	current(instance)
 
-	const vnode = children => ({ ...attrs, nodeName: fn.is ?? defaults.tag, children })
+	const vnode = children => mark({ ...attrs, nodeName: fn.is ?? defaults.tag, children })
 
 	let out = ''
 

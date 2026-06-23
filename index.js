@@ -1,6 +1,7 @@
 import { Context, current } from './context.js'
+import { isVNode, mark } from './jsx.js'
 
-const { isArray } = Array, { assign, create } = Object
+const { isArray } = Array, { assign, create, hasOwn, keys } = Object
 
 const Key = Symbol.for('ajo.key')
 const Keyed = Symbol.for('ajo.keyed')
@@ -66,9 +67,9 @@ const walk = (h, fn) => {
 
 	else if (type == 'number' || type == 'bigint') fn(String(h))
 
-	else if (Symbol.iterator in h) for (h of h) walk(h, fn)
+	else if (isVNode(h)) typeof h.nodeName == 'function' ? run(h, fn) : fn(h)
 
-	else if ('nodeName' in h) typeof h.nodeName == 'function' ? run(h, fn) : fn(h)
+	else if (Symbol.iterator in Object(h)) for (h of h) walk(h, fn)
 
 	else fn(String(h))
 }
@@ -84,7 +85,7 @@ const runGenerator = (fn, h) => {
 
 	const attrs = { ...fn.attrs }, args = { ...fn.args }
 
-	for (const key in h) {
+	for (const key of keys(h)) {
 
 		if (key.startsWith('attr:')) attrs[key.slice(5)] = h[key]
 
@@ -93,7 +94,7 @@ const runGenerator = (fn, h) => {
 		else args[key] = h[key]
 	}
 
-	return { ...attrs, nodeName: fn.is ?? defaults.tag, [Generator]: fn, [Args]: args }
+	return mark({ ...attrs, nodeName: fn.is ?? defaults.tag, [Generator]: fn, [Args]: args })
 }
 
 const text = (h, node) => {
@@ -137,7 +138,9 @@ const element = (h, el, node) => {
 
 const attrs = (cache, h, node) => {
 
-	for (const key in { ...cache, ...h }) {
+	if (!cache) for (let i = node.attributes.length; i--;) hasOwn(h, node.attributes[i].name) || node.removeAttribute(node.attributes[i].name)
+
+	for (const key of keys({ ...cache, ...h })) {
 
 		if (key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo' || cache?.[key] === h[key]) continue
 

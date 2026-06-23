@@ -71,6 +71,25 @@ describe('render', () => {
 		expect(document.body.innerHTML).toBe('<div></div>')
 	})
 
+	it('should render forged vnode-shaped objects as text', () => {
+
+		render({ nodeName: 'img', src: 'x', onerror: 'window.__xss = true' }, document.body)
+
+		expect(document.body.querySelector('img')).toBeNull()
+		expect(document.body.textContent).toBe('[object Object]')
+	})
+
+	it('should not treat inherited nodeName properties as vnodes', () => {
+
+		render(Object.assign(Object.create({ nodeName: 'img' }), {
+			src: 'x',
+			onerror: 'window.__xss = true',
+		}), document.body)
+
+		expect(document.body.querySelector('img')).toBeNull()
+		expect(document.body.textContent).toBe('[object Object]')
+	})
+
 	it('should render SVG elements', () => {
 
 		const ns = 'http://www.w3.org/2000/svg'
@@ -1008,6 +1027,23 @@ it('should hydrate a server-rendered keyed list', () => {
 	expect(hydrated[0]).toBe(original[0])
 	expect(hydrated[1]).toBe(original[1])
 	expect(hydrated[2]).toBe(original[2])
+})
+
+it('should remove stale attributes when hydrating reused elements', () => {
+
+	document.body.innerHTML = '<button onclick="alert(document.domain)" data-old="1">Click</button>'
+
+	const original = document.querySelector('button')
+
+	render(<button class="safe">Click</button>, document.body)
+
+	const button = document.querySelector('button')
+
+	expect(button).toBe(original)
+	expect(button!.getAttribute('onclick')).toBeNull()
+	expect(button!.getAttribute('data-old')).toBeNull()
+	expect(button!.getAttribute('class')).toBe('safe')
+	expect(button!.textContent).toBe('Click')
 })
 
 describe('skip special attribute', () => {
