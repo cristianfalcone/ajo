@@ -1,6 +1,7 @@
 import { render } from '../../index.js'
 import { build } from './data.js'
 
+const Keyed = Symbol.for('ajo.keyed')
 const icon = <span class="glyphicon glyphicon-remove" aria-hidden="true" />
 
 const Button = ({ id, onclick, children }) =>
@@ -8,29 +9,31 @@ const Button = ({ id, onclick, children }) =>
 		<button id={id} class="btn btn-primary btn-block" type="button" set:onclick={onclick}>{children}</button>
 	</div>
 
-const Row = ({ row, selected }) =>
+const Row = (row, selected) =>
 	<tr key={row.id} class={row == selected ? 'danger' : null} set:$row={row} memo={[row.label, row == selected]}>
-		<td class="col-md-1">{row.id}</td>
+		<td class="col-md-1" memo={row.id}>{row.id}</td>
 		<td class="col-md-4"><a>{row.label}</a></td>
-		<td class="col-md-1"><a>{icon}</a></td>
-		<td class="col-md-6" />
+		<td class="col-md-1" memo><a>{icon}</a></td>
+		<td class="col-md-6" memo />
 	</tr>
 
 const App = function* () {
 
-	let selected, data = []
+	let selected, tbody, data = []
 
 	const remove = row => {
 		const index = data.indexOf(row)
 		if (index > -1) data.splice(index, 1)
 	}
 
-	const run = () => this.next(() => (data = build(1000), selected = null))
-	const runlots = () => this.next(() => (data = build(10000), selected = null))
-	const add = () => this.next(() => data = data.concat(build(1000)))
-	const update = () => this.next(() => { for (let i = 0; i < data.length; i += 10) data[i].label += ' !!!' })
-	const clear = () => this.next(() => (data = [], selected = null))
+	const run = () => (data = build(1000), selected = null, draw())
+	const runlots = () => (data = build(10000), selected = null, draw())
+	const add = () => { const items = build(1000); data = data.concat(items); render(rows(items), tbody, null) }
+	const update = () => { for (let i = 0; i < data.length; i += 10) { const row = data[i], el = tbody[Keyed].get(row.id); row.label += ' !!!'; render(Row(row, selected), tbody, el, el.nextSibling) } }
+	const clear = () => (data = [], selected = null, render(null, tbody))
 	const swaprows = () => this.next(() => { if (data.length > 998) [data[1], data[998]] = [data[998], data[1]] })
+	const draw = () => (render(null, tbody), render(rows(), tbody))
+	const rows = function* (items = data) { for (const row of items) yield Row(row, selected) }
 
 	const click = event => {
 		const a = event.target.closest('a')
@@ -57,8 +60,8 @@ const App = function* () {
 			</div>
 		</div>,
 		<table class="table table-hover table-striped test-data">
-			<tbody set:onclick={click}>
-				{data.map(row => <Row row={row} selected={selected} />)}
+			<tbody ref={el => tbody = el} set:onclick={click}>
+				{rows()}
 			</tbody>
 		</table>,
 		<span class="preloadicon glyphicon glyphicon-remove" aria-hidden="true" memo />,
