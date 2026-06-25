@@ -1,8 +1,8 @@
-const vnodes = new WeakSet
+const VNode = Symbol.for('ajo.vnode')
 
-export const mark = v => (vnodes.add(v), v)
+export const mark = v => (v[VNode] = v, v)
 
-export const isVNode = v => vnodes.has(v)
+export const isVNode = v => v?.[VNode] === v
 
 export const Fragment = props => props.children
 

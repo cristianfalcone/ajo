@@ -91,13 +91,28 @@ describe('render', () => {
 		expect(document.body.textContent).toBe('[object Object]')
 	})
 
+	it('should not treat copied or inherited vnode markers as vnodes', () => {
+
+		const vnode = jsx('img', { src: 'x', onerror: 'window.__xss = true' })
+
+		render({ ...vnode }, document.body)
+
+		expect(document.body.querySelector('img')).toBeNull()
+		expect(document.body.textContent).toBe('[object Object]')
+
+		render(Object.create(vnode), document.body)
+
+		expect(document.body.querySelector('img')).toBeNull()
+		expect(document.body.textContent).toBe('[object Object]')
+	})
+
 	it('should render SVG elements', () => {
 
 		const ns = 'http://www.w3.org/2000/svg'
 
 		render(
-			<svg xmlns={ns} width="100" height="100">
-				<circle cx="50" cy="50" r="40" stroke="green" stroke-width="4" fill="yellow" />
+			<svg xmlns={ns} width="100" height="100" class="icon">
+				<circle class="dot" cx="50" cy="50" r="40" stroke="green" stroke-width="4" fill="yellow" />
 			</svg>,
 			document.body
 		)
@@ -109,6 +124,8 @@ describe('render', () => {
 		expect(circle).not.toBeNull()
 		expect(svg!.namespaceURI).toBe(ns)
 		expect(circle!.namespaceURI).toBe(ns)
+		expect(svg!.getAttribute('class')).toBe('icon')
+		expect(circle!.getAttribute('class')).toBe('dot')
 	})
 
 	it('should not render set: prefixed attributes', () => {

@@ -7,7 +7,6 @@ const Key = Symbol.for('ajo.key')
 const Keyed = Symbol.for('ajo.keyed')
 const Memo = Symbol.for('ajo.memo')
 const Cache = Symbol.for('ajo.cache')
-const Count = Symbol.for('ajo.count')
 const Generator = Symbol.for('ajo.generator')
 const Iterator = Symbol.for('ajo.iterator')
 const Render = Symbol.for('ajo.render')
@@ -54,7 +53,7 @@ export const render = (h, el, child = el.firstChild, ref = null) => {
 
 		el.textContent = ''
 
-		for (child of gone) if (child.nodeType == 1) unref(child, el)
+		for (child of gone) if (child.nodeType == 1) unref(child)
 
 	} else while (child && child != ref) {
 
@@ -121,9 +120,9 @@ const text = (h, node, ref) => {
 
 const element = (h, el, node, ref) => {
 
-	const { nodeName, children, key, skip, memo, [Generator]: gen, [Args]: args } = h
+	const nodeName = h.nodeName, key = h.key, gen = h[Generator]
 
-	if (key != null && ref == null) node = (el[Keyed] ??= new Map()).get(key) ?? node
+	if (node && key != null && ref == null) node = (el[Keyed] ??= new Map()).get(key) ?? node
 
 	while (node && node != ref && (
 
@@ -141,13 +140,13 @@ const element = (h, el, node, ref) => {
 
 	if (key != null) (el[Keyed] ??= new Map()).set(node[Key] = key, node)
 
-	if (!node[Cache] || memo == null || some(node[Memo], memo)) {
+	if (!node[Cache] || h.memo == null || some(node[Memo], h.memo)) {
 
-		node[Count] = attrs(node[Cache], h, node, node[Count])
+		attrs(node[Cache], h, node)
 
-		if (!skip) gen ? next(gen, args, node) : render(children, node)
+		if (!h.skip) gen ? next(gen, h[Args], node) : !node[Cache] && (typeof h.children == 'string' || typeof h.children == 'number') ? node.textContent = h.children + '' : render(h.children, node)
 
-		node[Memo] = memo
+		node[Memo] = h.memo
 
 		node[Cache] = h
 	}
@@ -155,19 +154,13 @@ const element = (h, el, node, ref) => {
 	return node
 }
 
-const attrs = (cache, h, node, count) => {
+const attrs = (cache, h, node) => {
 
 	if (!cache) for (let i = node.attributes.length; i--;) hasOwn(h, node.attributes[i].name) || node.removeAttribute(node.attributes[i].name)
-
-	let n = 0
 
 	for (const key in h) if (hasOwn(h, key)) {
 
 		const value = h[key]
-
-		n++
-
-		if (cache && cache[key] === undefined && !hasOwn(cache, key)) count = -1
 
 		if (cache && cache[key] === value || key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo') continue
 
@@ -177,10 +170,12 @@ const attrs = (cache, h, node, count) => {
 
 		else if (value == null || value === false) node.removeAttribute(key)
 
+		else if (key == 'class' && typeof node.className == 'string') node.className = value === true ? '' : value
+
 		else node.setAttribute(key, value === true ? '' : value)
 	}
 
-	if (cache && count != n) for (const key in cache) if (hasOwn(cache, key)) {
+	if (cache) for (const key in cache) if (hasOwn(cache, key)) {
 
 		if (hasOwn(h, key) || key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo') continue
 
@@ -188,11 +183,21 @@ const attrs = (cache, h, node, count) => {
 
 		else node.removeAttribute(key)
 	}
-
-	return n
 }
 
-const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b
+const some = (a, b) => {
+
+	if (isArray(a) && isArray(b)) {
+
+		if (a.length != b.length) return true
+
+		for (let i = a.length; i--;) if (a[i] !== b[i]) return true
+
+		return false
+	}
+
+	return a !== b
+}
 
 const each = (fn, node) => {
 

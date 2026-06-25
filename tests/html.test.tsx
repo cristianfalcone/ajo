@@ -84,6 +84,14 @@ describe('render', () => {
 		expect(html).toBe('[object Object]')
 	})
 
+	it('should not treat copied or inherited vnode markers as vnodes', () => {
+
+		const vnode = jsx('img', { src: 'x', onerror: 'alert(1)' })
+
+		expect(render({ ...vnode })).toBe('[object Object]')
+		expect(render(Object.create(vnode))).toBe('[object Object]')
+	})
+
 	it('should not emit unsafe tag or attribute names', () => {
 
 		expect(render(jsx('img', { src: 'x', ['onerror=alert(1)']: true }))).toBe('<img src="x">')
