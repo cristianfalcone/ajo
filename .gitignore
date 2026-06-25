@@ -4,3 +4,6 @@ dist
 CLAUDE.md
 AGENTS.md
 ai
+bench/results
+bench/.dist
+bench/node_modules

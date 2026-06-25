@@ -1,0 +1,92 @@
+body {
+	font-family: system-ui, sans-serif;
+	margin: 0;
+}
+
+.container {
+	margin: 0 auto;
+	max-width: 1170px;
+	padding: 0 15px;
+}
+
+.jumbotron {
+	background: #eee;
+	border-radius: 6px;
+	margin: 30px 0;
+	padding: 30px;
+}
+
+.row {
+	display: grid;
+	gap: 8px 30px;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.col-md-6,
+.col-sm-6 {
+	min-width: 0;
+}
+
+.smallpad {
+	padding: 4px 0;
+}
+
+.btn {
+	border: 1px solid #2e6da4;
+	border-radius: 4px;
+	cursor: pointer;
+	font: inherit;
+	padding: 6px 12px;
+}
+
+.btn-primary {
+	background: #337ab7;
+	color: white;
+}
+
+.btn-block {
+	display: block;
+	width: 100%;
+}
+
+.table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.table td {
+	border-top: 1px solid #ddd;
+	line-height: 20px;
+	padding: 8px;
+}
+
+.table-striped tr:nth-child(odd) {
+	background: #f9f9f9;
+}
+
+.table-hover tr:hover,
+.danger {
+	background: #f2dede !important;
+}
+
+.col-md-1 {
+	width: 8.33333333%;
+}
+
+.col-md-4 {
+	width: 33.33333333%;
+}
+
+.col-md-6 {
+	width: 50%;
+}
+
+a {
+	color: #337ab7;
+	cursor: pointer;
+	text-decoration: none;
+}
+
+.glyphicon-remove::before {
+	content: "x";
+}

@@ -42,6 +42,9 @@
 	],
 	"scripts": {
 		"test": "vitest --run",
+		"bench": "pnpm --dir bench bench",
+		"bench:quick": "pnpm --dir bench bench:quick",
+		"bench:ajo": "pnpm --dir bench bench:ajo",
 		"build": "vite build",
 		"bump": "pnpm version patch && git push && git push --tags",
 		"release": "pnpm test && pnpm build && pnpm bump && pnpm publish"

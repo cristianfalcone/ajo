@@ -1,0 +1,25 @@
+{
+	"name": "ajo-bench",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"bench": "node run.mjs",
+		"bench:quick": "node run.mjs --quick",
+		"bench:ajo": "node run.mjs --ajo"
+	},
+	"devDependencies": {
+		"@babel/core": "7.29.7",
+		"esbuild": "0.28.1",
+		"inferno": "9.1.0",
+		"inferno-create-element": "9.1.0",
+		"lit": "3.3.3",
+		"mikado": "0.8.400",
+		"playwright-core": "1.61.1",
+		"preact": "10.29.2",
+		"react": "19.2.7",
+		"react-dom": "19.2.7",
+		"babel-preset-solid": "1.9.12",
+		"solid-js": "1.9.13",
+		"svelte": "5.56.4"
+	}
+}
