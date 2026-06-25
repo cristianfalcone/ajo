@@ -2,7 +2,7 @@ import type { Children, Stateful } from 'ajo'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, stateful } from 'ajo'
 import { context } from 'ajo/context'
-import { h } from 'ajo/jsx-runtime'
+import { jsx } from 'ajo/jsx-runtime'
 
 describe('render', () => {
 
@@ -225,7 +225,7 @@ describe('render', () => {
 
 		const onclick = vi.fn()
 
-		render(h('button', { children: 'Go' }), document.body)
+		render(jsx('button', { children: 'Go' }), document.body)
 
 		const button = document.querySelector('button')!
 
@@ -236,12 +236,12 @@ describe('render', () => {
 			},
 		})
 
-		render(h('button', { 'set:guard': 'ok', 'set:onclick': onclick, children: 'Go' }), document.body)
+		render(jsx('button', { 'set:guard': 'ok', 'set:onclick': onclick, children: 'Go' }), document.body)
 
-		expect(() => render(h('button', { 'set:guard': 'boom', 'set:onclick': null, children: 'Go' }), document.body)).toThrow('boom')
+		expect(() => render(jsx('button', { 'set:guard': 'boom', 'set:onclick': null, children: 'Go' }), document.body)).toThrow('boom')
 		expect(button.onclick).toBe(onclick)
 
-		render(h('button', { 'set:guard': 'ok', 'set:onclick': null, children: 'Go' }), document.body)
+		render(jsx('button', { 'set:guard': 'ok', 'set:onclick': null, children: 'Go' }), document.body)
 
 		expect(button.onclick).toBeNull()
 	})
@@ -341,7 +341,7 @@ describe('components', () => {
 
 		const props = Object.create({ 'attr:onmouseover': 'alert(1)' })
 
-		render(h(Component, props), document.body)
+		render(jsx(Component, props), document.body)
 
 		expect(document.body.firstElementChild!.getAttribute('onmouseover')).toBeNull()
 		expect(document.body.innerHTML).toBe('<div><span>safe</span></div>')
@@ -1120,6 +1120,31 @@ it('should remove stale attributes when hydrating reused elements', () => {
 	expect(button!.textContent).toBe('Click')
 })
 
+it('should remove stale attributes when hydrating undefined values', () => {
+
+	document.body.innerHTML = '<button id="stale">Click</button>'
+
+	render(jsx('button', { id: undefined, children: 'Click' }), document.body)
+
+	expect(document.querySelector('button')!.getAttribute('id')).toBeNull()
+})
+
+it('should remove stale attributes when hydrating memoized elements', () => {
+
+	document.body.innerHTML = '<a onclick="alert(document.domain)" href="/old">old</a>'
+
+	const original = document.querySelector('a')
+
+	render(<a memo={true} href="/safe">safe</a>, document.body)
+
+	const link = document.querySelector('a')!
+
+	expect(link).toBe(original)
+	expect(link.getAttribute('onclick')).toBeNull()
+	expect(link.getAttribute('href')).toBe('/safe')
+	expect(link.textContent).toBe('safe')
+})
+
 describe('skip special attribute', () => {
 
 	beforeEach(() => {
@@ -1254,7 +1279,7 @@ describe('skip special attribute', () => {
 		let href: string | null = '/old'
 		let title: string | null = 'old'
 
-		const Link = () => h('a', { skip: true, href, title, children: 'unmanaged' })
+		const Link = () => jsx('a', { skip: true, href, title, children: 'unmanaged' })
 
 		render(<Link />, document.body)
 
@@ -1446,7 +1471,7 @@ describe('memo attribute', () => {
 		expect(document.body.innerHTML).toBe('<div><p>This will always update: changed</p><div><p>Memoized count: 0</p><p>This won\'t update: initial</p></div></div>')
 	})
 
-	it('should update attributes when memo skips children', () => {
+	it('should not update attributes or children when memo values are the same', () => {
 
 		let href = '/old'
 		let label = 'old'
@@ -1462,7 +1487,7 @@ describe('memo attribute', () => {
 
 		const link = document.querySelector('a')!
 
-		expect(link.getAttribute('href')).toBe('/new')
+		expect(link.getAttribute('href')).toBe('/old')
 		expect(link.textContent).toBe('old')
 	})
 

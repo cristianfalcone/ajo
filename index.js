@@ -7,6 +7,7 @@ const Key = Symbol.for('ajo.key')
 const Keyed = Symbol.for('ajo.keyed')
 const Memo = Symbol.for('ajo.memo')
 const Cache = Symbol.for('ajo.cache')
+const Count = Symbol.for('ajo.count')
 const Generator = Symbol.for('ajo.generator')
 const Iterator = Symbol.for('ajo.iterator')
 const Render = Symbol.for('ajo.render')
@@ -43,7 +44,19 @@ export const render = (h, el, child = el.firstChild, ref = null) => {
 		}
 	})
 
-	while (child && child != ref) {
+	if (child && !ref && child == el.firstChild) {
+
+		const gone = []
+
+		el[Keyed]?.clear()
+
+		while (child) gone.push(child), child = child.nextSibling
+
+		el.textContent = ''
+
+		for (child of gone) if (child.nodeType == 1) unref(child, el)
+
+	} else while (child && child != ref) {
 
 		const node = child.nextSibling
 
@@ -128,35 +141,55 @@ const element = (h, el, node, ref) => {
 
 	if (key != null) (el[Keyed] ??= new Map()).set(node[Key] = key, node)
 
-	const fresh = memo == null || some(node[Memo], memo)
+	if (!node[Cache] || memo == null || some(node[Memo], memo)) {
 
-	attrs(node[Cache], h, node)
+		node[Count] = attrs(node[Cache], h, node, node[Count])
 
-	if (fresh && !skip) gen ? next(gen, args, node) : render(children, node)
+		if (!skip) gen ? next(gen, args, node) : render(children, node)
 
-	node[Memo] = memo
+		node[Memo] = memo
 
-	node[Cache] = h
+		node[Cache] = h
+	}
 
 	return node
 }
 
-const attrs = (cache, h, node) => {
+const attrs = (cache, h, node, count) => {
 
 	if (!cache) for (let i = node.attributes.length; i--;) hasOwn(h, node.attributes[i].name) || node.removeAttribute(node.attributes[i].name)
 
-	for (const key of keys({ ...cache, ...h })) {
+	let n = 0
 
-		if (key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo' || cache?.[key] === h[key]) continue
+	for (const key in h) if (hasOwn(h, key)) {
 
-		if (key == 'ref' && typeof h[key] == 'function') h[key](node)
+		const value = h[key]
 
-		else if (key.startsWith('set:')) node[key.slice(4)] = h[key]
+		n++
 
-		else if (h[key] == null || h[key] === false) node.removeAttribute(key)
+		if (cache && cache[key] === undefined && !hasOwn(cache, key)) count = -1
 
-		else node.setAttribute(key, h[key] === true ? '' : h[key])
+		if (cache && cache[key] === value || key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo') continue
+
+		if (key == 'ref' && typeof value == 'function') value(node)
+
+		else if (key.startsWith('set:')) node[key.slice(4)] = value
+
+		else if (value == null || value === false) node.removeAttribute(key)
+
+		else node.setAttribute(key, value === true ? '' : value)
 	}
+
+	if (cache && count != n) for (const key in cache) if (hasOwn(cache, key)) {
+
+		if (hasOwn(h, key) || key == 'nodeName' || key == 'children' || key == 'key' || key == 'skip' || key == 'memo') continue
+
+		if (key.startsWith('set:')) node[key.slice(4)] = undefined
+
+		else node.removeAttribute(key)
+	}
+
+	return n
 }
 
 const some = (a, b) => isArray(a) && isArray(b) ? a.some((v, i) => v !== b[i]) : a !== b

@@ -2,7 +2,7 @@ import type { Stateful, Children } from 'ajo'
 import { describe, it, expect, vi } from 'vitest'
 import { render } from 'ajo/html'
 import { context } from 'ajo/context'
-import { h } from 'ajo/jsx-runtime'
+import { jsx } from 'ajo/jsx-runtime'
 
 describe('render', () => {
 
@@ -86,13 +86,13 @@ describe('render', () => {
 
 	it('should not emit unsafe tag or attribute names', () => {
 
-		expect(render(h('img', { src: 'x', ['onerror=alert(1)']: true }))).toBe('<img src="x">')
-		expect(render(h('div><script>alert(1)</script><div', null, 'safe text'))).toBe('<div>safe text</div>')
+		expect(render(jsx('img', { src: 'x', ['onerror=alert(1)']: true }))).toBe('<img src="x">')
+		expect(render(jsx('div><script>alert(1)</script><div', { children: 'safe text' }))).toBe('<div>safe text</div>')
 	})
 
 	it('should not serialize inherited vnode attributes', () => {
 
-		const html = render(h('input', Object.assign(Object.create({
+		const html = render(jsx('input', Object.assign(Object.create({
 			autofocus: true,
 			onfocus: 'alert(1)',
 		}), {
@@ -110,7 +110,7 @@ describe('render', () => {
 
 		const props = Object.create({ 'attr:onmouseover': 'alert(1)' })
 
-		expect(render(h(Component, props))).toBe('<div><span>safe</span></div>')
+		expect(render(jsx(Component, props))).toBe('<div><span>safe</span></div>')
 	})
 
 	it('should not copy polluted Object.prototype attrs onto stateful components', () => {

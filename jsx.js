@@ -1,27 +1,18 @@
-const { hasOwn } = Object
-
 const vnodes = new WeakSet
 
-export const mark = h => (vnodes.add(h), h)
+export const mark = v => (vnodes.add(v), v)
 
-export const isVNode = h => vnodes.has(h)
+export const isVNode = v => vnodes.has(v)
 
 export const Fragment = props => props.children
 
-export const h = (type, props, ...children) => {
+export function jsx(type, props, key) {
 
 	(props ??= {}).nodeName = type
 
-	if (!hasOwn(props, 'children') && children.length) props.children = children.length == 1 ? children[0] : children
+	if (key != null) props.key = key
 
 	return mark(props)
-}
-
-export function jsx(type, props, key) {
-
-	if (key != null) (props ??= {}).key = key
-
-	return h(type, props)
 }
 
 export const jsxs = jsx

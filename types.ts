@@ -105,9 +105,8 @@ declare module 'ajo/html' {
 }
 
 declare module 'ajo/jsx-runtime' {
-	import { Type, Args, VNode, Children, ElementChildrenAttribute, IntrinsicElements as _IE } from 'ajo'
+	import { Type, Args, VNode, ElementChildrenAttribute, IntrinsicElements as _IE } from 'ajo'
 	export function Fragment({ children }: ElementChildrenAttribute): typeof children
-	export function h(tag: Type, attrs?: Args | null, ...children: Children[]): VNode
 	export function jsx(type: Type, props: Args | null, key?: string | number): VNode
 	export function jsxs(type: Type, props: Args | null, key?: string | number): VNode
 	export function jsxDEV(type: Type, props: Args | null, key?: string | number): VNode
@@ -120,7 +119,7 @@ declare module 'ajo/jsx-runtime' {
 
 declare module 'ajo/jsx-dev-runtime' {
 	import { IntrinsicElements as _IE } from 'ajo'
-	export { Fragment, h, jsx, jsxs, jsxDEV } from 'ajo/jsx-runtime'
+	export { Fragment, jsx, jsxs, jsxDEV } from 'ajo/jsx-runtime'
 	export namespace JSX {
 		type ElementChildrenAttribute = import('ajo').ElementChildrenAttribute
 		type LibraryManagedAttributes<C, P> = import('ajo').ManagedAttributes<C, P>

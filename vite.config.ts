@@ -11,11 +11,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const terser = (): Plugin => ({
 	name: 'terser',
 	async generateBundle({ format }, bundle) {
+		const nameCache = {}
+
 		for (const chunk of Object.values(bundle)) if (chunk.type == 'chunk') {
 			chunk.code = (await minify(chunk.code, {
 				module: format == 'es',
 				compress: { module: format == 'es', passes: 2, toplevel: true },
 				mangle: { toplevel: true },
+				nameCache,
 				format: { comments: false, quote_style: 0 },
 			})).code!
 		}
