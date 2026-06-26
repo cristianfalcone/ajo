@@ -58,7 +58,7 @@ const Counter: Stateful<Args, 'section'> = function* ({ initial }) {
         <>
           <input
             ref={el => inputRef = el}
-            value={count}
+            set:value={count}
             set:oninput={e => this.next(() => count = +(e.target as HTMLInputElement).value)}
           />
           <button set:onclick={inc}>+{step}</button>
@@ -320,7 +320,9 @@ const inc = () => count++  // won't re-render
 
 // ❌ set:textContent/innerHTML without skip: content gets cleared
 <div set:innerHTML={html} />
-<div set:innerHTML={userHtml} skip />  // skip is not sanitization
+
+// ❌ skip is not sanitization
+<div set:innerHTML={userHtml} skip />
 
 // ✅ Correct
 const inc = () => this.next(() => count++)

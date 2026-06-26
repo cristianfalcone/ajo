@@ -38,6 +38,12 @@ Use `pnpm --dir bench bench:ajo -- --samples 5 --warmups 1` when a change needs 
 Full default run:
 
 ```sh
+pnpm bench
+```
+
+Full run with more samples:
+
+```sh
 pnpm bench -- --samples 9 --warmups 2
 ```
 

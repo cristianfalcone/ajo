@@ -256,7 +256,7 @@ function* AutoFocus() {
 
   while (true) yield (
     <>
-      <input ref={el => el?.focus()} />
+      <input ref={el => { input = el; el?.focus() }} />
       <button set:onclick={() => input?.select()}>Select</button>
     </>
   )
@@ -425,7 +425,8 @@ let ref: ThisParameterType<typeof Counter> | null = null
 | Export | Description |
 |--------|-------------|
 | `render(children)` | Render to HTML string. |
-| `html(children)` | Render to HTML generator (yields strings). |
+| `html(children, emit)` | Render to HTML chunks by calling `emit(chunk)`. |
+| `defaults` | Default SSR wrapper tag config (`defaults.tag`). |
 
 ### Stateful `this`
 | Property | Description |
@@ -434,7 +435,7 @@ let ref: ThisParameterType<typeof Counter> | null = null
 | `this.signal` | AbortSignal that aborts on unmount. Pass to `fetch()`, `addEventListener()`, etc. |
 | `this.next(fn?)` | Re-render. Callback receives current args. Returns callback's result. |
 | `this.throw(error)` | Throw to parent boundary. |
-| `this.return(deep?)` | Terminate generator. Pass `true` to also terminate child generators. |
+| `this.return(deep?)` | Terminate generator. Deep cleanup is the default; pass `false` to skip child generators. |
 
 `this` is also the wrapper element (`this.addEventListener()`, etc).
 
